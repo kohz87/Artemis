@@ -1,0 +1,175 @@
+import { memo, useCallback, type MouseEvent as ReactMouseEvent } from 'react'
+import type { FolderNode, SidebarSelection } from '../../types'
+import { FolderNameInput } from './FolderNameInput'
+import { FolderItemRow } from './FolderItemRow'
+import { FOLDER_ROW_CONTENT_INSET, getFolderConnectorLeft, getFolderDepthIndent } from './folderTreeLayout'
+import { translate, type AppLocale } from '../../lib/i18n'
+
+interface FolderTreeRowProps {
+  depth: number
+  expanded: Record<string, boolean>
+  node: FolderNode
+  onDeleteFolder?: (folderPath: string) => void
+  onOpenMenu: (node: FolderNode, event: ReactMouseEvent<HTMLDivElement>) => void
+  onRenameFolder?: (folderPath: string, nextName: string) => Promise<boolean> | boolean
+  onSelect: (selection: SidebarSelection) => void
+  onStartRenameFolder?: (folderPath: string) => void
+  onToggle: (path: string) => void
+  onCancelRenameFolder?: () => void
+  locale?: AppLocale
+  renamingFolderPath?: string | null
+  rootPath?: string
+  selection: SidebarSelection
+}
+
+function FolderRenameRow({
+  contentInset,
+  depthIndent,
+  node,
+  locale,
+  onCancelRenameFolder,
+  onRenameFolder,
+}: {
+  contentInset: number
+  depthIndent: number
+  node: FolderNode
+  locale: AppLocale
+  onCancelRenameFolder: () => void
+  onRenameFolder: (folderPath: string, nextName: string) => Promise<boolean> | boolean
+}) {
+  return (
+    <div style={{ paddingLeft: depthIndent }}>
+      <FolderNameInput
+        ariaLabel={translate(locale, 'sidebar.folder.name')}
+        initialValue={node.name}
+        placeholder={translate(locale, 'sidebar.folder.name')}
+        leftInset={contentInset}
+        selectTextOnFocus={true}
+        testId="rename-folder-input"
+        onCancel={onCancelRenameFolder}
+        onSubmit={(nextName) => onRenameFolder(node.path, nextName)}
+      />
+    </div>
+  )
+}
+
+function FolderChildren({
+  depth,
+  expanded,
+  node,
+  onDeleteFolder,
+  onOpenMenu,
+  onRenameFolder,
+  onSelect,
+  onStartRenameFolder,
+  onToggle,
+  onCancelRenameFolder,
+  locale,
+  renamingFolderPath,
+  rootPath,
+  selection,
+}: FolderTreeRowProps) {
+  const isExpanded = expanded[node.path] ?? false
+  const hasChildren = node.children.length > 0
+  if (!isExpanded || !hasChildren) return null
+
+  return (
+    <div className="relative" data-testid={`folder-children:${node.path}`}>
+      <div
+        className="absolute top-0 bottom-0 bg-border"
+        data-testid={`folder-connector:${node.path}`}
+        style={{ left: getFolderConnectorLeft(depth), width: 1 }}
+      />
+      {node.children.map((child) => (
+        <FolderTreeRow
+          key={child.path}
+          depth={depth + 1}
+          expanded={expanded}
+          node={child}
+          onDeleteFolder={onDeleteFolder}
+          onOpenMenu={onOpenMenu}
+          onRenameFolder={onRenameFolder}
+          onSelect={onSelect}
+          onStartRenameFolder={onStartRenameFolder}
+          onToggle={onToggle}
+          onCancelRenameFolder={onCancelRenameFolder}
+          locale={locale}
+          renamingFolderPath={renamingFolderPath}
+          rootPath={rootPath}
+          selection={selection}
+        />
+      ))}
+    </div>
+  )
+}
+
+export const FolderTreeRow = memo(function FolderTreeRow({
+  depth,
+  expanded,
+  node,
+  onDeleteFolder,
+  onOpenMenu,
+  onRenameFolder,
+  onSelect,
+  onStartRenameFolder,
+  onToggle,
+  onCancelRenameFolder,
+  locale = 'en',
+  renamingFolderPath,
+  rootPath,
+  selection,
+}: FolderTreeRowProps) {
+  const isExpanded = expanded[node.path] ?? false
+  const isRenaming = renamingFolderPath === node.path
+  const isSelected = selection.kind === 'folder' && selection.path === node.path
+  const canMutateFolder = node.path.length > 0
+  const depthIndent = getFolderDepthIndent(depth)
+  const contentInset = FOLDER_ROW_CONTENT_INSET
+  const selectFolder = useCallback(() => {
+    onSelect(node.path === '' ? { kind: 'folder', path: '', rootPath } : { kind: 'folder', path: node.path })
+  }, [node.path, onSelect, rootPath])
+  const row = (
+    <FolderItemRow
+      contentInset={contentInset}
+      depthIndent={depthIndent}
+      isExpanded={isExpanded}
+      isSelected={isSelected}
+      node={node}
+      onOpenMenu={onOpenMenu}
+      onSelect={selectFolder}
+      onStartRenameFolder={canMutateFolder ? onStartRenameFolder : undefined}
+      onToggle={onToggle}
+    />
+  )
+
+  return (
+    <>
+      {isRenaming && onRenameFolder && onCancelRenameFolder ? (
+        <FolderRenameRow
+          contentInset={contentInset}
+          depthIndent={depthIndent}
+          node={node}
+          locale={locale}
+          onCancelRenameFolder={onCancelRenameFolder}
+          onRenameFolder={onRenameFolder}
+        />
+      ) : row}
+      <FolderChildren
+        depth={depth}
+        expanded={expanded}
+        node={node}
+        onDeleteFolder={onDeleteFolder}
+        onOpenMenu={onOpenMenu}
+        onRenameFolder={onRenameFolder}
+        onSelect={onSelect}
+        onStartRenameFolder={onStartRenameFolder}
+        onToggle={onToggle}
+        onCancelRenameFolder={onCancelRenameFolder}
+        locale={locale}
+        renamingFolderPath={renamingFolderPath}
+        rootPath={rootPath}
+        selection={selection}
+      />
+    </>
+  )
+})
