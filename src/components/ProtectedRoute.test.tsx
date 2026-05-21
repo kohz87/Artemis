@@ -114,4 +114,29 @@ describe('ProtectedRoute', () => {
     expect(screen.getByRole('heading', { name: 'Unlock Artemis' })).toBeInTheDocument()
     expect(localStorage.getItem(ARTEMIS_AUTH_SESSION_KEY)).toBeNull()
   })
+
+  it('allows users to dismiss the persistent session status panel without ending the session', () => {
+    vi.stubEnv('ARTEMIS_PASSWORD', 'swordfish')
+    localStorage.setItem(ARTEMIS_AUTH_SESSION_KEY, JSON.stringify({
+      authenticated: true,
+      session_created_at: now.toISOString(),
+      last_accessed_at: now.toISOString(),
+    }))
+
+    render(
+      <ProtectedRoute>
+        <div>Artemis workspace</div>
+      </ProtectedRoute>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss Artemis session status' }))
+
+    expect(screen.getByText('Artemis workspace')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Artemis session status')).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(ARTEMIS_AUTH_SESSION_KEY) ?? '{}')).toEqual<AuthSession>({
+      authenticated: true,
+      session_created_at: now.toISOString(),
+      last_accessed_at: now.toISOString(),
+    })
+  })
 })

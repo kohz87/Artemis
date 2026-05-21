@@ -113,6 +113,31 @@
   padding: 12px;
 }
 
+.auth-session-panel__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.auth-session-panel__dismiss {
+  margin: -6px -6px 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary, #787774);
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.auth-session-panel__dismiss:hover {
+  background: var(--surface-hover, #efefed);
+  color: var(--foreground, #37352f);
+}
+
 .auth-session-panel__status {
   font-size: 13px;
   font-weight: 700;

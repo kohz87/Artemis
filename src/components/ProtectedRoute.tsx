@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useAuth, type AuthSession } from '../hooks/useAuth'
 import { LoginPage } from './LoginPage'
 
@@ -18,14 +18,25 @@ function formatSessionTimestamp(timestamp: string): string {
   return sessionDateFormatter.format(date)
 }
 
-function SessionStatus({ session, onLogout, onClearSession }: {
+function SessionStatus({ session, onLogout, onClearSession, onDismiss }: {
   session: AuthSession
   onLogout: () => void
   onClearSession: () => void
+  onDismiss: () => void
 }) {
   return (
     <aside className="auth-session-panel" aria-label="Artemis session status">
-      <div className="auth-session-panel__status">Persistent session active</div>
+      <div className="auth-session-panel__header">
+        <div className="auth-session-panel__status">Persistent session active</div>
+        <button
+          className="auth-session-panel__dismiss"
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss Artemis session status"
+        >
+          ×
+        </button>
+      </div>
       <div className="auth-session-panel__timestamp">
         Session created {formatSessionTimestamp(session.session_created_at)}
       </div>
@@ -51,6 +62,7 @@ function SessionStatus({ session, onLogout, onClearSession }: {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const auth = useAuth()
+  const [isSessionStatusDismissed, setIsSessionStatusDismissed] = useState(false)
 
   if (!auth.isAuthenticated) {
     return <LoginPage onLogin={auth.login} />
@@ -59,8 +71,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   return (
     <>
       {children}
-      {auth.isPasswordProtectionEnabled && auth.session && (
-        <SessionStatus session={auth.session} onLogout={auth.logout} onClearSession={auth.clearSession} />
+      {auth.isPasswordProtectionEnabled && auth.session && !isSessionStatusDismissed && (
+        <SessionStatus
+          session={auth.session}
+          onLogout={auth.logout}
+          onClearSession={auth.clearSession}
+          onDismiss={() => setIsSessionStatusDismissed(true)}
+        />
       )}
     </>
   )
