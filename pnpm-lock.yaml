@@ -4,6 +4,16 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@hono/node-server': 1.19.13
+  express-rate-limit: 8.2.2
+  hono: 4.12.14
+  path-to-regexp: 8.4.0
+  picomatch: 4.0.4
+  postcss: 8.5.10
+  protobufjs: 7.5.6
+  rollup: 4.59.0
+
 patchedDependencies:
   '@blocknote/core@0.46.2': c93b0eab9c8a1800cc1489627146cbe9037999f409efcc8234b33f670d2ccf8d
   '@blocknote/react@0.46.2': e09f7011df33f4ff92c0d3fd8c9060e62f08997d076f3e438e1e82f8c1ab2f76
@@ -3425,7 +3435,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: ^3 || ^4
+      picomatch: 4.0.4
     peerDependenciesMeta:
       picomatch:
         optional: true

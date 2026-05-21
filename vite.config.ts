@@ -18,7 +18,7 @@ import {
   type Dirent,
 } from 'fs'
 import os from 'os'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import matter from 'gray-matter'
@@ -213,9 +213,9 @@ const devServerWatchIgnored = [
   '**/src-tauri/target/**',
 ]
 
-function envPort(names: string[], fallback: number): number {
+function envPort(env: Record<string, string | undefined>, names: string[], fallback: number): number {
   for (const name of names) {
-    const raw = process.env[name]?.trim()
+    const raw = env[name]?.trim()
     if (!raw) continue
     const port = Number(raw)
     if (Number.isInteger(port) && port > 0 && port <= 65535) return port
@@ -223,16 +223,14 @@ function envPort(names: string[], fallback: number): number {
   return fallback
 }
 
-function envString(names: string[], fallback: string): string {
+function envString(env: Record<string, string | undefined>, names: string[], fallback: string): string {
   for (const name of names) {
-    const raw = process.env[name]?.trim()
+    const raw = env[name]?.trim()
     if (raw) return raw
   }
   return fallback
 }
 
-const webDevHost = envString(['ARTEMIS_HOST', 'HOST'], 'localhost')
-const webDevPort = envPort(['ARTEMIS_PORT', 'ARTEMIS_WEB_PORT', 'VITE_ARTEMIS_WEB_PORT', 'PORT'], 5202)
 const buildTarget = 'es2022'
 
 function readUtf8File(filePath: string): string {
@@ -1680,7 +1678,12 @@ function sendCaughtError(res: ServerResponse, err: unknown, fallback: string): v
 
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env }
+  const webDevHost = envString(env, ['ARTEMIS_HOST', 'HOST'], 'localhost')
+  const webDevPort = envPort(env, ['ARTEMIS_PORT', 'ARTEMIS_WEB_PORT', 'VITE_ARTEMIS_WEB_PORT', 'PORT'], 5202)
+
+  return {
 
   plugins: [react(), tailwindcss(), vaultApiPlugin()],
 
@@ -1764,4 +1767,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })

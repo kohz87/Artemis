@@ -24,6 +24,49 @@ import matter from 'gray-matter'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST_DIR = path.join(__dirname, '..', 'dist')
+const PROJECT_ROOT = path.join(__dirname, '..')
+
+function parseDotenvLine(line) {
+  const trimmed = line.trim()
+  if (!trimmed || trimmed.startsWith('#')) return null
+  const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+  if (!match) return null
+
+  let value = match[2] ?? ''
+  if (
+    (value.startsWith('"') && value.endsWith('"'))
+    || (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1)
+  } else {
+    value = value.replace(/\s+#.*$/, '').trim()
+  }
+  return [match[1], value]
+}
+
+function loadEnvFile(filePath, protectedKeys = new Set()) {
+  let content = ''
+  try {
+    content = readFileSync(filePath, 'utf-8')
+  } catch {
+    return
+  }
+
+  for (const line of content.split(/\r?\n/)) {
+    const parsed = parseDotenvLine(line)
+    if (!parsed) continue
+    const [key, value] = parsed
+    if (!protectedKeys.has(key)) process.env[key] = value
+  }
+}
+
+function loadEnvFiles() {
+  const protectedKeys = new Set(Object.keys(process.env))
+  loadEnvFile(path.join(PROJECT_ROOT, '.env'), protectedKeys)
+  loadEnvFile(path.join(PROJECT_ROOT, '.env.local'), protectedKeys)
+}
+
+loadEnvFiles()
 
 function envPort(names, fallback) {
   for (const name of names) {
