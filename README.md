@@ -1,113 +1,187 @@
-![Latest stable](https://img.shields.io/github/v/release/refactoringhq/tolaria?display_name=tag) [![CI](https://github.com/refactoringhq/tolaria/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/refactoringhq/tolaria/actions/workflows/ci.yml) [![Build](https://github.com/refactoringhq/tolaria/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/refactoringhq/tolaria/actions/workflows/release.yml) [![Codecov](https://codecov.io/gh/refactoringhq/tolaria/graph/badge.svg?branch=main)](https://codecov.io/gh/refactoringhq/tolaria) [![CodeScene Hotspot Code Health](https://codescene.io/projects/76865/status-badges/hotspot-code-health)](https://codescene.io/projects/76865)
+# Artemis
 
-# 💧 Tolaria
+Artemis is a local-first markdown knowledge base for writing, organizing, searching, and versioning notes. It treats a folder of `.md` files as the source of truth, layers a fast React/Tauri interface on top, and keeps your notes portable so they continue to work in any editor or git workflow.
 
-Tolaria is a desktop app for macOS, Windows, and Linux for managing **markdown knowledge bases**. People use it for a variety of use cases:
+## What Artemis does
 
-* Operate second brains and personal knowledge
-* Organize company docs as context for AI
-* Store OpenClaw/assistants memory and procedures
+- Files-first notes: every note is a plain markdown file with optional YAML frontmatter.
+- Vault-based organization: open a folder as a vault, create notes, browse folders, and keep metadata close to the files.
+- Git-aware workflows: initialize git, commit changes, connect remotes, pull/push, and resolve conflicts from the app.
+- Fast editing: rich editing, raw markdown editing, wikilinks, backlinks, search, file previews, and keyboard-first commands.
+- Web or desktop runtime: run as a browser app through Vite, or as a native desktop app through Tauri.
+- Optional web password gate: protect a standalone web session with `ARTEMIS_PASSWORD`.
+- Configurable network binding: use `ARTEMIS_HOST` and `ARTEMIS_PORT` for local, LAN, or server deployments.
 
-Personally, I use it to **run my life** (hey 👋 [Luca here](http://x.com/lucaronin)). I have a massive workspace of 10,000+ notes, which are the result of my [Refactoring](https://refactoring.fm/) work + a ton of personal journaling and *second braining*.
+## Requirements
 
-<img width="1000" height="656" alt="1776506856823-CleanShot_2026-04-18_at_12 06 57_2x" src="https://github.com/user-attachments/assets/8aeafb0a-b236-43c2-a083-ec111f903c38" />
-
-## Walkthroughs
-
-You can find some Loom walkthroughs below — they are short and to the point:
-- [How I Organize My Own Tolaria Workspace](https://www.loom.com/share/bb3aaffa238b4be0bd62e4464bca2528)
-- [My Inbox Workflow](https://www.loom.com/share/dffda263317b4fa8b47b59cdf9330571)
-- [How I Save Web Resources to Tolaria](https://www.loom.com/share/8a3c1776f801402ebbf4d7b0f31e9882)
-
-## Principles
-
-- 📑 **Files-first** — Your notes are plain markdown files. They're portable, work with any editor, and require no export step. Your data belongs to you, not to any app.
-- 🔌 **Git-first** — Every vault is a git repository. You get full version history, the ability to use any git remote, and zero dependency on Tolaria servers.
-- 🛜 **Offline-first, zero lock-in** — No accounts, no subscriptions, no cloud dependencies. Your vault works completely offline and always will. If you stop using Tolaria, you lose nothing.
-- 🔬 **Open source** — Tolaria is free and open source. I built this for [myself](https://x.com/lucaronin) and for sharing it with others.
-- 📋 **Standards-based** — Notes are markdown files with YAML frontmatter. No proprietary formats, no locked-in data. Everything works with standard tools if you decide to move away from Tolaria.
-- 🔍 **Types as lenses, not schemas** — Types in Tolaria are navigation aids, not enforcement mechanisms. There's no required fields, no validation, just helpful categories for finding notes.
-- 🪄**AI-first but not AI-only** — A vault of files works very well with AI agents, but you are free to use whatever you want. We support Claude Code, Codex CLI, and Gemini CLI setup paths, but you can edit the vault with any AI you want. We provide an AGENTS file for your agents to figure out.
-- ⌨️ **Keyboard-first** — Tolaria is designed for power-users who want to use keyboard as much as possible. A lot of how we designed the Editor and the Command Palette is based on this.
-- 💪 **Built from real use** — Tolaria was created for manage my personal vault of 10,000+ notes, and I use it every day. Every feature exists because it solved a real problem.
-
-## Installation
-
-### Homebrew
-
-Install via Homebrew on macOS:
-
-```batch
-brew install --cask tolaria
-```
-
-### Download from releases
-
-Download the [latest release here](https://refactoringhq.github.io/tolaria/download/) for macOS, Windows, or Linux.
-
-## Getting started
-
-When you open Tolaria for the first time you get the chance of cloning the [getting started vault](https://github.com/refactoringhq/tolaria-getting-started) — which gives you a walkthrough of the whole app.
-
-## Open source and local setup
-
-Tolaria is open source and built with Tauri, React, and TypeScript. If you want to run or contribute to the app locally, here is [how to get started](https://github.com/refactoringhq/tolaria/blob/main/docs/GETTING-STARTED.md). You can also find the gist below 👇
-
-### Prerequisites
+For web development:
 
 - Node.js 20+
 - pnpm 8+
+- git
+
+For desktop development:
+
 - Rust stable
-- macOS or Linux for development
+- Tauri system dependencies for your OS
 
-#### Linux system dependencies
-
-Tauri 2 on Linux requires WebKit2GTK 4.1 and GTK 3:
-
-- Arch / Manjaro:
-  ```bash
-  sudo pacman -S --needed webkit2gtk-4.1 base-devel curl wget file openssl \
-    appmenu-gtk-module libappindicator-gtk3 librsvg
-  ```
-- Debian / Ubuntu (22.04+):
-  ```bash
-  sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
-    libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
-    libsoup-3.0-dev patchelf
-  ```
-- Fedora 38+:
-  ```bash
-  sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
-    libappindicator-gtk3-devel librsvg2-devel
-  ```
-
-
-### Quick start
+Linux desktop dependencies:
 
 ```bash
-pnpm install
-pnpm dev
+# Debian / Ubuntu 22.04+
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+  libsoup-3.0-dev patchelf
+
+# Fedora 38+
+sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
+  libappindicator-gtk3-devel librsvg2-devel
+
+# Arch / Manjaro
+sudo pacman -S --needed webkit2gtk-4.1 base-devel curl wget file openssl \
+  appmenu-gtk-module libappindicator-gtk3 librsvg
 ```
 
-Open `http://localhost:5173` for the browser-based mock mode, or run the native desktop app with:
+## Setup
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/kohz87/Artemis.git
+cd Artemis
+pnpm install
+```
+
+Create a local environment file if you want custom ports, telemetry keys, localization credentials, or password protection:
+
+```bash
+cp .env.example .env.local
+```
+
+The most common local settings are:
+
+```bash
+# Bind only to this machine by default.
+ARTEMIS_HOST=localhost
+
+# Default dev port used by Vite and Tauri.
+ARTEMIS_PORT=5202
+
+# Optional. Leave blank to disable the login gate.
+ARTEMIS_PASSWORD=
+```
+
+## Run Artemis in the browser
+
+Start the web development server:
+
+```bash
+pnpm dev:web
+```
+
+Open the URL printed by Vite. By default Artemis listens on:
+
+```text
+http://localhost:5202
+```
+
+To expose it on your network or use a different port:
+
+```bash
+ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm dev:web
+```
+
+When running in web mode, Artemis uses the local Vite `/api/vault/*` middleware to read and write real markdown files when a vault folder is selected. If the local vault API is unavailable, it falls back to browser-local demo persistence.
+
+## First vault setup
+
+1. Start Artemis with `pnpm dev:web` or `pnpm tauri dev`.
+2. Open or select a vault folder when prompted.
+3. Use a dedicated folder for your notes, for example `~/ArtemisVault` or `~/notes`.
+4. Create a note. Artemis writes it as a `.md` file in the selected vault.
+5. If you want version history, initialize git for that vault from the setup flow, status bar, or command palette.
+6. If you want remote sync, connect a git remote from the bottom-bar remote chip or command palette.
+
+A vault can be either a plain folder or a git repository. Plain folders support markdown editing, search, and navigation; git-backed vaults additionally support history, commits, pull/push, remotes, auto-sync, and conflict resolution.
+
+## Optional password protection
+
+Set `ARTEMIS_PASSWORD` before starting or building Artemis to require a login before the UI loads:
+
+```bash
+ARTEMIS_PASSWORD='choose-a-long-password' pnpm dev:web
+```
+
+Successful logins persist in `localStorage` with creation and last-accessed timestamps. Sessions expire after 30 days of inactivity. Use the session panel to log out or clear the stored session immediately.
+
+## Production web build
+
+Build and serve the browser version:
+
+```bash
+pnpm build:web
+pnpm serve:web
+```
+
+The production web server listens on `0.0.0.0:5173` unless `ARTEMIS_HOST`, `ARTEMIS_PORT`, `ARTEMIS_WEB_PORT`, or `PORT` is set:
+
+```bash
+ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm serve:web
+```
+
+## Run Artemis as a desktop app
+
+Start the Tauri desktop app:
 
 ```bash
 pnpm tauri dev
 ```
 
-For the dedicated browser workflow, see [docs/WEB.md](docs/WEB.md).
+Tauri uses the same React frontend and native Rust commands for filesystem, git, updater, and desktop integrations.
 
-## Tech Docs
+## Useful commands
 
-- 📐 [ARCHITECTURE.md](docs/ARCHITECTURE.md) — System design, tech stack, data flow
-- 🧩 [ABSTRACTIONS.md](docs/ABSTRACTIONS.md) — Core abstractions and models
-- 🚀 [GETTING-STARTED.md](docs/GETTING-STARTED.md) — How to navigate the codebase
-- 📚 [ADRs](docs/adr) — Architecture Decision Records
+```bash
+pnpm dev:web              # Web dev server
+pnpm build:web            # Type-check and build web assets
+pnpm serve:web            # Serve the production web build
+pnpm tauri dev            # Native desktop development
+pnpm lint                 # ESLint
+pnpm test                 # Vitest test suite
+pnpm test:coverage        # Vitest coverage gate
+pnpm playwright:smoke     # Curated Playwright smoke tests
+pnpm playwright:regression # Full Playwright smoke directory
+```
+
+Rust tests live under `src-tauri`:
+
+```bash
+cd src-tauri
+cargo test
+```
+
+## Project layout
+
+```text
+src/                React frontend, hooks, components, utilities, localization
+src-tauri/          Tauri/Rust backend commands, vault scanning, git integration
+docs/               Architecture notes, setup docs, and ADRs
+scripts/            Local build, serving, and validation helpers
+tests/              Playwright tests
+```
+
+## More documentation
+
+- `docs/WEB.md` — web runtime, vault API, and deployment notes
+- `docs/GETTING-STARTED.md` — deeper development guide
+- `docs/ARCHITECTURE.md` — system design and data flow
+- `docs/ABSTRACTIONS.md` — core product and code abstractions
+- `docs/adr/` — architecture decision records
 
 ## Security
 
-If you believe you have found a security issue, please report it privately as described in [SECURITY.md](./SECURITY.md).
+If you find a security issue, report it privately using the process in `SECURITY.md`.
 
 ## License
 
-Tolaria is licensed under AGPL-3.0-or-later. The Tolaria name and logo remain covered by the project’s trademark policy.
+Artemis is licensed under AGPL-3.0-or-later.
