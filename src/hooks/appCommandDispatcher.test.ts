@@ -47,7 +47,6 @@ function makeHandlers(): AppCommandHandlers {
     onSearch: vi.fn(),
     onToggleRawEditor: vi.fn(),
     onToggleDiff: vi.fn(),
-    onOpenMcpSetup: vi.fn(),
     onPastePlainText: vi.fn(),
     onGoBack: vi.fn(),
     onGoForward: vi.fn(),
@@ -59,7 +58,6 @@ function makeHandlers(): AppCommandHandlers {
     onPull: vi.fn(),
     onResolveConflicts: vi.fn(),
     onViewChanges: vi.fn(),
-    onInstallMcp: vi.fn(),
     onOpenInNewWindow: vi.fn(),
     onReloadVault: vi.fn(),
     onRepairVault: vi.fn(),
@@ -222,7 +220,6 @@ describe('appCommandDispatcher', () => {
   it('dispatches AI panel toggle through the shared command path', () => {
     const handlers = makeHandlers()
     expect(dispatchAppCommand(APP_COMMAND_IDS.viewToggleAiChat, handlers)).toBe(true)
-    expect(handlers.onOpenMcpSetup).toHaveBeenCalled()
   })
 
   it('dispatches plain-text paste through the shared command path', () => {
@@ -300,7 +297,6 @@ describe('appCommandDispatcher', () => {
 
     expect(executeAppCommand(APP_COMMAND_IDS.viewToggleAiChat, handlers, 'native-menu')).toBe(true)
     expect(executeAppCommand(APP_COMMAND_IDS.viewToggleAiChat, handlers, 'renderer-keyboard')).toBe(false)
-    expect(handlers.onOpenMcpSetup).toHaveBeenCalledTimes(1)
   })
 
   it('suppresses a native-menu history echo after renderer keyboard yields to text editing', () => {

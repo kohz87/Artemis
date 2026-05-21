@@ -37,7 +37,6 @@ function makeHandlers(): MenuEventHandlers {
     onSearch: vi.fn(),
     onToggleRawEditor: vi.fn(),
     onToggleDiff: vi.fn(),
-    onOpenMcpSetup: vi.fn(),
     onPastePlainText: vi.fn(),
     onGoBack: vi.fn(),
     onGoForward: vi.fn(),
@@ -50,7 +49,6 @@ function makeHandlers(): MenuEventHandlers {
     onPull: vi.fn(),
     onResolveConflicts: vi.fn(),
     onViewChanges: vi.fn(),
-    onInstallMcp: vi.fn(),
     onReloadVault: vi.fn(),
     onRepairVault: vi.fn(),
     onOpenInNewWindow: vi.fn(),
@@ -310,10 +308,8 @@ describe('dispatchMenuEvent', () => {
     expect(h.onPastePlainText).toHaveBeenCalled()
   })
 
-  it('view-toggle-ai-chat triggers open MCP setup', () => {
     const h = makeHandlers()
     dispatchMenuEvent('view-toggle-ai-chat', h)
-    expect(h.onOpenMcpSetup).toHaveBeenCalled()
   })
 
   it('note-restore-deleted triggers restore deleted note', () => {
@@ -395,13 +391,6 @@ describe('dispatchMenuEvent', () => {
     dispatchMenuEvent('vault-view-changes', h)
     expect(h.onViewChanges).toHaveBeenCalled()
   })
-
-  it('vault-install-mcp triggers install MCP', () => {
-    const h = makeHandlers()
-    dispatchMenuEvent('vault-install-mcp', h)
-    expect(h.onInstallMcp).toHaveBeenCalled()
-  })
-
   it('vault-reload triggers reload vault', () => {
     const h = makeHandlers()
     dispatchMenuEvent('vault-reload', h)
@@ -429,5 +418,4 @@ describe('dispatchMenuEvent', () => {
     expect(h.onCreateNote).not.toHaveBeenCalled()
     expect(h.onSave).not.toHaveBeenCalled()
   })
-})
 

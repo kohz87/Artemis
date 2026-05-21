@@ -77,9 +77,6 @@ interface AppCommandsConfig {
   vaultCount?: number
   locale?: AppLocale
   onSetThemeMode?: (mode: ThemeMode) => void
-  mcpStatus?: string
-  onInstallMcp?: () => void
-  onOpenMcpSetup?: () => void
   onReloadVault?: () => void
   onRepairVault?: () => void
   onSetNoteIcon?: () => void
@@ -176,12 +173,6 @@ type CommandRegistryVaultActions = Pick<
   | 'onRestoreDeletedNote'
   | 'canRestoreDeletedNote'
 >
-type CommandRegistryMcpActions = Pick<
-  CommandRegistryConfig,
-  | 'mcpStatus'
-  | 'onInstallMcp'
-  | 'onOpenMcpSetup'
->
 type CommandRegistryNoteActions = Pick<
   CommandRegistryConfig,
   | 'onSetNoteIcon'
@@ -219,7 +210,6 @@ function createKeyboardActions(
     onZoomReset: config.onZoomReset,
     onGoBack: config.onGoBack,
     onGoForward: config.onGoForward,
-    onOpenMcpSetup: config.onOpenMcpSetup,
     onToggleRawEditor: config.onToggleRawEditor,
     onToggleInspector: config.onToggleInspector,
     onToggleFavorite: config.onToggleFavorite,
@@ -265,7 +255,6 @@ function createMenuEventActionHandlers(
   | 'onSearch'
   | 'onToggleRawEditor'
   | 'onToggleDiff'
-  | 'onOpenMcpSetup'
   | 'onToggleOrganized'
   | 'onGoBack'
   | 'onGoForward'
@@ -290,7 +279,6 @@ function createMenuEventActionHandlers(
     onSearch: config.onSearch,
     onToggleRawEditor: config.onToggleRawEditor,
     onToggleDiff: config.onToggleDiff,
-    onOpenMcpSetup: config.onOpenMcpSetup,
     onToggleOrganized: config.onToggleOrganized,
     onGoBack: config.onGoBack,
     onGoForward: config.onGoForward,
@@ -311,7 +299,6 @@ function createMenuEventVaultHandlers(
   | 'onPull'
   | 'onResolveConflicts'
   | 'onViewChanges'
-  | 'onInstallMcp'
   | 'onReloadVault'
   | 'onRepairVault'
   | 'onOpenInNewWindow'
@@ -326,7 +313,6 @@ function createMenuEventVaultHandlers(
     onPull: config.onPull,
     onResolveConflicts: config.onResolveConflicts,
     onViewChanges: viewChanges,
-    onInstallMcp: config.onInstallMcp,
     onReloadVault: config.onReloadVault,
     onRepairVault: config.onRepairVault,
     onOpenInNewWindow: config.onOpenInNewWindow,
@@ -440,15 +426,6 @@ function createCommandRegistryVaultConfig(
   }
 }
 
-function createCommandRegistryMcpConfig(
-  config: AppCommandsConfig,
-): CommandRegistryMcpActions {
-  return {
-    mcpStatus: config.mcpStatus,
-    onInstallMcp: config.onInstallMcp,
-    onOpenMcpSetup: config.onOpenMcpSetup,
-  }
-}
 
 function createCommandRegistryNoteConfig(
   config: AppCommandsConfig,
@@ -475,7 +452,6 @@ function createCommandRegistryConfig(config: AppCommandsConfig): CommandRegistry
     ...createCommandRegistryCoreConfig(config),
     ...createCommandRegistrySelectionConfig(config),
     ...createCommandRegistryVaultConfig(config),
-    ...createCommandRegistryMcpConfig(config),
     ...createCommandRegistryNoteConfig(config),
   }
 }

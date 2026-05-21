@@ -9,7 +9,6 @@ import { buildNoteCommands } from './commands/noteCommands'
 import { buildGitCommands } from './commands/gitCommands'
 import { buildViewCommands } from './commands/viewCommands'
 import { buildSettingsCommands } from './commands/settingsCommands'
-import { buildMcpCommands } from './commands/mcpCommands'
 import { buildTypeCommands } from './commands/typeCommands'
 import { buildFilterCommands } from './commands/filterCommands'
 import { localizeCommandActions } from './commands/localizeCommands'
@@ -27,9 +26,6 @@ interface CommandRegistryConfig {
   entries: VaultEntry[]
   modifiedCount: number
   activeNoteHasIcon?: boolean
-  mcpStatus?: string
-  onInstallMcp?: () => void
-  onOpenMcpSetup?: () => void
   onReloadVault?: () => void
   onRepairVault?: () => void
   onSetNoteIcon?: () => void
@@ -120,7 +116,6 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     onGoBack, onGoForward, canGoBack, canGoForward,
     onCreateType,
     onRemoveActiveVault, onRestoreGettingStarted, isGettingStartedHidden, vaultCount,
-    mcpStatus, onInstallMcp, onOpenMcpSetup,
     onReloadVault, onRepairVault,
     locale, onSetThemeMode,
     onSetNoteIcon, onRemoveNoteIcon, activeNoteHasIcon, onChangeNoteType, onMoveNoteToFolder, canMoveNoteToFolder,
@@ -216,20 +211,17 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
   ])
 
   const settingsCommands = useMemo(() => buildSettingsCommands({
-    mcpStatus, vaultCount, isGettingStartedHidden,
+    vaultCount, isGettingStartedHidden,
     onOpenSettings, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onInstallMcp, onReloadVault, onRepairVault,
+    onReloadVault, onRepairVault,
     locale, onSetThemeMode,
   }), [
-    mcpStatus, vaultCount, isGettingStartedHidden, onOpenSettings,
+    vaultCount, isGettingStartedHidden, onOpenSettings,
     onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onInstallMcp, onReloadVault, onRepairVault,
+    onReloadVault, onRepairVault,
     locale, onSetThemeMode,
   ])
 
-  const mcpCommands = useMemo(() => buildMcpCommands({
-    onOpenMcpSetup,
-  }), [onOpenMcpSetup])
 
   const typeCommands = useMemo(
     () => buildTypeCommands(vaultTypes, onCreateNoteOfType, onSelect),
@@ -245,12 +237,11 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     ...gitCommands,
     ...viewCommands,
     ...settingsCommands,
-    ...mcpCommands,
     ...typeCommands,
     ...filterCommands,
   ], [
     navigationCommands, noteCommands, gitCommands, viewCommands,
-    settingsCommands, mcpCommands, typeCommands, filterCommands,
+    settingsCommands, typeCommands, filterCommands,
   ])
 
   return useMemo(() => localizeCommandActions(commands, locale), [commands, locale])

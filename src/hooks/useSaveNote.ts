@@ -3,11 +3,12 @@ import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke, updateMockContent } from '../mock-tauri'
 import { cacheNoteContent } from './useTabManagement'
 
-export async function persistContent(path: string, content: string): Promise<void> {
+export async function persistContent(path: string, content: string, vaultPath?: string): Promise<void> {
+  const args = vaultPath ? { path, content, vaultPath } : { path, content }
   if (isTauri()) {
-    await invoke('save_note_content', { path, content })
+    await invoke('save_note_content', args)
   } else {
-    await mockInvoke('save_note_content', { path, content })
+    await mockInvoke('save_note_content', args)
   }
 }
 
@@ -17,15 +18,15 @@ export async function persistContent(path: string, content: string): Promise<voi
  *
  * @param updateContent - callback to also update in-memory state after save
  */
-export function useSaveNote(updateContent: (path: string, content: string) => void) {
+export function useSaveNote(updateContent: (path: string, content: string) => void, vaultPath?: string) {
   const saveNote = useCallback(async (path: string, content: string) => {
-    await persistContent(path, content)
+    await persistContent(path, content, vaultPath)
     cacheNoteContent(path, content)
     if (!isTauri()) {
       updateMockContent(path, content)
     }
     updateContent(path, content)
-  }, [updateContent])
+  }, [updateContent, vaultPath])
 
   return { saveNote }
 }

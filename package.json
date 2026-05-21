@@ -5,11 +5,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "dev:web": "vite --host 0.0.0.0",
+    "dev": "vite",
+    "dev:web": "vite",
     "build": "tsc -b && vite build",
     "build:web": "tsc -b && vite build",
-    "bundle-mcp": "node scripts/bundle-mcp-server.mjs",
     "lint": "eslint .",
     "l10n:translate": "lara-cli translate",
     "l10n:translate:force": "lara-cli translate --force",
@@ -91,7 +90,6 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "^4.0.18",
     "esbuild": "^0.27.3",
@@ -105,8 +103,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.2",
-    "vitest": "^4.0.18",
-    "ws": "^8.19.0"
+    "vitest": "^4.0.18"
   },
   "pnpm": {
     "overrides": {

@@ -144,14 +144,6 @@ describe('useAppKeyboard', () => {
     expect(onToggleInspector).toHaveBeenCalled()
   })
 
-  it('Cmd+Shift+L still works in Tauri mode', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    ;(window as typeof window & { __TAURI__?: object }).__TAURI__ = {}
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    fireKey('l', { metaKey: true, shiftKey: true })
-    expect(onOpenMcpSetup).toHaveBeenCalled()
-  })
 
   it('Cmd+D triggers toggle favorite on active note', () => {
     const actions = makeActions()
@@ -427,59 +419,6 @@ describe('useAppKeyboard', () => {
     expect(actions.onZoomReset).toHaveBeenCalled()
   })
 
-  it('Cmd+Shift+L triggers open MCP setup', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    fireKey('l', { metaKey: true, shiftKey: true })
-    expect(onOpenMcpSetup).toHaveBeenCalled()
-  })
-
-  it('Cmd+Shift+L works when text input is focused', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    withFocusedInput(() => {
-      fireKey('l', { metaKey: true, shiftKey: true })
-      expect(onOpenMcpSetup).toHaveBeenCalled()
-    })
-  })
-
-  it('Cmd+Shift+L works when editor stops propagation', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    withFocusedContentEditable((editable) => {
-      editable.addEventListener('keydown', (event) => event.stopPropagation())
-      fireKeyOnTarget(editable, 'l', { metaKey: true, shiftKey: true })
-      expect(onOpenMcpSetup).toHaveBeenCalled()
-    })
-  })
-
-  it('Cmd+Shift+L matches by physical key code when the localized key differs', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    fireKey('¬', { code: 'KeyL', metaKey: true, shiftKey: true })
-    expect(onOpenMcpSetup).toHaveBeenCalled()
-  })
-
-  it('Ctrl+Shift+L triggers open MCP setup', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    fireKey('l', { ctrlKey: true, shiftKey: true })
-    expect(onOpenMcpSetup).toHaveBeenCalled()
-  })
-
-  it('Cmd+I does not trigger AI chat (reserved for italic)', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup }))
-    fireKey('i', { metaKey: true })
-    expect(onOpenMcpSetup).not.toHaveBeenCalled()
-  })
-
   it('Cmd+Shift+O triggers open in new window', () => {
     const actions = makeActions()
     const onOpenInNewWindow = vi.fn()
@@ -496,14 +435,5 @@ describe('useAppKeyboard', () => {
     expect(onToggleInspector).toHaveBeenCalled()
   })
 
-  it('Cmd+Shift+I does not trigger AI chat toggle', () => {
-    const actions = makeActions()
-    const onOpenMcpSetup = vi.fn()
-    const onToggleInspector = vi.fn()
-    renderHook(() => useAppKeyboard({ ...actions, onOpenMcpSetup, onToggleInspector }))
-    fireKey('i', { metaKey: true, shiftKey: true })
-    expect(onToggleInspector).toHaveBeenCalled()
-    expect(onOpenMcpSetup).not.toHaveBeenCalled()
-  })
 })
 

@@ -622,6 +622,7 @@ function useEditorPersistence({
   resolveCurrentPath,
   resolvePathBeforeSave,
   canPersist,
+  resolvedPath,
   locale,
 }: {
   updateEntry: AppSaveDeps['updateEntry']
@@ -636,6 +637,7 @@ function useEditorPersistence({
   resolveCurrentPath: (path: string) => string
   resolvePathBeforeSave: (path: string) => Promise<string>
   canPersist: boolean
+  resolvedPath: string
   locale: AppLocale
 }) {
   const onAfterSave = useCallback(() => {
@@ -663,6 +665,7 @@ function useEditorPersistence({
     resolvePath: resolveCurrentPath,
     resolvePathBeforeSave,
     canPersist,
+    vaultPath: canPersist ? resolvedPath : undefined,
     locale,
   })
 
@@ -800,7 +803,7 @@ export function useAppSave({
   const { handleSaveRaw, handleContentChange, savePendingForPath, savePending } = useEditorPersistence({
     updateEntry, setTabs, setToastMessage, loadModifiedFiles, trackUnsaved,
     clearUnsaved, onInternalVaultWrite, reloadViews, scheduleUntitledRename,
-    resolveCurrentPath, resolvePathBeforeSave, canPersist,
+    resolveCurrentPath, resolvePathBeforeSave, canPersist, resolvedPath,
     locale,
   })
   const replaceRenamedEntry = useReplaceRenamedEntry({ registerRenamedPath, replaceEntry })

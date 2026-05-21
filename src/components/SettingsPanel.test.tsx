@@ -458,24 +458,6 @@ describe('SettingsPanel', () => {
     )
     expect(screen.queryByText(/to open settings/)).not.toBeInTheDocument()
   })
-
-  it('copies the Artemis MCP config from the MCP section', () => {
-    const onCopyMcpConfig = vi.fn()
-    render(
-      <SettingsPanel
-        open={true}
-        settings={emptySettings}
-        onSave={onSave}
-        onCopyMcpConfig={onCopyMcpConfig}
-        onClose={onClose}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Copy Artemis MCP config' }))
-
-    expect(onCopyMcpConfig).toHaveBeenCalledOnce()
-  })
-
   describe('Privacy & Telemetry section', () => {
     it('renders crash reporting and analytics toggles', () => {
       render(

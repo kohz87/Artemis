@@ -35,20 +35,11 @@ fn build_config(
     vault_path: &str,
     permission_mode: AiAgentPermissionMode,
 ) -> Result<String, String> {
-    let mcp_server_path = crate::cli_agent_runtime::mcp_server_path_string()?;
-    let ws_ui_port = crate::mcp::configured_ws_ui_port().to_string();
 
     serde_json::to_string(&serde_json::json!({
         "$schema": "https://opencode.ai/config.json",
         "permission": permission_config(permission_mode),
-        "mcp": {
-            "artemis": {
-                "type": "local",
-                "command": ["node", mcp_server_path],
-                "environment": {
-                    "VAULT_PATH": vault_path,
-                    "WS_UI_PORT": ws_ui_port
-                },
+
                 "enabled": true
             }
         }
@@ -99,7 +90,6 @@ mod tests {
     }
 
     #[test]
-    fn command_sets_vault_cwd_and_mcp_config() {
         let command = build_command(&PathBuf::from("opencode"), &request()).unwrap();
         let actual_args: Vec<&OsStr> = command.get_args().collect();
         let config_value = command
@@ -117,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn config_includes_permissions_and_artemis_mcp_server() {
+    fn config_includes_permissions() {
         if let Ok(config) =
             build_config("/tmp/vault", crate::ai_agents::AiAgentPermissionMode::Safe)
         {
@@ -125,13 +115,9 @@ mod tests {
             assert_eq!(json["permission"]["edit"], "allow");
             assert_eq!(json["permission"]["external_directory"], "deny");
             assert_eq!(json["permission"]["bash"], "deny");
-            assert_eq!(json["mcp"]["artemis"]["type"], "local");
-            assert_eq!(json["mcp"]["artemis"]["command"][0], "node");
             assert_eq!(
-                json["mcp"]["artemis"]["environment"]["VAULT_PATH"],
                 "/tmp/vault"
             );
-            assert!(json["mcp"]["artemis"]["command"][1]
                 .as_str()
                 .unwrap()
                 .ends_with("index.js"));

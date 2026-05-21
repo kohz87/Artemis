@@ -22,7 +22,6 @@ type BreadcrumbActions = Pick<
   | 'effectiveRawMode'
   | 'onToggleRaw'
   | 'forceRawMode'
-  | 'onOpenMcpSetup'
   | 'showTableOfContents'
   | 'onToggleTableOfContents'
   | 'inspectorCollapsed'
@@ -187,7 +186,6 @@ function ActiveTabBreadcrumb({
       rawMode={actions.effectiveRawMode}
       onToggleRaw={actions.onToggleRaw}
       forceRawMode={actions.forceRawMode}
-      onOpenMcpSetup={actions.onOpenMcpSetup}
       showTableOfContents={actions.showTableOfContents}
       onToggleTableOfContents={actions.onToggleTableOfContents}
       inspectorCollapsed={actions.inspectorCollapsed}
@@ -227,7 +225,6 @@ function EditorLoadingBreadcrumb({
       onToggleDiff={actions.onToggleDiff}
       rawMode={false}
       forceRawMode={false}
-      onOpenMcpSetup={actions.onOpenMcpSetup}
       showTableOfContents={actions.showTableOfContents}
       onToggleTableOfContents={actions.onToggleTableOfContents}
       inspectorCollapsed={actions.inspectorCollapsed}
@@ -247,7 +244,6 @@ function buildBreadcrumbActions(model: EditorContentModel): BreadcrumbActions {
     effectiveRawMode: model.effectiveRawMode,
     onToggleRaw: model.onToggleRaw,
     forceRawMode: model.forceRawMode,
-    onOpenMcpSetup: model.onOpenMcpSetup,
     showTableOfContents: model.showTableOfContents,
     onToggleTableOfContents: model.onToggleTableOfContents,
     inspectorCollapsed: model.inspectorCollapsed,

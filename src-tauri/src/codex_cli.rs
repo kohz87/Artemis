@@ -240,9 +240,6 @@ fn build_codex_args(
     request: &AgentStreamRequest,
     last_message_path: Option<&Path>,
 ) -> Result<Vec<String>, String> {
-    let mcp_server_path = crate::cli_agent_runtime::mcp_server_path_string()?;
-    let node_path = crate::mcp::find_node()?;
-
     let mut args = vec![
         "--sandbox".into(),
         codex_sandbox(request.permission_mode).into(),
@@ -252,12 +249,6 @@ fn build_codex_args(
         "--json".into(),
         "-C".into(),
         request.vault_path.clone(),
-        "-c".into(),
-        codex_config_string("mcp_servers.artemis.command", &node_path.to_string_lossy()),
-        "-c".into(),
-        codex_config_string_list("mcp_servers.artemis.args", &[mcp_server_path.as_str()]),
-        "-c".into(),
-        codex_mcp_env_config(&request.vault_path),
     ];
 
     if let Some(path) = last_message_path {
@@ -281,13 +272,6 @@ fn codex_config_string_list(key: &str, values: &[&str]) -> String {
     format!("{key}=[{values}]")
 }
 
-fn codex_mcp_env_config(vault_path: &str) -> String {
-    format!(
-        r#"mcp_servers.artemis.env={{VAULT_PATH="{}",WS_UI_PORT="{}"}}"#,
-        toml_escape(vault_path),
-        crate::mcp::configured_ws_ui_port()
-    )
-}
 
 fn toml_escape(value: &str) -> String {
     value.replace('\\', r#"\\"#).replace('"', r#"\""#)
@@ -360,7 +344,6 @@ where
                 });
             }
         }
-        "mcp_tool_call" => emit_codex_mcp_tool_event(item, item_id, completed, emit),
         "agent_message" if completed => {
             if let Some(text) = item["text"].as_str() {
                 emit(AiAgentStreamEvent::TextDelta {
@@ -372,30 +355,6 @@ where
     }
 }
 
-fn emit_codex_mcp_tool_event<F>(
-    item: &serde_json::Value,
-    item_id: &str,
-    completed: bool,
-    emit: &mut F,
-) where
-    F: FnMut(AiAgentStreamEvent),
-{
-    if completed {
-        emit(AiAgentStreamEvent::ToolDone {
-            tool_id: item_id.to_string(),
-            output: codex_tool_output(item),
-        });
-        return;
-    }
-
-    let tool_name = item["tool"].as_str().unwrap_or("MCP tool");
-    let input = json_field_to_string(&item["arguments"]);
-    emit(AiAgentStreamEvent::ToolStart {
-        tool_name: tool_name.to_string(),
-        tool_id: item_id.to_string(),
-        input,
-    });
-}
 
 fn codex_tool_output(item: &serde_json::Value) -> Option<String> {
     item["error"]["message"]
@@ -589,34 +548,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn build_codex_args_uses_resolved_mcp_node_and_ui_bridge_env() {
-        let args = build_codex_args(
-            &AgentStreamRequest {
-                message: "Read [[Test note]]".into(),
-                system_prompt: None,
-                vault_path: "/tmp/vault".into(),
-                permission_mode: AiAgentPermissionMode::Safe,
-            },
-            None,
-        )
-        .unwrap();
-
-        let command_override = args
-            .iter()
-            .find(|arg| arg.starts_with("mcp_servers.artemis.command="))
-            .expect("Codex should receive a transient Artemis MCP command");
-
-        assert!(
-            !command_override.ends_with(r#""node""#),
-            "Codex MCP command should use Artemis' resolved Node path, got {command_override}"
-        );
-        assert!(
-            command_override.contains('/'),
-            "Codex MCP command should be an absolute Node path, got {command_override}"
-        );
-        assert!(args.iter().any(|arg| arg.contains(r#"WS_UI_PORT="9711""#)));
-    }
 
     #[test]
     fn build_codex_command_keeps_agent_process_contract() {
@@ -985,50 +916,6 @@ printf '%s\n' '{"type":"item.completed","item":{"id":"msg_1","type":"agent_messa
         ));
     }
 
-    #[test]
-    fn dispatch_codex_mcp_tool_call_maps_to_tool_events() {
-        let mut events = Vec::new();
-        let started = serde_json::json!({
-            "type": "item.started",
-            "item": {
-                "id": "item_1",
-                "type": "mcp_tool_call",
-                "server": "artemis",
-                "tool": "search_notes",
-                "arguments": { "query": "meeting", "limit": 5 },
-                "status": "in_progress"
-            }
-        });
-        let completed = serde_json::json!({
-            "type": "item.completed",
-            "item": {
-                "id": "item_1",
-                "type": "mcp_tool_call",
-                "server": "artemis",
-                "tool": "search_notes",
-                "arguments": { "query": "meeting", "limit": 5 },
-                "result": [{ "title": "Meeting notes" }],
-                "status": "completed"
-            }
-        });
-
-        dispatch_codex_event(&started, &mut |event| events.push(event));
-        dispatch_codex_event(&completed, &mut |event| events.push(event));
-
-        assert!(matches!(
-            &events[0],
-            AiAgentStreamEvent::ToolStart { tool_name, tool_id, input }
-                if tool_name == "search_notes"
-                    && tool_id == "item_1"
-                    && input.as_deref().is_some_and(|value| value.contains("meeting"))
-        ));
-        assert!(matches!(
-            &events[1],
-            AiAgentStreamEvent::ToolDone { tool_id, output }
-                if tool_id == "item_1"
-                    && output.as_deref().is_some_and(|value| value.contains("Meeting notes"))
-        ));
-    }
 
     #[test]
     fn dispatch_codex_agent_message_maps_to_text_delta() {

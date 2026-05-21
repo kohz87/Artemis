@@ -31,7 +31,6 @@ describe('buildAgentSystemPrompt', () => {
 
   it('does not promise shell execution for Pi power user mode', () => {
     const prompt = buildAgentSystemPrompt({ agent: 'pi', permissionMode: 'power_user' })
-    expect(prompt).toContain('Pi currently uses the same conservative Artemis MCP configuration')
     expect(prompt).not.toContain('Local shell commands are available')
   })
 

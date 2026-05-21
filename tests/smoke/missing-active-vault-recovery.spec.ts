@@ -86,7 +86,6 @@ async function installMissingVaultMock(page: Page): Promise<void> {
           ? '# Runtime Vault Note\n\nBody.'
           : Promise.reject(missingError())
         handlers.is_git_repo = () => true
-        handlers.sync_mcp_bridge_vault = () => null
       },
       get() {
         return handlers

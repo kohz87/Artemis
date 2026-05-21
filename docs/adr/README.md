@@ -66,7 +66,6 @@ proposed → active → superseded
 | [0008](0008-underscore-system-properties.md) | Underscore convention for system properties | active |
 | [0009](0009-keyword-only-search.md) | Keyword-only search (remove semantic indexing) | active |
 | [0010](0010-dynamic-wikilink-relationship-detection.md) | Dynamic wikilink relationship detection | active |
-| [0011](0011-mcp-server-for-ai-integration.md) | MCP server for AI tool integration | superseded → [0074](0074-explicit-external-ai-tool-setup-and-least-privilege-desktop-scope.md) |
 | [0012](0012-claude-cli-for-ai-agent.md) | Claude CLI subprocess for AI agent | active |
 | [0013](0013-remove-theming-system.md) | Remove vault-based theming system | superseded -> [0081](0081-internal-light-dark-theme-runtime.md) |
 | [0014](0014-git-based-vault-cache.md) | Git-based incremental vault cache | active |

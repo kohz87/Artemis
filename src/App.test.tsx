@@ -574,31 +574,7 @@ describe('App', () => {
       expect(screen.getByText('Nothing to save')).toBeInTheDocument()
     })
   })
-
-  it('shows the Artemis MCP setup dialog from the menu', async () => {
-    mockCommandResults.check_mcp_status = 'installed'
-
-    render(<App />)
-
-    await waitFor(() => {
-      expect(screen.getByText('All Notes')).toBeInTheDocument()
-    }, { timeout: SLOW_APP_READY_TIMEOUT_MS })
-
-    await waitFor(() => {
-      expect(typeof window.__laputaTest?.dispatchBrowserMenuCommand).toBe('function')
-    })
-
-    act(() => {
-      window.__laputaTest?.dispatchBrowserMenuCommand?.('vault-install-mcp')
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('Manage Artemis MCP')).toBeInTheDocument()
-    })
-    expect(screen.getByTestId('mcp-setup-dialog')).toBeInTheDocument()
-  })
-
-  it('shows onboarding after telemetry consent when no active vault is configured', async () => {
+  it('opens the default vault after telemetry consent when no active vault is configured', async () => {
     mockCommandResults.get_settings = {
       auto_pull_interval_minutes: null,
       telemetry_consent: null,
@@ -619,15 +595,15 @@ describe('App', () => {
     fireEvent.click(screen.getByTestId('telemetry-accept'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('welcome-screen')).toBeInTheDocument()
+      expect(screen.getByTestId('status-vault-trigger')).toHaveTextContent('Getting Started')
     })
-    expect(screen.getByTestId('welcome-open-folder')).toHaveTextContent('Open existing vault')
+    expect(screen.queryByTestId('welcome-screen')).not.toBeInTheDocument()
   })
 
   it.each([
     ['telemetry-accept', 'Allow anonymous reporting'],
     ['telemetry-decline', 'No thanks'],
-  ])('ignores a remembered default vault after %s when onboarding was never completed', async (buttonTestId) => {
+  ])('opens a remembered default vault after %s even when onboarding was never completed', async (buttonTestId) => {
     const rememberedDefaultVaultPath = expectedDefaultVaultPath
     localStorage.setItem('tolaria_welcome_dismissed', '1')
     mockCommandResults.get_default_vault_path = rememberedDefaultVaultPath
@@ -655,9 +631,9 @@ describe('App', () => {
     fireEvent.click(screen.getByTestId(buttonTestId))
 
     await waitFor(() => {
-      expect(screen.getByTestId('welcome-screen')).toBeInTheDocument()
+      expect(screen.getByTestId('status-vault-trigger')).toHaveTextContent('Getting Started')
     })
-    expect(screen.getByTestId('welcome-open-folder')).toHaveTextContent('Open existing vault')
+    expect(screen.queryByTestId('welcome-screen')).not.toBeInTheDocument()
   })
 
   it('uses the app shell loading state while the last vault is still resolving', async () => {
@@ -719,7 +695,7 @@ describe('App', () => {
     expect(screen.getByTestId('welcome-open-folder')).toHaveTextContent('Choose a different folder')
   })
 
-  it('shows welcome instead of vault-missing when the missing path was not a persisted active vault', async () => {
+  it('shows default vault instead of vault-missing when no active vault was persisted', async () => {
     localStorage.setItem('tolaria_welcome_dismissed', '1')
     mockCommandResults.load_vault_list = {
       vaults: [],
@@ -731,10 +707,10 @@ describe('App', () => {
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByText('Welcome to Artemis')).toBeInTheDocument()
+      expect(screen.getByTestId('status-vault-trigger')).toHaveTextContent('Getting Started')
     })
     expect(screen.queryByText('Vault not found')).not.toBeInTheDocument()
-    expect(screen.getByTestId('welcome-open-folder')).toHaveTextContent('Open existing vault')
+    expect(screen.queryByText('Welcome to Artemis')).not.toBeInTheDocument()
   })
 
   it('persists and opens an existing vault chosen from onboarding', async () => {

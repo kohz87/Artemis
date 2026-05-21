@@ -6,7 +6,6 @@ import { sendShortcut, openCommandPalette, findCommand } from './helpers'
  * MacBook without pre-configured environment.
  *
  * Tasks under test:
- * 1. MCP server foundation + auto-registration
  * 3. AGENTS.md vault-level instructions
  * 4. AI Agent panel: vault-native AI
  * 5. Claude API wiring + full agent loop

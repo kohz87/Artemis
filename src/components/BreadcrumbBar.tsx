@@ -16,7 +16,7 @@ import {
 import {
   GitBranch,
   Code,
-  PlugsConnected,
+
   ListBullets,
   SidebarSimple,
   Trash,
@@ -44,7 +44,6 @@ interface BreadcrumbBarProps {
   onToggleRaw?: () => void
   /** When true, raw mode is forced (non-markdown file) -- hide the toggle. */
   forceRawMode?: boolean
-  onOpenMcpSetup?: () => void
   showTableOfContents?: boolean
   onToggleTableOfContents?: () => void
   inspectorCollapsed?: boolean
@@ -331,17 +330,6 @@ function DiffAction({
   )
 }
 
-function McpSetupAction({ onOpenMcpSetup }: Pick<BreadcrumbBarProps, 'onOpenMcpSetup'>) {
-  if (!onOpenMcpSetup) return null
-  return (
-    <IconActionButton
-      copy={{ label: 'Set up Artemis MCP', shortcut: getAppCommandShortcutDisplay(APP_COMMAND_IDS.viewToggleAiChat) }}
-      onClick={onOpenMcpSetup}
-    >
-      <PlugsConnected size={16} weight="regular" className={BREADCRUMB_ICON_CLASS} />
-    </IconActionButton>
-  )
-}
 
 function TableOfContentsAction({
   showTableOfContents,
@@ -793,7 +781,6 @@ function BreadcrumbActions({
   forceRawMode,
   noteWidth,
   onToggleNoteWidth,
-  onOpenMcpSetup,
   showTableOfContents,
   onToggleTableOfContents,
   inspectorCollapsed,
@@ -833,7 +820,6 @@ function BreadcrumbActions({
       <OverflowToolbarAction>
         <NoteWidthAction noteWidth={noteWidth} locale={locale} onToggleNoteWidth={onToggleNoteWidth} />
       </OverflowToolbarAction>
-      <McpSetupAction onOpenMcpSetup={onOpenMcpSetup} />
       <OverflowToolbarAction>
         <TableOfContentsAction
           showTableOfContents={showTableOfContents}

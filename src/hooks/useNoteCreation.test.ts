@@ -172,6 +172,47 @@ describe('resolveNewNote', () => {
     expect(content).not.toContain('status:')
   })
 
+  it('creates notes inside the requested vault-relative folder', () => {
+    const { entry } = resolveNewNote({
+      title: 'Sprint Plan',
+      type: 'Project',
+      vaultPath: '/vault',
+      targetFolderPath: 'projects/test',
+    })
+    expect(entry.path).toBe('/vault/projects/test/sprint-plan.md')
+    expect(entry.filename).toBe('sprint-plan.md')
+  })
+
+  it('accepts absolute target folders only when they stay under the vault', () => {
+    const { entry } = resolveNewNote({
+      title: 'Archive Note',
+      type: 'Note',
+      vaultPath: '/vault',
+      targetFolderPath: '/vault/archive/2026-05',
+    })
+    expect(entry.path).toBe('/vault/archive/2026-05/archive-note.md')
+  })
+
+  it('falls back to the vault root when the target folder tries directory traversal', () => {
+    const { entry } = resolveNewNote({
+      title: 'Escape Attempt',
+      type: 'Note',
+      vaultPath: '/vault',
+      targetFolderPath: '../outside',
+    })
+    expect(entry.path).toBe('/vault/escape-attempt.md')
+  })
+
+  it('falls back to the vault root when the absolute target folder is outside the vault', () => {
+    const { entry } = resolveNewNote({
+      title: 'Outside Attempt',
+      type: 'Note',
+      vaultPath: '/vault',
+      targetFolderPath: '/tmp/outside',
+    })
+    expect(entry.path).toBe('/vault/outside-attempt.md')
+  })
+
   it('applies valued properties and relationships from the type entry to newly created instances', () => {
     const typeEntry = makeEntry({
       title: 'Book',
@@ -443,6 +484,7 @@ describe('useNoteCreation hook', () => {
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
       content: expect.stringContaining('type: Project'),
+      vaultPath: windowsVaultPath,
     })
     expect(addEntry).toHaveBeenCalledWith(expect.objectContaining({
       path: createdPath,
@@ -489,6 +531,7 @@ describe('useNoteCreation hook', () => {
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
       content: expect.stringContaining('type: Note'),
+      vaultPath: '/test/vault',
     })
     expect(addPendingSave).toHaveBeenCalledWith(createdPath)
     expect(removePendingSave).toHaveBeenCalledWith(createdPath)
@@ -499,6 +542,33 @@ describe('useNoteCreation hook', () => {
     expect(vi.mocked(invoke).mock.invocationCallOrder[0]).toBeLessThan(
       openTabWithContent.mock.invocationCallOrder[0],
     )
+  })
+
+  it('handleCreateNoteImmediate persists under the selected target folder with vault context', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
+    const { result } = renderHook(() => useNoteCreation({
+      ...makeConfig(),
+      vaultPath: '/test/vault',
+      targetFolderPath: 'projects/test',
+    }, tabDeps))
+
+    await act(async () => {
+      result.current.handleCreateNoteImmediate()
+      await flushImmediateCreate()
+    })
+
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+      path: '/test/vault/projects/test/untitled-note-1700000000.md',
+      content: expect.stringContaining('type: Note'),
+      vaultPath: '/test/vault',
+    })
+    expect(addEntry).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/test/vault/projects/test/untitled-note-1700000000.md',
+      filename: 'untitled-note-1700000000.md',
+    }))
+    vi.restoreAllMocks()
   })
 
   it('handleCreateNoteImmediate does not open an optimistic note when disk creation fails', async () => {
@@ -568,10 +638,12 @@ describe('useNoteCreation hook', () => {
     expect(created).toBe(true)
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
       path: createdPath,
+      vaultPath: windowsVaultPath,
     })
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
       content: '---\ntype: Type\n---\n\n# Recipe\n',
+      vaultPath: windowsVaultPath,
     })
     expect(openTabWithContent).toHaveBeenCalledWith(expect.objectContaining({
       path: createdPath,
@@ -596,6 +668,7 @@ describe('useNoteCreation hook', () => {
     expect(created).toBe(false)
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
       path: '/test/vault/briefing.md',
+      vaultPath: '/test/vault',
     })
     expect(vi.mocked(invoke).mock.calls.some(([command]) => command === 'create_note_content')).toBe(false)
     expect(addEntry).not.toHaveBeenCalled()
@@ -617,6 +690,7 @@ describe('useNoteCreation hook', () => {
     expect(created).toBe(false)
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
       path: '/test/vault/note.md',
+      vaultPath: '/test/vault',
     })
     expect(vi.mocked(invoke).mock.calls.some(([command]) => command === 'create_note_content')).toBe(false)
     expect(addEntry).not.toHaveBeenCalled()

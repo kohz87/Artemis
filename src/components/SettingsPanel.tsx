@@ -9,7 +9,7 @@ import {
   type RefObject,
 } from 'react'
 import { Moon, Sun, X } from '@phosphor-icons/react'
-import { Copy, Folder, GitBranch, ListChecks, Palette, Plug, ShieldCheck } from 'lucide-react'
+import { Folder, GitBranch, ListChecks, Palette, ShieldCheck } from 'lucide-react'
 import type { Settings } from '../types'
 import {
   createTranslator,
@@ -47,7 +47,6 @@ interface SettingsPanelProps {
   settings: Settings
   locale?: AppLocale
   onSave: (settings: Settings) => void
-  onCopyMcpConfig?: () => void
   isGitVault?: boolean
   explicitOrganizationEnabled?: boolean
   onSaveExplicitOrganization?: (enabled: boolean) => void
@@ -80,7 +79,6 @@ interface SettingsBodyProps {
   setAutoGitInactiveThresholdSeconds: (value: number) => void
   autoAdvanceInboxAfterOrganize: boolean
   setAutoAdvanceInboxAfterOrganize: (value: boolean) => void
-  onCopyMcpConfig?: () => void
   themeMode: ThemeMode
   setThemeMode: (value: ThemeMode) => void
   locale: AppLocale
@@ -106,7 +104,6 @@ const SETTINGS_SECTION_IDS = {
   autogit: 'settings-section-autogit',
   appearance: 'settings-section-appearance',
   content: 'settings-section-content',
-  mcp: 'settings-section-mcp',
   workflow: 'settings-section-workflow',
   privacy: 'settings-section-privacy',
 } as const
@@ -211,7 +208,6 @@ export function SettingsPanel({
   settings,
   locale = 'en',
   onSave,
-  onCopyMcpConfig,
   isGitVault = true,
   explicitOrganizationEnabled = true,
   onSaveExplicitOrganization,
@@ -224,7 +220,6 @@ export function SettingsPanel({
       settings={settings}
       locale={locale}
       onSave={onSave}
-      onCopyMcpConfig={onCopyMcpConfig}
       isGitVault={isGitVault}
       explicitOrganizationEnabled={explicitOrganizationEnabled}
       onSaveExplicitOrganization={onSaveExplicitOrganization}
@@ -243,7 +238,6 @@ function SettingsPanelInner({
   settings,
   locale,
   onSave,
-  onCopyMcpConfig,
   isGitVault,
   explicitOrganizationEnabled,
   onSaveExplicitOrganization,
@@ -330,8 +324,7 @@ function SettingsPanelInner({
           locale={locale}
           updateDraft={updateDraft}
           isGitVault={isGitVault}
-          onCopyMcpConfig={onCopyMcpConfig}
-          setThemeMode={handleThemeModeChange}
+              setThemeMode={handleThemeModeChange}
           setHideGitignoredFiles={handleGitignoredVisibilityChange}
           setAllNotesFileVisibility={handleAllNotesFileVisibilityChange}
         />
@@ -367,7 +360,6 @@ interface SettingsBodyFromDraftProps {
   locale: AppLocale
   updateDraft: <Key extends keyof SettingsDraft>(key: Key, value: SettingsDraft[Key]) => void
   isGitVault: boolean
-  onCopyMcpConfig?: () => void
   setThemeMode: (value: ThemeMode) => void
   setHideGitignoredFiles: (value: boolean) => void
   setAllNotesFileVisibility: (value: AllNotesFileVisibility) => void
@@ -379,7 +371,6 @@ function SettingsBodyFromDraft({
   locale,
   updateDraft,
   isGitVault,
-  onCopyMcpConfig,
   setThemeMode,
   setHideGitignoredFiles,
   setAllNotesFileVisibility,
@@ -397,7 +388,6 @@ function SettingsBodyFromDraft({
       setAutoGitInactiveThresholdSeconds={(value) => updateDraft('autoGitInactiveThresholdSeconds', value)}
       autoAdvanceInboxAfterOrganize={draft.autoAdvanceInboxAfterOrganize}
       setAutoAdvanceInboxAfterOrganize={(value) => updateDraft('autoAdvanceInboxAfterOrganize', value)}
-      onCopyMcpConfig={onCopyMcpConfig}
       themeMode={draft.themeMode}
       setThemeMode={setThemeMode}
       initialH1AutoRename={draft.initialH1AutoRename}
@@ -436,7 +426,6 @@ function SettingsBodyNav({ t }: { t: Translate }) {
     { id: SETTINGS_SECTION_IDS.autogit, label: t('settings.autogit.title'), Icon: GitBranch },
     { id: SETTINGS_SECTION_IDS.appearance, label: t('settings.appearance.title'), Icon: Palette },
     { id: SETTINGS_SECTION_IDS.content, label: t('settings.vaultContent.title'), Icon: Folder },
-    { id: SETTINGS_SECTION_IDS.mcp, label: t('settings.aiAgents.title'), Icon: Plug },
     { id: SETTINGS_SECTION_IDS.workflow, label: t('settings.workflow.title'), Icon: ListChecks },
     { id: SETTINGS_SECTION_IDS.privacy, label: t('settings.privacy.title'), Icon: ShieldCheck },
   ]
@@ -535,7 +524,6 @@ function SettingsAgentWorkflowSections({
   t,
   autoAdvanceInboxAfterOrganize,
   setAutoAdvanceInboxAfterOrganize,
-  onCopyMcpConfig,
   explicitOrganization,
   setExplicitOrganization,
   crashReporting,
@@ -545,12 +533,6 @@ function SettingsAgentWorkflowSections({
 }: SettingsBodyProps) {
   return (
     <>
-      <SettingsSection id={SETTINGS_SECTION_IDS.mcp}>
-        <McpSettingsSection
-          t={t}
-          onCopyMcpConfig={onCopyMcpConfig}
-        />
-      </SettingsSection>
 
       <SettingsSection id={SETTINGS_SECTION_IDS.workflow}>
         <OrganizationWorkflowSection
@@ -807,56 +789,6 @@ function VaultContentSettingsSection({
   )
 }
 
-function McpSettingsSection({
-  t,
-  onCopyMcpConfig,
-}: Pick<
-  SettingsBodyProps,
-  | 't'
-  | 'onCopyMcpConfig'
->) {
-  return (
-    <>
-      <SectionHeading
-        title={t('settings.aiAgents.title')}
-      />
-
-      <SettingsGroup>
-        <SettingsRow
-          label="Artemis Agent MCP"
-          description="Connect Artemis through Artemis's MCP server. Copy the config snippet, then add it to Artemis as an MCP server for this vault."
-          controlWidth="wide"
-        >
-          <CopyMcpConfigButton t={t} onCopyMcpConfig={onCopyMcpConfig} />
-        </SettingsRow>
-      </SettingsGroup>
-    </>
-  )
-}
-
-function CopyMcpConfigButton({
-  t,
-  onCopyMcpConfig,
-}: {
-  t: Translate
-  onCopyMcpConfig?: () => void
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onCopyMcpConfig}
-      disabled={!onCopyMcpConfig}
-      className="w-fit gap-2"
-      aria-label={t('ai.panel.copyMcpConfig')}
-      data-testid="settings-copy-mcp-config"
-    >
-      <Copy size={15} />
-      {t('ai.panel.copyMcpConfig')}
-    </Button>
-  )
-}
 
 function OrganizationWorkflowSection({
   t,

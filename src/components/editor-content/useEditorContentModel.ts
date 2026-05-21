@@ -29,7 +29,6 @@ export interface EditorContentProps {
   onSave?: () => void
   activeStatus: NoteStatus
   showDiffToggle: boolean
-  onOpenMcpSetup?: () => void
   showTableOfContents?: boolean
   onToggleTableOfContents?: () => void
   inspectorCollapsed: boolean

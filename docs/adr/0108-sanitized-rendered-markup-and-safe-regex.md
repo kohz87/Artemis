@@ -16,7 +16,6 @@ Add direct runtime dependencies on `dompurify` and `safe-regex2`.
 
 Rendered Mermaid SVG and KaTeX HTML must be sanitized before insertion and mounted through DOM nodes rather than React `dangerouslySetInnerHTML`. User-provided regex sources must be length-bounded and checked with `safe-regex2` before compilation.
 
-SCA-reported vulnerable transitive dependencies are pinned through package-manager overrides so Codacy resolves patched floors until upstream dependencies adopt them naturally. This includes `protobufjs`, the MCP SDK web-server stack, and Vite's parser/build transitive stack. Rust lockfile-only updates keep OpenSSL, rustls-webpki, and tar on patched versions without changing public Tauri APIs.
 
 ## Consequences
 

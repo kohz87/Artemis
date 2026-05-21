@@ -2,7 +2,7 @@ import { useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboa
 import {
   AlertTriangle,
   ArrowDown,
-  Cpu,
+
   GitBranch,
   GitCommitHorizontal,
   Loader2,
@@ -14,7 +14,6 @@ import { ActionTooltip, type ActionTooltipCopy } from '@/components/ui/action-to
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ClaudeCodeStatus } from '../../hooks/useClaudeCodeStatus'
-import type { McpStatus } from '../../hooks/useMcpStatus'
 import { translate, type AppLocale, type TranslationKey } from '../../lib/i18n'
 import type { GitRemoteStatus, LastCommitInfo, SyncStatus } from '../../types'
 import { openExternalUrl } from '../../utils/url'
@@ -40,9 +39,6 @@ const SYNC_COLORS: Record<string, string> = {
   pull_required: 'var(--accent-orange)',
 }
 
-const MCP_TOOLTIP_KEYS: Partial<Record<McpStatus, TranslationKey>> = {
-  not_installed: 'status.mcp.notConnected',
-}
 
 const CLAUDE_INSTALL_URL = 'https://docs.anthropic.com/en/docs/claude-code'
 
@@ -96,15 +92,6 @@ function commitButtonTooltipCopy(locale: AppLocale, remoteStatus: GitRemoteStatu
   }
 }
 
-function getMcpBadgeConfig(locale: AppLocale, status: McpStatus, onInstall?: () => void) {
-  if (status === 'installed' || status === 'checking') return null
-  const clickable = status === 'not_installed' && Boolean(onInstall)
-  return {
-    clickable,
-    tooltip: translate(locale, MCP_TOOLTIP_KEYS[status] ?? 'status.mcp.unknown'),
-    onClick: clickable ? onInstall : undefined,
-  }
-}
 
 function getClaudeCodeBadgeConfig(locale: AppLocale, status: ClaudeCodeStatus, version?: string | null) {
   if (status === 'checking') return null
@@ -283,7 +270,7 @@ type StatusWarningBadgeProps = {
 } & (
   | { kind: 'conflict'; count: number; onClick?: () => void }
   | { kind: 'missingGit'; onClick?: () => void }
-  | { kind: 'mcp'; status: McpStatus; onInstall?: () => void }
+ 
   | { kind: 'claude'; status: ClaudeCodeStatus; version?: string | null }
 )
 
@@ -302,10 +289,6 @@ type MissingGitBadgeProps = StatusBadgeDisplayOptions & {
   onClick?: () => void
 }
 
-type McpBadgeProps = StatusBadgeDisplayOptions & {
-  status: McpStatus
-  onInstall?: () => void
-}
 
 type ClaudeCodeBadgeProps = StatusBadgeDisplayOptions & {
   status: ClaudeCodeStatus
@@ -341,18 +324,6 @@ function getStatusWarningBadgeConfig(props: StatusWarningBadgeProps): StatusWarn
         label: translate(props.locale, 'status.git.disabled'),
         trailingWarning: true,
       }
-    case 'mcp': {
-      const config = getMcpBadgeConfig(props.locale, props.status, props.onInstall)
-      return config && {
-        copyLabel: config.tooltip,
-        onClick: config.onClick,
-        testId: 'status-mcp',
-        className: 'text-[var(--accent-orange)]',
-        icon: <Cpu size={13} />,
-        label: 'MCP',
-        trailingWarning: true,
-      }
-    }
     case 'claude': {
       const config = getClaudeCodeBadgeConfig(props.locale, props.status, props.version)
       return config && {
@@ -861,20 +832,6 @@ export function PulseBadge({
   )
 }
 
-export function McpBadge({
-  status,
-  onInstall,
-  ...displayOptions
-}: McpBadgeProps) {
-  return (
-    <StatusWarningBadge
-      kind="mcp"
-      status={status}
-      onInstall={onInstall}
-      {...withStatusBadgeDefaults(displayOptions)}
-    />
-  )
-}
 
 export function ClaudeCodeBadge({
   status,

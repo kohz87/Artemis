@@ -127,7 +127,6 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 | AI (agent panel) | CLI agent adapters (Claude Code + Codex + OpenCode + Pi + Gemini) | - |
 | Search | Keyword (walkdir-based file scan) | - |
 | Localization | App-owned runtime + JSON catalogs (`src/lib/i18n.ts`, `src/lib/locales/*.json`, `lara.yaml`) | English fallback + Lara CLI sync |
-| MCP | @modelcontextprotocol/sdk | 1.0 |
 | Tests | Vitest (unit), Playwright (E2E/smoke), cargo test (Rust) | - |
 | Package manager | pnpm | - |
 
@@ -164,14 +163,12 @@ flowchart TD
 
         subgraph EXT["External Services"]
             CCLI["Claude / Codex / OpenCode / Pi / Gemini CLI\n(agent subprocesses)"]
-            MCP["MCP Server\n(ws://9710, 9711)"]
             GCLI["git CLI\n(system executable)"]
             REMOTE["Git remotes\n(GitHub/GitLab/Gitea/etc.)"]
         end
 
         FE -->|"Tauri IPC"| RB
         CLI -->|"spawn subprocess"| CCLI
-        LIB -->|"register / monitor"| MCP
         GIT -->|"clone / fetch / push / pull"| GCLI
         GCLI -->|"network auth via user config"| REMOTE
     end
@@ -215,7 +212,6 @@ The main Tauri window derives its minimum width from the visible panes instead o
 
 The main Tauri window also persists its last normal size and screen position in the app config directory as `window-state.json`. The state stores logical window points, while `window_state.rs` migrates older physical-pixel state on read so Retina and non-Retina launches restore the same user-facing bounds. On startup, the restored frame applies only to the main window and clamps to the currently available monitor work areas, so stale coordinates from a disconnected display fall back to a visible placement. Maximized, fullscreen, minimized, and detached note-window frames are not written as the restore baseline.
 
-Tauri setup keeps launch-time filesystem and subprocess work off the window creation critical path. Legacy `~/Laputa` housekeeping and the initial persisted-vault MCP bridge sync run on named background threads, so large legacy vaults, stale active-vault paths, or slow process startup cannot beachball the macOS app before React mounts. React still resyncs the bridge from `useVaultSwitcher` after the persisted selection loads, and no selected vault stops the bridge. The HTML bootstrap also installs a Tauri-only one-shot watchdog: React reports readiness from an effect after the root commits, and if that readiness signal never arrives the WebView reloads once instead of leaving macOS users in an inert rendered shell.
 
 Linux uses custom React-rendered window chrome instead of the native Tauri menu bar. `setup_linux_window_chrome()` drops server-side decorations on the main window, `openNoteInNewWindow()` does the same for detached note windows, and `LinuxTitlebar`/`LinuxMenuButton` route both window controls and menu actions back through the same shared command pipeline that the desktop native menus use. The native app menu keeps macOS-only Services/Hide entries off Windows and Linux, registers a window-scoped menu event handler on Windows where Tauri delivers menu clicks through the main `WebviewWindow`, and cross-platform custom items such as Check for Updates emit Tolaria command IDs with visible updater feedback.
 When Tolaria is launched from a Linux AppImage, `run()` also applies AppImage-only WebKitGTK startup safeguards without changing native package installs. It injects `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` independently unless the user already set either variable, and on Wayland sessions it re-execs once with the first architecture-matching system `libwayland-client.so` in `LD_PRELOAD` when the user has not provided their own preload. The candidate order prefers Fedora-style `lib64` and Debian-style `x86_64-linux-gnu` paths before generic `/usr/lib`, and the ELF header is checked so a 64-bit Tolaria process does not retry with a 32-bit Wayland client library. The same AppImage path checks whether `fc-match` resolves the default emoji font to `Noto-COLRv1.ttf`; when the user has not provided `FONTCONFIG_FILE` or `FONTCONFIG_PATH`, Tolaria writes a cache-local fontconfig file that rejects only that matched font file and exports it before WebKit starts. The rendering overrides keep AppImage WebViews from blanking after accelerated compositing/DMA-BUF failures, the re-exec addresses AppImage library-order failures that can surface as `Could not create default EGL display: EGL_BAD_PARAMETER`, and the fontconfig guard avoids known WebKit crashes in COLRv1 emoji font rendering while leaving other emoji fonts available.
@@ -242,15 +238,10 @@ Notes can be opened in separate Tauri windows for focused editing. Secondary win
 
 ### AI Agent (AiPanel)
 
-Full agent mode — spawns the selected local CLI agent as a subprocess with tool access and MCP vault integration.
 
 1. **Frontend** (`AiPanel` + `useCliAiAgent` + `aiAgentSession.ts` + `aiAgents.ts` + `aiTargets.ts`) — one normalized session lifecycle for message state, reasoning blocks, tool action cards, response display, onboarding, default-target selection, and the per-vault Safe / Power User permission mode shown in the panel header for coding agents
 2. **Backend orchestration** (`ai_agents.rs`) — normalizes agent availability, streaming, and the request permission mode before dispatching to per-agent adapters
-3. **Shared runtime scaffold** (`cli_agent_runtime.rs`) — owns the common request shape, prompt wrapping, JSON-line subprocess lifecycle, normalized error/done handling, version probing, and Tolaria MCP server path resolution used by app-managed CLI agents
-4. **Agent adapters** — Shared prompts are mode-aware on every turn, including turns with note context snapshots: Vault Safe tells agents not to use or advertise shell, while Power User tells shell-capable agents to keep local commands scoped to the active vault. Claude Code still uses `claude_cli.rs` with `acceptEdits`, strict Tolaria MCP config, and a scoped tool list: Safe enables file/search/edit tools only, while Power User adds Bash to the available tools and pre-approves Bash with `--allowedTools` without using dangerous bypass flags. Codex runtime specifics live in `codex_cli.rs`; Safe runs `codex --sandbox read-only --ask-for-approval untrusted exec --json`, while Power User runs `codex --sandbox workspace-write --ask-for-approval never exec --json` so shell execution stays enabled across repeated turns. OpenCode runs through `opencode run --format json` with transient permissions: Safe denies bash and external directories, while Power User allows bash but still denies external directories. Pi runs through `pi --mode json --no-session` with `npm:pi-mcp-adapter`; both modes currently share the same transient MCP config and the prompt does not promise shell for Pi Power User. Gemini runs through `gemini --output-format stream-json --prompt` so assistant message chunks, tool calls, and final errors are mapped from the CLI event stream instead of relying on a buffered `response` field. Gemini Safe uses `auto_edit` plus `tools.exclude=["run_shell_command"]`; Power User intentionally uses `yolo` against a trusted transient Tolaria MCP entry. Codex, OpenCode, Pi, and Gemini all launch from the active vault cwd with closed stdin and transient MCP config. All app-launched paths use hidden Windows launches and avoid dangerous permission-bypass flags.
-5. **MCP Integration** — Claude receives the generated MCP config file path, Codex receives the same Tolaria MCP server via transient `-c mcp_servers.tolaria.*` config overrides using Tolaria's resolved Node path plus `VAULT_PATH` and `WS_UI_PORT`, OpenCode receives it through `OPENCODE_CONFIG_CONTENT`, Pi receives it through a temporary `PI_CODING_AGENT_DIR/mcp.json` consumed by `pi-mcp-adapter`, and Gemini receives it through a temporary settings file pointed at by `GEMINI_CLI_SYSTEM_SETTINGS_PATH`
 
-CLI-agent availability intentionally does not depend only on the desktop app's inherited `PATH`. The detectors check the current process path, the user's login shell, and supported local/toolchain install locations such as native `~/.local/bin`, local `~/.claude/local`, Mise/asdf shims, nvm-managed Node installs, npm-global, Homebrew, Windows `%APPDATA%\npm`/pnpm/Scoop shims, Windows `.exe` launchers, and the macOS Codex app resource path so first-run onboarding works on fresh macOS and Windows installs. App-managed CLI spawns also expand the active vault path before using it as the subprocess working directory, then extend the child process `PATH` with the resolved binary directory plus those common toolchain directories, which lets GUI-launched macOS sessions run Homebrew/npm shims and their `node`-backed MCP subprocesses even when Finder/Dock did not inherit a terminal shell path.
 
 #### Agent Event Flow
 
@@ -260,13 +251,11 @@ sequenceDiagram
     participant FE as useCliAiAgent (Frontend)
     participant R as ai_agents.rs (Rust)
     participant C as Selected CLI Agent
-    participant V as Vault (MCP)
 
     U->>FE: sendMessage(text, references)
     FE->>FE: buildContextSnapshot(activeNote, linkedNotes, openTabs)
     FE->>R: invoke('stream_ai_agent', {agent, message, systemPrompt, vaultPath, permissionMode})
     R->>R: pick adapter for claude_code, codex, opencode, or pi
-    R->>C: spawn agent with MCP-enabled config
 
     loop Normalized stream
         C-->>R: Claude NDJSON, Codex JSONL, OpenCode JSON, Pi JSON, or Gemini JSONL events
@@ -285,7 +274,6 @@ sequenceDiagram
         end
     end
 
-    C->>V: MCP tool calls (search_notes, read_note, edit_note…)
     V-->>C: tool results
 ```
 
@@ -307,7 +295,6 @@ The agent panel (`ai-context.ts`) builds a structured JSON snapshot from the act
 }
 ```
 
-Large active notes are compacted into a head/tail body snapshot before they enter the CLI prompt. The snapshot records `bodyTruncated` metadata and instructs agents to call `get_note(path)` before content-sensitive edits or summaries, keeping lower-context OpenCode providers from failing on oversized active-note context while preserving access to the full note through MCP.
 
 ### Direct Model Targets
 
@@ -319,9 +306,7 @@ Provider secrets are not written to `settings.json`. Hosted API targets can use 
 
 Each CLI agent authenticates itself outside Tolaria. Claude Code uses its existing CLI login; Codex surfaces a friendly prompt to run `codex login` when needed; OpenCode surfaces a friendly prompt to run `opencode auth login` or configure a provider when needed; Pi surfaces a friendly prompt to run `pi /login` or configure a provider API key when needed. Tolaria does not store model-provider API keys in app settings; direct provider secrets stay in local app data or user-managed environment variables.
 
-## MCP Server
 
-The MCP server (`mcp-server/`) exposes vault operations as tools for AI assistants (Claude Code, Gemini CLI, Cursor, or any MCP-compatible client).
 
 ### Tool Surface (14 tools)
 
@@ -344,26 +329,18 @@ The MCP server (`mcp-server/`) exposes vault operations as tools for AI assistan
 
 ### Transports
 
-- **stdio** — standard MCP transport for Claude Code / Cursor (`node mcp-server/index.js`)
 - **WebSocket** — live bridge for Tolaria app integration:
   - Port **9710**: Tool bridge — AI/Claude clients call vault tools here
-  - Port **9711**: UI bridge — Frontend listens for UI action broadcasts from MCP tools
 
 ### Explicit External Tool Setup
 
-Tolaria can register itself as an MCP server in:
-- `~/.claude.json` and `~/.claude/mcp.json` (Claude Code compatibility across current CLI and legacy MCP-file setups)
 - `~/.gemini/settings.json` (Gemini CLI)
-- `~/.cursor/mcp.json` (Cursor)
-- `~/.config/mcp/mcp.json` (generic MCP-compatible clients)
 
-That setup is user-initiated through the status bar / command palette flow, not a startup side effect. Registration is non-destructive (additive, preserves other servers and Gemini settings), uses `upsert` semantics, and can be reversed by removing Tolaria's entry again. Tolaria verifies Node.js is available before writing config, writes an explicit `type: "stdio"` entry, pins `VAULT_PATH` to the active vault, and sets `WS_UI_PORT=9711` so UI actions route back to the desktop app. The same generated entry is exposed as a manual JSON snippet in the MCP setup dialog and through the AI panel copy action, giving users a transparent fallback for MCP-compatible tools Tolaria does not auto-configure. In the desktop app, `useMcpStatus` copies that snippet through the native `copy_text_to_clipboard` command instead of the Web Clipboard API so macOS WKWebView permission policy cannot block setup. Packaged builds resolve `mcp-server/` from the installed resource directory next to the executable before falling back to macOS `Resources`, Linux package roots such as `/usr/local/Tolaria`, `/usr/lib/tolaria`, and `/usr/lib/tolaria/resources`, and AppImage paths. The `useMcpStatus` hook tracks whether the active vault is explicitly connected (`checking | installed | not_installed`) and owns connect, disconnect, exact-snippet load, and copy-to-clipboard actions. Gemini CLI still owns its own install and sign-in; Tolaria writes the durable external MCP entry only on explicit setup, while app-managed Gemini sessions use transient settings and optional vault guidance. The desktop WebSocket bridge is started only when a persisted active vault exists and is resynced from React state on vault changes; no selected vault stops the bridge instead of falling back to `~/Laputa`. Stdio MCP server processes are owned by the external client that launched them: when that client closes stdin, Tolaria cancels UI-bridge reconnect timers, closes any UI WebSocket, and exits the Node process instead of keeping it alive in the background.
 
 ### Architecture
 
 ```mermaid
 flowchart TD
-    subgraph MCP["MCP Server (Node.js) — selected-vault scoped"]
         IDX["index.js"]
         VAULT["vault.js\n(findMarkdownFiles, readNote, createNote,\nsearchNotes, appendToNote, editNoteFrontmatter,\ndeleteNote, linkNotes, listNotes, vaultContext)"]
         WSB["ws-bridge.js"]
@@ -375,17 +352,13 @@ flowchart TD
         WSB -->|"port 9711 — UI bridge"| FE["Frontend\n(useAiActivity)"]
     end
 
-    TAURI["Tauri bridge lifecycle"] -->|"start/stop/restart with active VAULT_PATH"| MCP
-    UI["Status bar / Command Palette"] -->|"explicit setup or disconnect"| CFG["~/.claude.json\n~/.claude/mcp.json\n~/.cursor/mcp.json\n~/.config/mcp/mcp.json"]
 ```
 
 ### WebSocket Bridge
 
 ```mermaid
 flowchart LR
-    FE["Frontend\n(useMcpBridge)"] <-->|"ws://localhost:9710"| WSB["ws-bridge.js"]
     WSB <--> VAULT["vault.js"]
-    STDIO["MCP stdio tools"] <-->|"ws://localhost:9711"| FE2["Frontend UI actions\n(useAiActivity)"]
 ```
 
 **Tool bridge protocol** (port 9710):
@@ -396,18 +369,11 @@ flowchart LR
 - Broadcast: `{ "type": "ui_action", "action": "open_note", "path": "..." }`
 - `useAiActivity` hook receives these and applies them (highlight with 800ms feedback, open note, set filter, etc.)
 
-### Rust MCP Module
 
-`src-tauri/src/mcp.rs` manages the MCP server lifecycle:
 
 | Function | Purpose |
 |----------|---------|
 | `spawn_ws_bridge(vault_path)` | Spawns `ws-bridge.js` as child process with VAULT_PATH env |
-| `sync_mcp_bridge_vault(vault_path?)` | Starts, restarts, or stops the desktop WebSocket bridge as the selected vault changes |
-| `register_mcp(vault_path)` | Verifies Node.js, resolves the packaged `mcp-server/`, and writes Tolaria's explicit stdio entry to Claude Code, Gemini CLI, Cursor, and generic MCP configs on user request |
-| `mcp_config_snippet(vault_path)` | Builds the exact `mcpServers.tolaria` JSON users can copy into any compatible client without writing third-party config files |
-| `remove_mcp()` | Removes Tolaria's MCP entry from Claude Code, Gemini CLI, Cursor, and generic MCP configs |
-| `upsert_mcp_config(path, entry)` | Atomic config file update (create/merge, preserves others) |
 
 The `WsBridgeChild` state wrapper in `lib.rs` ensures the bridge process is replaced on vault switches, stopped when no active vault is selected, and killed plus waited on app exit via the `RunEvent::Exit` handler. The same desktop layer keeps Tauri asset protocol access limited to vault roots loaded during the current app session; command calls remain active-vault scoped for reads, writes, and external opens.
 
@@ -549,12 +515,10 @@ sequenceDiagram
     participant T as Tauri (Rust)
     participant A as App.tsx
     participant VL as useVaultLoader
-    participant MCP as MCP Server
     participant U as User
 
     T->>T: apply Linux AppImage WebKit env/preload safeguards<br/>(AppImage only)
     T->>T: start background legacy vault housekeeping<br/>(does not block setup)
-    T->>MCP: start background initial ws-bridge sync<br/>(if active vault exists)
     T->>A: App mounts
 
     A->>A: useOnboarding — vault exists?
@@ -570,8 +534,6 @@ sequenceDiagram
             VL-->>A: unavailable vault path + cleared stale state
             A-->>U: WelcomeScreen (vault missing)
         end
-        A->>T: useMcpStatus — check explicit MCP setup state
-        A->>T: sync_mcp_bridge_vault(selected path)
         VL-->>A: entries ready
     end
 
@@ -676,10 +638,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `git/` | Git operations (`commit.rs`, `status.rs`, `history.rs`, `conflict.rs`, `remote.rs`, `pulse.rs`, `clone.rs`, `connect.rs`) |
 | `search.rs` | Keyword search — walkdir-based vault file scan with Gitignored-content visibility filtering |
 | `ai_agents.rs` | CLI-agent request normalization and adapter dispatch |
-| `cli_agent_runtime.rs` | Shared CLI-agent request, prompt, subprocess, version, and MCP path helpers |
 | `claude_cli.rs`, `codex_cli.rs`, `opencode_cli.rs`, `pi_cli.rs`, `gemini_cli.rs` | CLI-agent command/config/event adapters |
-| `pi_cli.rs`, `pi_config.rs`, `pi_discovery.rs`, `pi_events.rs` | Pi subprocess launch, transient MCP adapter config, discovery, and JSON stream parsing |
-| `mcp.rs` | MCP server spawning + explicit config registration/removal |
 | `commands/` | Tauri command handlers (split into submodules) |
 | `settings.rs` | App settings persistence |
 | `vault_config.rs` | Per-vault UI config |
@@ -758,7 +717,6 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `save_vault_settings` | Write vault settings |
 | `repair_vault` | Flatten vault structure, migrate legacy frontmatter, restore root config/type defaults including `note.md` |
 
-### AI & MCP
 
 | Command | Description |
 |---------|-------------|
@@ -766,15 +724,9 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `check_claude_cli` | Check if Claude CLI is available |
 | `get_ai_agents_status` | Check Claude Code + Codex + OpenCode + Pi + Gemini availability |
 | `stream_ai_agent` | Stream Claude Code, Codex, OpenCode, Pi, or Gemini through the normalized agent event layer |
-| `register_mcp_tools` | Register MCP in Claude/Gemini/Cursor/generic config for the active vault |
-| `remove_mcp_tools` | Remove Tolaria's MCP entry from Claude/Gemini/Cursor/generic config |
-| `check_mcp_status` | Check whether the active vault is explicitly registered in Claude/Gemini/Cursor/generic config |
-| `get_mcp_config_snippet` | Return the exact manual MCP JSON snippet for the active vault |
 | `copy_text_to_clipboard` | Copy setup snippets through the native desktop clipboard command path |
 | `read_text_from_clipboard` | Read current desktop clipboard text for command-driven plain-text paste |
-| `sync_mcp_bridge_vault` | Sync the desktop WebSocket bridge process to the selected vault, or stop it when no vault is selected |
 
-The desktop MCP WebSocket bridge is intentionally local-only. `mcp-server/ws-bridge.js` binds both bridge ports to loopback, rejects non-loopback clients, accepts browser/Tauri origins only on the UI bridge, and rejects browser-origin requests on the tool bridge so remote pages cannot drive vault tools directly.
 
 ### Settings & Config
 
@@ -1036,7 +988,6 @@ Tauri v2 supports iOS as a beta target. The Rust backend cross-compiles to `aarc
 **Conditional compilation strategy:**
 
 ```
-#[cfg(desktop)]  — git CLI, menu bar, MCP server, CLI AI agents, updater
 #[cfg(mobile)]   — stub commands returning graceful errors or empty results
 ```
 
@@ -1047,7 +998,6 @@ Desktop-only features gated at the function level in `commands/`:
 - Git operations (commit, pull, push, status, history, diff, conflicts)
 - Clone-by-URL via system git (`clone_repo`)
 - CLI AI agent streaming (Claude, Codex, OpenCode, Pi, Gemini)
-- MCP registration and status
 - Menu state updates
 
 Features that work on both platforms without changes:

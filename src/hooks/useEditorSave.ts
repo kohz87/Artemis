@@ -22,6 +22,8 @@ interface EditorSaveConfig {
   resolvePathBeforeSave?: (path: string) => Promise<string>
   /** False when editor state is present but no vault is available to receive writes. */
   canPersist?: boolean
+  /** Active vault root to pass to backend path boundary validation. */
+  vaultPath?: string
   disabledSaveMessage?: string
   locale?: AppLocale
 }
@@ -464,6 +466,7 @@ export function useEditorSave({
   resolvePath,
   resolvePathBeforeSave,
   canPersist = true,
+  vaultPath,
   disabledSaveMessage,
   locale = 'en',
 }: EditorSaveConfig) {
@@ -484,7 +487,7 @@ export function useEditorSave({
     applyTabContent(setTabs, path, content)
   }, [pendingContentRef, resolvePath, updateVaultContent, setTabs])
 
-  const { saveNote } = useSaveNote(updateTabAndContent)
+  const { saveNote } = useSaveNote(updateTabAndContent, vaultPath)
   const onAfterSaveRef = useOnAfterSaveRef(onAfterSave)
 
   return useEditorSaveCommands({

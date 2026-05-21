@@ -13,15 +13,16 @@ Open the URL printed by Vite. Browser mode uses the same React UI as the
 desktop app and falls back to the mock Tauri command layer when native commands
 are unavailable.
 
-The development server binds to `0.0.0.0:5202` by default, so on a new Fedora
-machine you can open `http://localhost:5202` locally or
-`http://<fedora-ip>:5202` from another device on the same network. Set
-`ARTEMIS_WEB_PORT=5300` before `pnpm dev:web` or `pnpm serve:web` to use a
-different browser port.
+The development server binds to `localhost:5202` by default for Tauri dev
+compatibility. Set `ARTEMIS_HOST=0.0.0.0` to allow network access from other
+devices, and set `ARTEMIS_PORT=5300` before `pnpm dev:web` to use a different
+browser port. `ARTEMIS_WEB_PORT` and `PORT` remain compatibility aliases for the
+port.
 
-MCP bridge ports are configurable too. `ARTEMIS_MCP_WS_PORT` controls the tool
-bridge, default `9710`, and `ARTEMIS_MCP_WS_UI_PORT` controls the UI action
-bridge, default `9711`. Reconnect Artemis MCP after changing either value so
+```bash
+ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm dev:web
+```
+
 external tool config snippets are refreshed.
 
 ## Browser Persistence
@@ -68,5 +69,5 @@ pnpm serve:web
 The included static server supports the local vault API for reading, saving,
 and git operations against local repositories. Without a local vault API,
 filesystem and git operations use the browser-safe mock implementations.
-The production web server listens on `0.0.0.0:5173` unless `ARTEMIS_WEB_PORT`
-or `PORT` is set.
+The production web server listens on `0.0.0.0:5173` unless `ARTEMIS_HOST`,
+`ARTEMIS_PORT`, `ARTEMIS_WEB_PORT`, or `PORT` is set.

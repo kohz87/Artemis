@@ -73,7 +73,6 @@
 		E1428C0A0CC22F741B7A4A0C /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		E36BAA25D76F212157A06395 /* search.rs */ = {isa = PBXFileReference; path = search.rs; sourceTree = "<group>"; };
 		E3FC10F8A144BB158574C774 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
-		F87684B058BB66A215F98DCF /* mcp.rs */ = {isa = PBXFileReference; path = mcp.rs; sourceTree = "<group>"; };
 		F8E52CF938A81FD9ABC1B23F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F9FF9FD3CEB0EB658CA17305 /* clone.rs */ = {isa = PBXFileReference; path = clone.rs; sourceTree = "<group>"; };
 		FBB08655AD50E526ACEAE8A2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -234,7 +233,6 @@
 				077AD05C7FB4A784D360399B /* commands.rs */,
 				E1428C0A0CC22F741B7A4A0C /* lib.rs */,
 				50B53E0FE0FC2A5515B48A28 /* main.rs */,
-				F87684B058BB66A215F98DCF /* mcp.rs */,
 				6F67F5CDD6BB137126C5AABB /* menu.rs */,
 				E36BAA25D76F212157A06395 /* search.rs */,
 				C39B460DE1A3B78A0937BFDD /* settings.rs */,

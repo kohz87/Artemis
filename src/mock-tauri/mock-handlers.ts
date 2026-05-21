@@ -422,6 +422,8 @@ export const mockHandlers: Record<string, (args: any) => any> = {
   },
   empty_trash: () => [],
   migrate_is_a_to_type: () => 0,
+  copy_text_to_clipboard: () => null,
+  read_text_from_clipboard: () => '',
   batch_archive_notes: (args: { paths: string[] }) => args.paths.length,
   batch_trash_notes: (args: { paths: string[] }) => args.paths.length,
   search_vault: (args: { query: string; mode: string }) => {
@@ -463,31 +465,6 @@ export const mockHandlers: Record<string, (args: any) => any> = {
     setMockRemoteState(targetPath, false)
     return targetPath
   },
-  register_mcp_tools: () => 'registered',
-  check_mcp_status: () => 'installed',
-  get_mcp_bridge_info: () => ({
-    wsPort: 9710,
-    uiPort: 9711,
-    wsUrl: 'ws://localhost:9710',
-    uiWsUrl: 'ws://localhost:9711',
-    available: true,
-  }),
-  get_mcp_config_snippet: (args: { vaultPath?: string }) => JSON.stringify({
-    mcpServers: {
-      artemis: {
-        type: 'stdio',
-        command: 'node',
-        args: ['/mock/Artemis/mcp-server/index.js'],
-        env: {
-          VAULT_PATH: args.vaultPath ?? '/Users/mock/Documents/Getting Started',
-          WS_UI_PORT: '9711',
-        },
-      },
-    },
-  }, null, 2),
-  copy_text_to_clipboard: () => null,
-  read_text_from_clipboard: () => '',
-  sync_mcp_bridge_vault: (args: { vaultPath?: string | null }) => args.vaultPath ? 'started' : 'stopped',
   repair_vault: (): string => {
     mockVaultAiGuidanceStatus = {
       agents_state: 'managed',

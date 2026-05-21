@@ -14333,10 +14333,10 @@
     },
     {
       "type": "frame",
-      "id": "mcp_config_copy_design",
+      "id": "cli_agent_config_copy_design",
       "x": 0,
       "y": 12580,
-      "name": "MCP Config Copy — Light",
+      "name": "CLI agent Config Copy — Light",
       "theme": {
         "Mode": "Light"
       },
@@ -14348,9 +14348,9 @@
       "children": [
         {
           "type": "text",
-          "id": "mcp_config_copy_title",
+          "id": "cli_agent_config_copy_title",
           "fill": "$--foreground",
-          "content": "MCP Config Copy",
+          "content": "CLI agent Config Copy",
           "fontFamily": "Inter",
           "fontSize": 24,
           "fontWeight": "700",
@@ -14358,9 +14358,9 @@
         },
         {
           "type": "text",
-          "id": "mcp_config_copy_description",
+          "id": "cli_agent_config_copy_description",
           "fill": "$--muted-foreground",
-          "content": "AI panel exposes a compact Copy MCP config action; setup dialog shows the exact generated JSON with a keyboard-focusable code block and copy button.",
+          "content": "AI panel exposes a compact Copy CLI agent config action; setup dialog shows the exact generated JSON with a keyboard-focusable code block and copy button.",
           "fontFamily": "Inter",
           "fontSize": 13,
           "fontWeight": "normal",
@@ -14368,7 +14368,7 @@
         },
         {
           "type": "frame",
-          "id": "mcp_config_copy_ai_header",
+          "id": "cli_agent_config_copy_ai_header",
           "name": "AI panel header action",
           "width": 520,
           "height": 52,
@@ -14381,7 +14381,7 @@
           "children": [
             {
               "type": "text",
-              "id": "mcp_config_copy_ai_label",
+              "id": "cli_agent_config_copy_ai_label",
               "fill": "$--muted-foreground",
               "content": "AI Agent · Claude Code",
               "fontFamily": "Inter",
@@ -14391,8 +14391,8 @@
             },
             {
               "type": "rectangle",
-              "id": "mcp_config_copy_icon_button",
-              "name": "Copy MCP config icon button",
+              "id": "cli_agent_config_copy_icon_button",
+              "name": "Copy CLI agent config icon button",
               "x": 440,
               "y": 14,
               "width": 24,
@@ -14404,8 +14404,8 @@
         },
         {
           "type": "frame",
-          "id": "mcp_config_copy_manual_block",
-          "name": "Manual MCP config block",
+          "id": "cli_agent_config_copy_manual_block",
+          "name": "Manual CLI agent config block",
           "width": 520,
           "fill": "$--background",
           "layout": "vertical",
@@ -14413,9 +14413,9 @@
           "children": [
             {
               "type": "text",
-              "id": "mcp_config_copy_manual_title",
+              "id": "cli_agent_config_copy_manual_title",
               "fill": "$--foreground",
-              "content": "Manual MCP config",
+              "content": "Manual CLI agent config",
               "fontFamily": "Inter",
               "fontSize": 14,
               "fontWeight": "600",
@@ -14423,7 +14423,7 @@
             },
             {
               "type": "rectangle",
-              "id": "mcp_config_copy_code_block",
+              "id": "cli_agent_config_copy_code_block",
               "width": 520,
               "height": 148,
               "cornerRadius": 8,

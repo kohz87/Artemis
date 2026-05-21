@@ -9,7 +9,6 @@ supersedes: "0027"
 
 ## Context
 
-ADR-0027 introduced a dual AI architecture: a lightweight API-based chat (AIChatPanel) using the Anthropic API directly, and a full CLI agent (AiPanel) spawning Claude CLI as a subprocess with MCP tool access. In practice, the API chat was never shipped to users — the CLI agent covered all use cases and provided a superior experience through tool access and MCP integration. Maintaining two codepaths added complexity, and requiring users to manage an Anthropic API key created friction.
 
 ## Decision
 
@@ -22,7 +21,6 @@ Removed:
 - Vite dev-server Anthropic API proxy (`aiChatProxyPlugin`, `aiAgentProxyPlugin`)
 
 Kept:
-- `AiPanel` + `useAiAgent` — Claude CLI subprocess with MCP vault integration
 - Shared utilities in `ai-chat.ts` (`trimHistory`, `formatMessageWithHistory`, `streamClaudeChat`, etc.)
 - `Cmd+I` keyboard shortcut and menu item for toggling the AI panel
 
@@ -30,7 +28,6 @@ Kept:
 
 - **Option A** (chosen): Remove API chat, keep CLI agent only. Simplifies codebase, removes API key management, single codepath.
 - **Option B**: Keep both but hide API chat behind feature flag. Adds dead code weight without benefit.
-- **Option C**: Replace CLI agent with API chat + manual tool calling. Loses MCP integration and Claude CLI features.
 
 ## Consequences
 

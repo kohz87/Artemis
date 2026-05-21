@@ -162,16 +162,7 @@ function syncDefaultVaultExport(path: string) {
   DEFAULT_VAULTS[0] = { label: GETTING_STARTED_LABEL, path }
 }
 
-function selectedBridgeVaultPath(selectedVaultPath: string | null): string | null {
-  const path = selectedVaultPath?.trim()
-  return path ? path : null
-}
 
-async function syncMcpBridgeVault(selectedVaultPath: string | null): Promise<void> {
-  await tauriCall<string>('sync_mcp_bridge_vault', {
-    vaultPath: selectedBridgeVaultPath(selectedVaultPath),
-  })
-}
 
 function isCanonicalGettingStartedPath(path: string, resolvedDefaultPath: string): boolean {
   return path === resolvedDefaultPath
@@ -445,8 +436,9 @@ function useLoadPersistedVaultState(
           setDefaultAvailable,
           setDefaultPath,
         })
+        const normalizedActiveVault = normalizeInitialSelectedVaultPath(activeVault, resolvedDefaultPath, vaults)
         applyInitialVaultTarget({
-          activeVault: normalizeInitialSelectedVaultPath(activeVault, resolvedDefaultPath, vaults),
+          activeVault: normalizedActiveVault ?? (defaultAvailable && resolvedDefaultPath ? resolvedDefaultPath : null),
           resolvedDefaultPath,
           setSelectedVaultPath,
           setVaultPath,
@@ -533,15 +525,6 @@ function usePersistedVaultState(onSwitchRef: MutableRefObject<() => void>): Pers
   }
 }
 
-function useMcpBridgeVaultSync(loaded: boolean, selectedVaultPath: string | null) {
-  useEffect(() => {
-    if (!loaded) return
-
-    syncMcpBridgeVault(selectedVaultPath).catch(err => {
-      console.warn('Failed to sync MCP bridge vault:', err)
-    })
-  }, [loaded, selectedVaultPath])
-}
 
 function formatGettingStartedRestoreError(err: unknown): string {
   const message =
@@ -1166,7 +1149,6 @@ export function useVaultSwitcher({ onSwitch, onToast }: UseVaultSwitcherOptions)
     selectedVaultPath,
     vaultPath,
   } = persistedState
-  useMcpBridgeVaultSync(loaded, selectedVaultPath)
 
   const { allVaults, defaultVaults, isGettingStartedHidden } = useVaultCollections(
     defaultAvailable,

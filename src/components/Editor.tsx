@@ -62,7 +62,6 @@ interface EditorProps {
   onCreateMissingType?: (path: string, missingType: string, nextTypeName: string) => Promise<boolean | void>
   onCreateAndOpenNote?: (title: string) => Promise<boolean>
   onInitializeProperties?: (path: string) => void
-  onOpenMcpSetup?: () => void
   vaultPath?: string
   onToggleFavorite?: (path: string) => void
   onToggleOrganized?: (path: string) => void
@@ -303,7 +302,6 @@ function EditorLayout({
   onSave,
   activeStatus,
   showDiffToggle,
-  onOpenMcpSetup,
   showTableOfContents,
   onToggleTableOfContents,
   inspectorCollapsed,
@@ -358,7 +356,6 @@ function EditorLayout({
   onSave?: () => void
   activeStatus: NoteStatus
   showDiffToggle: boolean
-  onOpenMcpSetup?: () => void
   showTableOfContents?: boolean
   onToggleTableOfContents?: () => void
   inspectorCollapsed: boolean
@@ -428,8 +425,7 @@ function EditorLayout({
               onSave={onSave}
               activeStatus={activeStatus}
               showDiffToggle={showDiffToggle}
-              onOpenMcpSetup={onOpenMcpSetup}
-              showTableOfContents={showTableOfContents}
+                showTableOfContents={showTableOfContents}
               onToggleTableOfContents={onToggleTableOfContents}
               inspectorCollapsed={inspectorCollapsed}
               onToggleInspector={onToggleInspector}
@@ -536,7 +532,6 @@ export const Editor = memo(function Editor(props: EditorProps) {
     <EditorLayout
       {...buildEditorLayoutProps(props, runtime, findRequest)}
       onToggleInspector={rightPanel.handleToggleInspectorPanel}
-      onOpenMcpSetup={props.onOpenMcpSetup}
       showTableOfContents={rightPanel.showTableOfContents}
       onToggleTableOfContents={rightPanel.handleToggleTableOfContents}
     />

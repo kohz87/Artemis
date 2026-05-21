@@ -64,7 +64,6 @@ const STATIC_LABEL_KEYS: Partial<Record<string, TranslationKey>> = {
   'use-light-mode': 'command.settings.useLightMode',
   'use-dark-mode': 'command.settings.useDarkMode',
   'toggle-gitignored-files-visibility': 'command.settings.toggleGitignoredFilesVisibility',
-  'open-mcp-setup': 'command.settings.setupExternalAi',
 }
 
 function stripKnownPrefix(label: string, prefix: string): string {
@@ -132,16 +131,6 @@ function localizeViewStateCommand(command: CommandAction, t: Translate): string 
   return VIEW_STATE_LOCALIZERS.find(([id]) => id === command.id)?.[1](command, t) ?? null
 }
 
-function localizeSettingsStateCommand(command: CommandAction, t: Translate): string | null {
-  if (command.id === 'install-mcp') {
-    return t(command.label === 'Manage Artemis MCP...'
-      ? 'command.settings.manageExternalAi'
-      : 'command.settings.setupExternalAi')
-  }
-
-  return null
-}
-
 function localizeTypeCommand(command: CommandAction, t: Translate): string | null {
   if (command.id.startsWith('new-') && command.group === 'Note') {
     return t('command.note.newTypedNote', { type: stripKnownPrefix(command.label, 'New ') })
@@ -166,7 +155,6 @@ export function localizeCommandActions(commands: CommandAction[], locale: AppLoc
       ? t(key)
       : localizeNoteStateCommand(command, t)
         ?? localizeViewStateCommand(command, t)
-        ?? localizeSettingsStateCommand(command, t)
         ?? localizeTypeCommand(command, t)
         ?? command.label
     return label === command.label ? command : { ...command, label }

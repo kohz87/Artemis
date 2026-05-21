@@ -10,11 +10,9 @@ date: 2026-04-13
 
 Tolaria's AI panel, onboarding flow, and status surfaces were built around a single CLI dependency: Claude Code. That worked for the first release, but it made every UI and backend seam agent-specific. Adding Codex as a second supported CLI agent would have duplicated large parts of the app: separate availability checks, a second onboarding path, another status badge, and yet another streaming hook.
 
-The product direction is broader than a single vendor. Tolaria needs one AI panel that can target multiple local CLI agents while preserving the same MCP-backed vault tooling, the same note-context assembly, and a single install-local preference for which agent should be used by default.
 
 ## Decision
 
-**Introduce a shared CLI-agent abstraction for Tolaria's AI surfaces.** The frontend now treats agents as a small registry (`claude_code`, `codex`) with labels, install URLs, availability state, and a persisted `default_ai_agent` setting. The AI panel, onboarding gate, command palette, and status bar all read from that shared model. On the backend, `ai_agents.rs` owns agent detection and streaming, dispatching to per-agent adapters: Claude still flows through `claude_cli.rs`, while Codex is launched through `codex exec --json` with Tolaria's MCP server injected via transient config flags.
 
 ## Options considered
 

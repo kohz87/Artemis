@@ -223,9 +223,16 @@ function envPort(names: string[], fallback: number): number {
   return fallback
 }
 
-const webDevPort = envPort(['ARTEMIS_WEB_PORT', 'VITE_ARTEMIS_WEB_PORT', 'PORT'], 5202)
-const mcpWsPort = envPort(['ARTEMIS_MCP_WS_PORT', 'MCP_WS_PORT', 'WS_PORT'], 9710)
-const mcpWsUiPort = envPort(['ARTEMIS_MCP_WS_UI_PORT', 'ARTEMIS_MCP_UI_PORT', 'MCP_WS_UI_PORT', 'WS_UI_PORT'], 9711)
+function envString(names: string[], fallback: string): string {
+  for (const name of names) {
+    const raw = process.env[name]?.trim()
+    if (raw) return raw
+  }
+  return fallback
+}
+
+const webDevHost = envString(['ARTEMIS_HOST', 'HOST'], 'localhost')
+const webDevPort = envPort(['ARTEMIS_PORT', 'ARTEMIS_WEB_PORT', 'VITE_ARTEMIS_WEB_PORT', 'PORT'], 5202)
 const buildTarget = 'es2022'
 
 function readUtf8File(filePath: string): string {
@@ -1671,29 +1678,11 @@ function sendCaughtError(res: ServerResponse, err: unknown, fallback: string): v
   sendJson(res, { error: err instanceof Error ? err.message : fallback }, 500)
 }
 
-/** WebSocket proxy info endpoint - tells the frontend where the MCP bridge is */
-function mcpBridgeInfoPlugin(): Plugin {
-  return {
-    name: 'mcp-bridge-info',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.url !== '/api/mcp/info') return next()
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({
-          wsUrl: `ws://localhost:${mcpWsPort}`,
-          uiWsUrl: `ws://localhost:${mcpWsUiPort}`,
-          wsPort: mcpWsPort,
-          uiPort: mcpWsUiPort,
-          available: true,
-        }))
-      })
-    },
-  }
-}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), vaultApiPlugin(), mcpBridgeInfoPlugin()],
+
+  plugins: [react(), tailwindcss(), vaultApiPlugin()],
 
   resolve: {
     alias: {
@@ -1713,8 +1702,10 @@ export default defineConfig({
   // Prevent vite from obscuring Rust errors
   clearScreen: false,
 
-  // Tauri expects 5202 by default. Standalone web can override with ARTEMIS_WEB_PORT.
+  // Tauri expects port 5202 by default. Standalone web can override host/port
+  // with ARTEMIS_HOST and ARTEMIS_PORT, e.g. ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200.
   server: {
+    host: webDevHost,
     port: webDevPort,
     strictPort: true,
     allowedHosts: true,
@@ -1723,8 +1714,9 @@ export default defineConfig({
     },
   },
 
-  // Env variables starting with TAURI_ are exposed to the frontend
-  envPrefix: ['VITE_', 'TAURI_'],
+  // Env variables starting with VITE_, TAURI_, or ARTEMIS_ are exposed to the frontend.
+  // ARTEMIS_PASSWORD intentionally gates a simple client-side standalone web login.
+  envPrefix: ['VITE_', 'TAURI_', 'ARTEMIS_'],
 
   build: {
     // Standalone web builds use modern browser output.
@@ -1753,7 +1745,6 @@ export default defineConfig({
         'src/mock-tauri.ts',
         'src/main.tsx',
         'src/types.ts',
-        'src/hooks/useMcpBridge.ts',
         'src/hooks/useAiAgent.ts',
         'src/utils/ai-chat.ts',
         'src/utils/ai-agent.ts',

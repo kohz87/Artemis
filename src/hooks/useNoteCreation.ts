@@ -6,6 +6,7 @@ import { slugifyNoteStem as slugify } from '../utils/noteSlug'
 import { resolveEntry } from '../utils/wikilink'
 import { trackEvent } from '../lib/telemetry'
 import { cacheNoteContent } from './useTabManagement'
+import { sanitizeNoteTargetFolderPath } from './useNoteTargetFolder'
 import { findByCollidingNotePath, joinVaultPath, notePathFilename } from '../utils/notePathIdentity'
 import { canonicalFrontmatterKey } from '../utils/systemMetadata'
 
@@ -213,14 +214,24 @@ export interface NewNoteParams {
   title: string
   type: string
   vaultPath: string
+  targetFolderPath?: string | null
   template?: string | null
   defaults?: TypeInstanceDefault[]
 }
 
-export function resolveNewNote({ title, type, vaultPath, template, defaults = [] }: NewNoteParams): { entry: VaultEntry; content: string } {
+function noteCreationRoot(vaultPath: string, targetFolderPath?: string | null): string {
+  const safeTargetFolderPath = sanitizeNoteTargetFolderPath(targetFolderPath, vaultPath)
+  return safeTargetFolderPath ? joinVaultPath(vaultPath, safeTargetFolderPath) : vaultPath
+}
+
+function noteCreationPath(vaultPath: string, filename: string, targetFolderPath?: string | null): string {
+  return joinVaultPath(noteCreationRoot(vaultPath, targetFolderPath), filename)
+}
+
+export function resolveNewNote({ title, type, vaultPath, targetFolderPath, template, defaults = [] }: NewNoteParams): { entry: VaultEntry; content: string } {
   const slug = slugify(title)
   const status = null
-  const entry = buildNewEntry({ path: joinVaultPath(vaultPath, `${slug}.md`), slug, title, type, status })
+  const entry = buildNewEntry({ path: noteCreationPath(vaultPath, `${slug}.md`, targetFolderPath), slug, title, type, status })
   return applyTypeDefaults({
     entry,
     content: buildNoteContent({ title, type, status, template, defaults }),
@@ -312,10 +323,11 @@ export function planNewNoteCreation({
   title,
   type,
   vaultPath,
+  targetFolderPath,
   template,
   defaults,
 }: NewNoteParams & { entries: VaultEntry[] }): NoteCreationPlan {
-  const resolved = resolveNewNote({ title, type, vaultPath, template, defaults })
+  const resolved = resolveNewNote({ title, type, vaultPath, targetFolderPath, template, defaults })
   const collision = findPathCollision(entries, resolved.entry.path)
   if (collision) {
     return {
@@ -362,24 +374,26 @@ function createPersistFailureMessage(entry: VaultEntry, error: unknown): string 
 }
 
 /** Persist a newly created note to disk. Returns a Promise for error handling. */
-export function persistNewNote(path: string, content: string): Promise<void> {
-  if (!isTauri()) return mockInvoke<void>('save_note_content', { path, content }).then(() => {})
-  return invoke<void>('create_note_content', { path, content }).then(() => {})
+export function persistNewNote(path: string, content: string, vaultPath?: string): Promise<void> {
+  const args = vaultPath ? { path, content, vaultPath } : { path, content }
+  if (!isTauri()) return mockInvoke<void>('save_note_content', args).then(() => {})
+  return invoke<void>('create_note_content', args).then(() => {})
 }
 
-async function typeTargetExistsOnDisk(path: string): Promise<boolean> {
+async function typeTargetExistsOnDisk(path: string, vaultPath?: string): Promise<boolean> {
   if (!isTauri()) return false
 
   try {
-    await invoke<string>('get_note_content', { path })
+    const args = vaultPath ? { path, vaultPath } : { path }
+    await invoke<string>('get_note_content', args)
     return true
   } catch {
     return false
   }
 }
 
-async function findTypeTargetCollision(resolved: ResolvedEntry): Promise<string | null> {
-  if (!await typeTargetExistsOnDisk(resolved.entry.path)) return null
+async function findTypeTargetCollision(resolved: ResolvedEntry, vaultPath?: string): Promise<string | null> {
+  if (!await typeTargetExistsOnDisk(resolved.entry.path, vaultPath)) return null
   return buildCreationCollisionMessage({
     noun: 'type',
     title: resolved.entry.title,
@@ -411,10 +425,10 @@ interface PersistCallbacks {
 }
 
 /** Persist to disk; track pending state via onStart/onEnd. */
-async function persistOptimistic(path: string, content: string, cbs: PersistCallbacks): Promise<void> {
+async function persistOptimistic(path: string, content: string, vaultPath: string | undefined, cbs: PersistCallbacks): Promise<void> {
   cbs.onStart?.(path)
   try {
-    await persistNewNote(path, content)
+    await persistNewNote(path, content, vaultPath)
     cbs.onPersisted?.(path)
   } finally {
     cbs.onEnd?.(path)
@@ -433,6 +447,7 @@ type PersistResolvedEntryFn = (
 interface CreationDeps {
   entries: VaultEntry[]
   vaultPath: string
+  targetFolderPath?: string | null
   setToastMessage: (msg: string | null) => void
   persistResolvedEntry: PersistResolvedEntryFn
 }
@@ -448,13 +463,14 @@ async function createNamedNote({
   title,
   type,
   vaultPath,
+  targetFolderPath,
   setToastMessage,
   persistResolvedEntry,
   creationPath,
 }: NoteCreationRequest): Promise<boolean> {
   const template = resolveTemplate({ entries, typeName: type })
   const defaults = resolveTypeInstanceDefaults({ entries, typeName: type })
-  const plan = planNewNoteCreation({ entries, title, type, vaultPath, template, defaults })
+  const plan = planNewNoteCreation({ entries, title, type, vaultPath, targetFolderPath, template, defaults })
   if (plan.status === 'blocked') {
     setToastMessage(plan.message)
     return false
@@ -493,7 +509,7 @@ async function createTypeFromName({
     return false
   }
 
-  const collisionMessage = await findTypeTargetCollision(plan.resolved)
+  const collisionMessage = await findTypeTargetCollision(plan.resolved, vaultPath)
   if (collisionMessage) {
     setToastMessage(collisionMessage)
     return false
@@ -523,7 +539,7 @@ async function createTypeSilently({
     throw new Error(plan.message)
   }
 
-  const collisionMessage = await findTypeTargetCollision(plan.resolved)
+  const collisionMessage = await findTypeTargetCollision(plan.resolved, vaultPath)
   if (collisionMessage) {
     setToastMessage(collisionMessage)
     throw new Error(collisionMessage)
@@ -543,6 +559,7 @@ interface ImmediateCreateDeps {
   addPendingSave?: (path: string) => void
   entries: VaultEntry[]
   vaultPath: string
+  targetFolderPath?: string | null
   pendingSlugs: Set<string>
   openTabWithContent: (entry: VaultEntry, content: string) => void
   addEntry: (entry: VaultEntry) => void
@@ -559,6 +576,7 @@ interface ImmediateCreateQueueConfig {
   addPendingSave?: (path: string) => void
   entries: VaultEntry[]
   vaultPath: string
+  targetFolderPath?: string | null
   addEntry: (entry: VaultEntry) => void
   openTabWithContent: (entry: VaultEntry, content: string) => void
   onNewNotePersisted?: (path: string) => void
@@ -590,7 +608,7 @@ async function persistImmediateEntry(
   content: string,
 ): Promise<boolean> {
   try {
-    await persistOptimistic(entry.path, content, {
+    await persistOptimistic(entry.path, content, deps.vaultPath, {
       onStart: deps.addPendingSave,
       onEnd: deps.removePendingSave,
       onPersisted: deps.onNewNotePersisted,
@@ -610,7 +628,7 @@ async function createNoteImmediate(deps: ImmediateCreateDeps, type?: string): Pr
   const template = resolveTemplate({ entries: deps.entries, typeName: noteType })
   const defaults = resolveTypeInstanceDefaults({ entries: deps.entries, typeName: noteType })
   const status = null
-  const entry = buildNewEntry({ path: joinVaultPath(deps.vaultPath, `${slug}.md`), slug, title, type: noteType, status })
+  const entry = buildNewEntry({ path: noteCreationPath(deps.vaultPath, `${slug}.md`, deps.targetFolderPath), slug, title, type: noteType, status })
   const resolved = applyTypeDefaults({
     entry,
     content: buildNoteContent({ title: null, type: noteType, status, template, initialEmptyHeading: true, defaults }),
@@ -641,6 +659,7 @@ function useLatestImmediateCreateDeps(
   const {
     entries,
     vaultPath,
+    targetFolderPath,
     openTabWithContent,
     addEntry,
     addPendingSave,
@@ -653,6 +672,7 @@ function useLatestImmediateCreateDeps(
     latestDepsRef.current = {
       entries,
       vaultPath,
+      targetFolderPath,
       pendingSlugs: pendingSlugsRef.current,
       openTabWithContent,
       addEntry,
@@ -664,6 +684,7 @@ function useLatestImmediateCreateDeps(
   }, [
     entries,
     vaultPath,
+    targetFolderPath,
     openTabWithContent,
     addEntry,
     addPendingSave,
@@ -746,6 +767,7 @@ export interface NoteCreationConfig {
   entries: VaultEntry[]
   setToastMessage: (msg: string | null) => void
   vaultPath: string
+  targetFolderPath?: string | null
   addPendingSave?: (path: string) => void
   removePendingSave?: (path: string) => void
   trackUnsaved?: (path: string) => void
@@ -769,6 +791,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     addPendingSave,
     removePendingSave,
     vaultPath,
+    targetFolderPath,
     onNewNotePersisted,
     onTypeStateChanged,
   } = config
@@ -781,7 +804,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     if (options?.openTab !== false) openTabWithContent(resolved.entry, resolved.content)
     addEntryWithMock(resolved.entry, resolved.content, addEntry)
     try {
-      await persistOptimistic(resolved.entry.path, resolved.content, {
+      await persistOptimistic(resolved.entry.path, resolved.content, vaultPath, {
         onStart: addPendingSave,
         onEnd: removePendingSave,
         onPersisted: onNewNotePersisted,
@@ -793,11 +816,11 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
       removeEntry(resolved.entry.path)
       throw error
     }
-  }, [openTabWithContent, addEntry, addPendingSave, removePendingSave, onNewNotePersisted, onTypeStateChanged, removeEntry])
+  }, [openTabWithContent, addEntry, addPendingSave, removePendingSave, onNewNotePersisted, onTypeStateChanged, removeEntry, vaultPath])
 
   const handleCreateNote = useCallback((title: string, type: string): Promise<boolean> =>
-    createNamedNote({ entries, vaultPath, setToastMessage, persistResolvedEntry, title, type, creationPath: 'plus_button' }),
-  [entries, vaultPath, setToastMessage, persistResolvedEntry])
+    createNamedNote({ entries, vaultPath, targetFolderPath, setToastMessage, persistResolvedEntry, title, type, creationPath: 'plus_button' }),
+  [entries, vaultPath, targetFolderPath, setToastMessage, persistResolvedEntry])
 
   const handleCreateType = useCallback((typeName: string): Promise<boolean> =>
     createTypeFromName({ entries, vaultPath, setToastMessage, persistResolvedEntry, typeName }),
@@ -808,12 +831,13 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
   [entries, vaultPath, setToastMessage, persistResolvedEntry])
 
   const handleCreateNoteForRelationship = useCallback((title: string): Promise<boolean> =>
-    createNamedNote({ entries, vaultPath, setToastMessage, persistResolvedEntry, title, type: 'Note' }),
-  [entries, vaultPath, setToastMessage, persistResolvedEntry])
+    createNamedNote({ entries, vaultPath, targetFolderPath, setToastMessage, persistResolvedEntry, title, type: 'Note' }),
+  [entries, vaultPath, targetFolderPath, setToastMessage, persistResolvedEntry])
 
   const handleCreateNoteImmediate = useImmediateCreateQueue({
     entries,
     vaultPath,
+    targetFolderPath,
     addEntry,
     addPendingSave,
     openTabWithContent,

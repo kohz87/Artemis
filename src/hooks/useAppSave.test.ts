@@ -470,7 +470,7 @@ describe('useAppSave', () => {
     const saveCalls = vi.mocked(invoke).mock.calls.filter(([command]) => command === 'save_note_content')
     expect(saveCalls.at(-1)).toEqual([
       'save_note_content',
-      { path: newPath, content: '# Fresh Title\n\nBody\n\nMore text' },
+      { path: newPath, content: '# Fresh Title\n\nBody\n\nMore text', vaultPath: '/vault' },
     ])
     expect(saveCalls).not.toContainEqual([
       'save_note_content',
@@ -516,7 +516,7 @@ describe('useAppSave', () => {
     const saveCalls = vi.mocked(invoke).mock.calls.filter(([command]) => command === 'save_note_content')
     expect(saveCalls.at(-1)).toEqual([
       'save_note_content',
-      { path: newPath, content: '# Fresh Title\n\nBody\n\nMore text' },
+      { path: newPath, content: '# Fresh Title\n\nBody\n\nMore text', vaultPath: '/vault' },
     ])
     expect(saveCalls).not.toContainEqual([
       'save_note_content',
@@ -650,6 +650,7 @@ describe('useAppSave', () => {
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('save_note_content', {
       path: viewPath,
       content: viewContent,
+      vaultPath: '/vault',
     })
     expect(deps.handleRenameNote).not.toHaveBeenCalled()
   })
@@ -674,6 +675,7 @@ describe('useAppSave', () => {
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('save_note_content', {
       path: notePath,
       content: noteContent,
+      vaultPath: '/vault',
     })
     expect(deps.handleRenameNote).not.toHaveBeenCalled()
   })
@@ -704,7 +706,7 @@ describe('useAppSave', () => {
     const saveCalls = vi.mocked(invoke).mock.calls.filter(([command]) => command === 'save_note_content')
     expect(saveCalls.at(-1)).toEqual([
       'save_note_content',
-      { path: newPath, content: bufferedContent },
+      { path: newPath, content: bufferedContent, vaultPath: '/vault' },
     ])
     expect(saveCalls).not.toContainEqual([
       'save_note_content',
@@ -731,7 +733,7 @@ describe('useAppSave', () => {
     expect(saveCallsBeforeRename).toHaveLength(1)
     expect(saveCallsBeforeRename[0]).toEqual([
       'save_note_content',
-      { path: oldPath, content: initialContent },
+      { path: oldPath, content: initialContent, vaultPath: '/vault' },
     ])
 
     await act(async () => {
@@ -751,7 +753,7 @@ describe('useAppSave', () => {
     const finalSaveCalls = vi.mocked(invoke).mock.calls.filter(([command]) => command === 'save_note_content')
     expect(finalSaveCalls.at(-1)).toEqual([
       'save_note_content',
-      { path: newPath, content: bodyDuringRename },
+      { path: newPath, content: bodyDuringRename, vaultPath: '/vault' },
     ])
     expect(finalSaveCalls).not.toContainEqual([
       'save_note_content',

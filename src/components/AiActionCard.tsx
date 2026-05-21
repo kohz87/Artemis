@@ -35,7 +35,6 @@ const TOOL_ICON_MAP: Record<string, IconRenderer> = {
   Read: (s) => <File size={s} />,
   Glob: (s) => <FolderOpen size={s} />,
   Grep: (s) => <MagnifyingGlass size={s} />,
-  // Artemis MCP tools
   search_notes: (s) => <MagnifyingGlass size={s} />,
   get_vault_context: (s) => <ChartBar size={s} />,
   get_note: (s) => <File size={s} />,

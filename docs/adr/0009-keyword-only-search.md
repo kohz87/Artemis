@@ -8,7 +8,6 @@ date: 2026-03-24
 
 ## Context
 
-Laputa previously used QMD (a Go binary) for semantic vector indexing, enabling similarity-based search. This added significant complexity: a bundled Go binary requiring code-signing, an indexing step on vault open, status bar progress tracking, auto-install logic, and a separate `tools/qmd/` directory. The semantic search quality did not justify the operational burden, especially as the AI agent (with MCP vault tools) became a more natural way to do exploratory queries.
 
 ## Decision
 
@@ -26,5 +25,4 @@ Laputa previously used QMD (a Go binary) for semantic vector indexing, enabling 
 - No indexing step on vault open — search is instant.
 - `search_vault` Tauri command scans files directly with `walkdir`, runs in a blocking Tokio task.
 - Title matches rank higher than content-only matches; exact title matches rank highest.
-- The AI agent (via MCP `search_notes` tool) provides an alternative for exploratory/semantic queries.
 - Re-evaluation trigger: if users report keyword search is insufficient for large vaults (9000+ notes).

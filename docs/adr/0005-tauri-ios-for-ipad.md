@@ -12,7 +12,6 @@ Laputa runs on macOS via Tauri v2. The goal is to also support iPad without chan
 
 ## Decision
 
-**Use Tauri v2 iOS (beta) for the iPad prototype.** The React frontend stays identical. The Rust backend compiles for iOS with `#[cfg(desktop)]` / `#[cfg(mobile)]` guards for platform-specific features. Desktop-only features (git CLI, macOS menu bar, MCP server, Claude CLI) are stubbed or skipped on mobile.
 
 The prototype (`feat: add iPad/iOS prototype via Tauri v2 mobile target`, build `b492`) successfully builds and runs on iPad Pro 13" simulator (iOS 18.3.1).
 
@@ -32,7 +31,6 @@ The prototype (`feat: add iPad/iOS prototype via Tauri v2 mobile target`, build 
 ## Consequences
 
 - Zero frontend changes needed for basic iPad support
-- Desktop features (git, MCP, Claude CLI) unavailable on iPad until isomorphic-git is integrated
 - Tauri v2 iOS is still beta — production stability unknown
 - App Store distribution requires Apple Developer account and TestFlight
 - Triggers re-evaluation if: Tauri iOS remains unstable after 6 months, or iPad becomes the primary target (in which case SwiftUI rewrite becomes rational)

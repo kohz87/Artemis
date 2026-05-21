@@ -67,6 +67,29 @@ describe('useEditorSave', () => {
     expect(setToastMessage).toHaveBeenCalledWith('Nothing to save')
   })
 
+  it('passes vault context when saving content', async () => {
+    const { result } = renderHook(() => useEditorSave({
+      updateVaultContent,
+      setTabs,
+      setToastMessage,
+      vaultPath: '/test/vault',
+    }))
+
+    act(() => {
+      result.current.handleContentChange('/test/vault/projects/test/note.md', '# Edited')
+    })
+
+    await act(async () => {
+      await result.current.handleSave()
+    })
+
+    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+      path: '/test/vault/projects/test/note.md',
+      content: '# Edited',
+      vaultPath: '/test/vault',
+    })
+  })
+
   it('handleSave shows error toast on failure', async () => {
     mockInvokeFn.mockRejectedValueOnce(new Error('Disk full'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

@@ -151,17 +151,5 @@ describe('buildSettingsCommands', () => {
     expect(listener).toHaveBeenCalledTimes(1)
     window.removeEventListener(TOGGLE_GITIGNORED_VISIBILITY_EVENT, listener)
   })
-
-  it('makes Artemis MCP setup discoverable', () => {
-    const onInstallMcp = vi.fn()
-    const command = findCommand('install-mcp', buildSettingsCommands({
-      onOpenSettings: vi.fn(),
-      onInstallMcp,
-    }))
-
-    expect(command?.keywords).toContain('artemis')
-    command?.execute()
-    expect(onInstallMcp).toHaveBeenCalledOnce()
-  })
 })
 

@@ -40,8 +40,7 @@ describe('LinuxMenuButton', () => {
     expect(invoke).toHaveBeenCalledWith('trigger_menu_command', { id: 'edit-paste-plain-text' })
 
     await openSubmenu('Note')
-    expect(screen.getByText('Ctrl+Shift+L')).toBeInTheDocument()
-    fireEvent.click(await screen.findByText('Set Up Artemis MCP'))
+    fireEvent.click(await screen.findByText('Ctrl+Shift+L'))
     expect(invoke).toHaveBeenCalledWith('trigger_menu_command', { id: 'view-toggle-ai-chat' })
   }, MENU_TEST_TIMEOUT_MS)
 

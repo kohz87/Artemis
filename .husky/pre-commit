@@ -27,7 +27,12 @@ require_main_branch() {
     exit 1
   fi
 
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  # Handle initial commit (no HEAD yet) — branch name comes from symbolic-ref
+  if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+    CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+  else
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  fi
   if [ "$CURRENT_BRANCH" != "main" ]; then
     echo "❌ Commits must happen on main. Current branch: $CURRENT_BRANCH"
     echo "   Merge or cherry-pick your work onto main, then commit there."

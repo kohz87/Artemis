@@ -25,6 +25,7 @@ export interface NoteActionsConfig {
   setToastMessage: (msg: string | null) => void
   updateEntry: (path: string, patch: Partial<VaultEntry>) => void
   vaultPath: string
+  targetFolderPath?: string | null
   addPendingSave?: (path: string) => void
   removePendingSave?: (path: string) => void
   trackUnsaved?: (path: string) => void

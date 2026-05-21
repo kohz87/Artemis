@@ -27,7 +27,6 @@ export type KeyboardActions = Pick<
   | 'onZoomReset'
   | 'onGoBack'
   | 'onGoForward'
-  | 'onOpenMcpSetup'
   | 'onToggleRawEditor'
   | 'onToggleInspector'
   | 'onToggleFavorite'

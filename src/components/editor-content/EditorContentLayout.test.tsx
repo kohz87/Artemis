@@ -66,7 +66,6 @@ function createModel(overrides: Record<string, unknown> = {}) {
     noteWidth: 'normal',
     onToggleNoteWidth: vi.fn(),
     forceRawMode: false,
-    onOpenMcpSetup: vi.fn(),
     inspectorCollapsed: true,
     onToggleInspector: vi.fn(),
     showDiffToggle: false,

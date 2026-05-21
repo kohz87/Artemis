@@ -21,7 +21,7 @@ export function getContextLimit(): number {
 
 // --- Context building ---
 
-/** Build system prompt from selected context notes (metadata only — content loaded via MCP). */
+/** Build system prompt from selected context notes (metadata only — content loaded via local AI). */
 export function buildSystemPrompt(
   notes: VaultEntry[],
 ): { prompt: string; totalTokens: number; truncated: boolean } {
@@ -32,7 +32,7 @@ export function buildSystemPrompt(
   const preamble = [
     'You are a helpful AI assistant integrated into Artemis, a personal knowledge management app.',
     'The user has selected the following notes as context. Use them to answer questions accurately.',
-    'You can use MCP tools to read the full content of any note.',
+    'You can use local AI context to read the full content of any note.',
     'When you mention or reference a note by name, always use [[Note Title]] wikilink syntax so the user can click to open it.',
     '',
   ].join('\n')

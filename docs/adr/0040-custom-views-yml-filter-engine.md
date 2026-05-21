@@ -42,7 +42,6 @@ Wikilink values like `[[target|Alias]]` are matched by stem (stripping brackets 
 ### Architecture
 
 - **Rust backend** (`vault/views.rs`): YAML parsing via `serde_yaml`, filter evaluation, file CRUD. Three Tauri commands: `list_views`, `save_view_cmd`, `delete_view_cmd`.
-- **Frontend**: Client-side filter evaluation against the already-loaded `VaultEntry[]` array. The Rust `evaluate_view` exists for MCP/CLI access but is not the primary UI path.
 - **Sidebar**: VIEWS section between Favorites and Types, hidden when no views exist.
 
 ## Options considered

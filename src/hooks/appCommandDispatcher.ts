@@ -49,7 +49,6 @@ export interface AppCommandHandlers {
   onSearch: () => void
   onToggleRawEditor?: () => void
   onToggleDiff?: () => void
-  onOpenMcpSetup?: () => void
   onGoBack?: () => void
   onGoForward?: () => void
   onSelectFilter?: (filter: SidebarFilter) => void
@@ -61,7 +60,6 @@ export interface AppCommandHandlers {
   onPull?: () => void
   onResolveConflicts?: () => void
   onViewChanges?: () => void
-  onInstallMcp?: () => void
   onOpenInNewWindow?: () => void
   onReloadVault?: () => void
   onRepairVault?: () => void
@@ -84,7 +82,6 @@ type SimpleHandlerKey = keyof Pick<
   | 'onToggleRawEditor'
   | 'onToggleDiff'
   | 'onToggleInspector'
-  | 'onOpenMcpSetup'
   | 'onCommandPalette'
   | 'onZoomIn'
   | 'onZoomOut'
@@ -99,7 +96,6 @@ type SimpleHandlerKey = keyof Pick<
   | 'onPull'
   | 'onResolveConflicts'
   | 'onViewChanges'
-  | 'onInstallMcp'
   | 'onReloadVault'
   | 'onRepairVault'
   | 'onOpenInNewWindow'
@@ -127,7 +123,6 @@ const SIMPLE_HANDLER_EXECUTORS: readonly [SimpleHandlerKey, SimpleHandlerExecuto
   ['onToggleRawEditor', (handlers) => handlers.onToggleRawEditor?.()],
   ['onToggleDiff', (handlers) => handlers.onToggleDiff?.()],
   ['onToggleInspector', (handlers) => handlers.onToggleInspector()],
-  ['onOpenMcpSetup', (handlers) => handlers.onOpenMcpSetup?.()],
   ['onCommandPalette', (handlers) => handlers.onCommandPalette()],
   ['onZoomIn', (handlers) => handlers.onZoomIn()],
   ['onZoomOut', (handlers) => handlers.onZoomOut()],
@@ -142,7 +137,6 @@ const SIMPLE_HANDLER_EXECUTORS: readonly [SimpleHandlerKey, SimpleHandlerExecuto
   ['onPull', (handlers) => handlers.onPull?.()],
   ['onResolveConflicts', (handlers) => handlers.onResolveConflicts?.()],
   ['onViewChanges', (handlers) => handlers.onViewChanges?.()],
-  ['onInstallMcp', (handlers) => handlers.onInstallMcp?.()],
   ['onReloadVault', (handlers) => handlers.onReloadVault?.()],
   ['onRepairVault', (handlers) => handlers.onRepairVault?.()],
   ['onOpenInNewWindow', (handlers) => handlers.onOpenInNewWindow?.()],

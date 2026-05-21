@@ -65,6 +65,28 @@ pnpm playwright:smoke  # Curated Playwright core smoke lane (~5 min)
 pnpm playwright:regression  # Full Playwright regression suite
 ```
 
+## Optional Web Listening Configuration
+
+Vite reads `ARTEMIS_HOST` and `ARTEMIS_PORT` from `.env.local` or the shell when
+running `pnpm dev` / `pnpm dev:web`. The defaults are `localhost:5202` for Tauri
+dev compatibility. Use `ARTEMIS_HOST=0.0.0.0` when another device on the network
+needs to reach the dev server:
+
+```bash
+ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm dev:web
+```
+
+## Optional Web Password Protection
+
+Set `ARTEMIS_PASSWORD` in `.env.local` or in the deployment environment before starting/building the Vite app to require a simple persistent login before the Artemis UI loads:
+
+```bash
+cp .env.example .env.local
+ARTEMIS_PASSWORD='choose-a-long-password' pnpm dev
+```
+
+Leave `ARTEMIS_PASSWORD` unset or blank to run without password protection. Successful logins are remembered in `localStorage` with `authenticated`, `session_created_at`, and `last_accessed_at` fields, so access persists across browser close/reopen until 30 days of inactivity. The session panel shows creation/access timestamps and provides both `Log out` and `Clear Session` controls to remove the persistent session immediately.
+
 ## Starter Vaults And Remotes
 
 `create_getting_started_vault` clones the public starter repo and then removes every git remote from the new local copy. That means Getting Started vaults open local-only by default. Users connect a compatible remote later through the bottom-bar `No remote` chip or the command palette, both of which feed the same `AddRemoteModal` and `git_add_remote` backend flow.
@@ -135,7 +157,6 @@ tolaria/
 │   │   ├── aiAgentPermissionMode.ts # Safe/Power User mode normalization + labels
 │   │   ├── useAiAgentsStatus.ts  # Claude/Codex/OpenCode/Pi/Gemini availability polling
 │   │   ├── useAiAgentPreferences.ts # Default-agent persistence + cycling
-│   │   ├── useAiActivity.ts      # MCP UI bridge listener
 │   │   ├── useAutoSync.ts        # Auto git pull/push
 │   │   ├── useConflictResolver.ts # Git conflict handling
 │   │   ├── useEditorSave.ts      # Auto-save with debounce
@@ -151,8 +172,6 @@ tolaria/
 │   │   ├── useGettingStartedClone.ts # Shared Getting Started clone action
 │   │   ├── useOnboarding.ts      # First-launch flow
 │   │   ├── useCodeMirror.ts      # CodeMirror raw editor
-│   │   ├── useMcpBridge.ts       # MCP WebSocket client
-│   │   ├── useMcpStatus.ts       # Explicit external AI tool connection status + connect/disconnect actions
 │   │   ├── useUpdater.ts         # In-app updates
 │   │   └── ...
 │   │
@@ -209,11 +228,9 @@ tolaria/
 │   │   ├── telemetry.rs          # Sentry init + path scrubber
 │   │   ├── search.rs             # Keyword search (walkdir-based)
 │   │   ├── ai_agents.rs          # CLI-agent request normalization + adapter dispatch
-│   │   ├── cli_agent_runtime.rs  # Shared CLI-agent runtime process/prompt/MCP helpers
 │   │   ├── claude_cli.rs         # Claude CLI adapter
 │   │   ├── codex_cli.rs          # Codex CLI adapter
 │   │   ├── pi_cli.rs             # Pi CLI adapter
-│   │   ├── mcp.rs                # MCP server lifecycle + explicit config registration/removal
 │   │   ├── app_updater.rs        # Alpha/stable updater endpoint selection
 │   │   ├── settings.rs           # App settings persistence
 │   │   ├── vault_config.rs       # Per-vault UI config
@@ -221,11 +238,8 @@ tolaria/
 │   │   └── menu.rs               # Native macOS menu bar
 │   └── icons/                    # App icons
 │
-├── mcp-server/                   # MCP bridge (Node.js)
-│   ├── index.js                  # MCP server entry (stdio, 14 tools)
 │   ├── vault.js                  # Vault file operations
 │   ├── ws-bridge.js              # WebSocket bridge (ports 9710, 9711)
-│   ├── test.js                   # MCP server tests
 │   └── package.json
 │
 ├── e2e/                          # Playwright E2E tests (~26 specs)
@@ -284,7 +298,6 @@ tolaria/
 | `src-tauri/src/git/` | All git operations (clone, commit, pull, push, conflicts, pulse, add-remote). |
 | `src-tauri/src/search.rs` | Keyword search — scans vault files with walkdir. |
 | `src-tauri/src/ai_agents.rs` | CLI-agent request normalization, availability aggregation, adapter dispatch, and Claude event mapping. |
-| `src-tauri/src/cli_agent_runtime.rs` | Shared CLI-agent request shape, prompt wrapping, JSON subprocess lifecycle, version probing, and MCP path helpers. |
 | `src-tauri/src/claude_cli.rs`, `src-tauri/src/codex_cli.rs`, `src-tauri/src/opencode_cli.rs`, `src-tauri/src/pi_cli.rs`, `src-tauri/src/gemini_cli.rs` | Per-agent command, config, discovery, and JSON event adapters. |
 | `src-tauri/src/app_updater.rs` | Desktop updater bridge — selects alpha/stable manifests and streams install progress. |
 
@@ -444,13 +457,5 @@ BASE_URL="http://localhost:5173" npx playwright test tests/smoke/<slug>.spec.ts
 2. **Context building**: Edit `src/utils/ai-context.ts` for what data is sent to the agent
 3. **Tool action display**: Edit `src/components/AiActionCard.tsx`
 4. **Permission-mode UI and request plumbing**: Edit `src/lib/aiAgentPermissionMode.ts`, `src/components/AiPanel*.tsx`, `src/hooks/useCliAiAgent.ts`, and `src/utils/streamAiAgent.ts`
-5. **Shared CLI runtime behavior**: Edit `src-tauri/src/cli_agent_runtime.rs` for process lifecycle, prompt wrapping, version probing, and common Tolaria MCP path handling.
-6. **Agent-specific arguments/events**: Edit the per-agent adapter modules (`claude_cli.rs`, `codex_cli.rs`, `opencode_*`, `pi_*`, `gemini_*`). Keep Codex Safe on `read-only` + `untrusted` and Codex Power User on active-vault `workspace-write` + `never`, keep Pi and Gemini on transient MCP config, and do not use dangerous permission bypasses unless an ADR explicitly designs a new mode. Gemini Power User intentionally uses Gemini's `yolo` mode per ADR-0103.
 
-### Work with external MCP setup
 
-1. **Backend registration/status/snippets**: Edit `src-tauri/src/mcp.rs`; registration and manual config generation must verify Node.js first, resolve the packaged `mcp-server/` for macOS, Windows, Linux package roots (`/usr/local/Tolaria`, `/usr/local/lib/tolaria`, `/usr/lib/tolaria`, `/usr/lib/tolaria/resources`), and AppImage installs, and use an explicit stdio entry with `VAULT_PATH` plus `WS_UI_PORT=9711`
-2. **Setup dialog copy/actions**: Edit `src/components/McpSetupDialog.tsx` and `src/hooks/useMcpStatus.ts`; users should see the Node.js prerequisite, the exact generated manual config, and a copy action before Tolaria writes third-party config files
-3. **Status hook/toasts**: Edit `src/hooks/useMcpStatus.ts` when setup, reconnect, disconnect, or failure messaging changes
-4. **Gemini CLI compatibility**: Keep `~/.gemini/settings.json` in the registration path list and keep optional `GEMINI.md` generation behind `restore_vault_ai_guidance`; app-managed Gemini sessions still require the user to install and sign in to Gemini CLI, but Tolaria supplies transient MCP settings when Gemini is selected as the default AI agent
-5. **Process lifecycle**: Stdio MCP servers in `mcp-server/index.js` must exit when their external client closes stdin, and the desktop-owned `ws-bridge.js` child must be stopped on vault deselection, vault switch, and app exit

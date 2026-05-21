@@ -10,7 +10,6 @@
 
 Run `/laputa-next-task` — fetches next task (To Rework first, then Open), moves to In Progress, returns full description.
 
-**Before writing a single line of code:** run `mcp__codescene__code_health_score` to check the current codebase health against `.codescene-thresholds`. If the score is already below the threshold, **stop and refactor first** — find the worst files with the MCP, improve them, commit, then start the task. Never start feature work on a codebase that is already below the gate.
 
 - Read task description and all comments fully
 - For To Rework: the ❌ QA failed comment tells you exactly what to fix
@@ -93,7 +92,6 @@ Pre-commit and pre-push hooks enforce **Hotspot Code Health** and **Average Code
 
 **⛔ NEVER edit `.codescene-thresholds` to lower the values.** If the gate blocks you, improve the code — do not lower the bar.
 
-**CodeScene access order:** use CodeScene MCP tools if available. If MCP is unavailable, use the installed `cs` CLI for file-level review/delta work, and use the CodeScene API (`CODESCENE_PAT` + `CODESCENE_PROJECT_ID`) for project-wide Hotspot/Average threshold checks from `.codescene-thresholds`.
 
 **Before editing any existing code file:** capture its current file-level CodeScene score. After your edits, re-run the same file-level review and verify the score is higher. If the file already starts at `10.0`, it must remain `10.0`.
 
@@ -101,7 +99,6 @@ Pre-commit and pre-push hooks enforce **Hotspot Code Health** and **Average Code
 
 **Before every commit:** run CodeScene file-level review on every touched or newly created code file and verify the rule above. **Boy Scout Rule:** every file you touch must leave with a higher score, unless it was already `10.0`, in which case it must stay `10.0`.
 
-**If CodeScene gate blocks your push:** use `mcp__codescene__code_health_score` to find the worst file, refactor it, commit, push again. Do NOT stop or wait for laputa-refactor — that is a background loop, not a substitute for fixing your own regressions.
 
 ### Check suite (runs on every push)
 ```bash

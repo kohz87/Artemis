@@ -1,5 +1,4 @@
 import { Moon, Package, Settings, Sun } from 'lucide-react'
-import type { McpStatus } from '../../hooks/useMcpStatus'
 import type { ThemeMode } from '../../lib/themeMode'
 import { translate, type AppLocale } from '../../lib/i18n'
 import { useStatusBarAddRemote } from '../../hooks/useStatusBarAddRemote'
@@ -11,7 +10,6 @@ import {
   CommitButton,
   ConflictBadge,
   ChangesBadge,
-  McpBadge,
   MissingGitBadge,
   NoRemoteBadge,
   OfflineBadge,
@@ -59,8 +57,6 @@ interface StatusBarPrimarySectionProps {
   onOpenConflictResolver?: () => void
   buildNumber?: string
   onRemoveVault?: (path: string) => void
-  mcpStatus?: McpStatus
-  onInstallMcp?: () => void
   stacked?: boolean
   compact?: boolean
   locale?: AppLocale
@@ -116,8 +112,6 @@ function StatusBarPrimaryBadges({
   conflictCount,
   onClickPulse,
   isGitVault,
-  mcpStatus,
-  onInstallMcp,
   isOffline,
   isVaultReloading,
   compact,
@@ -137,8 +131,6 @@ function StatusBarPrimaryBadges({
   conflictCount: number
   onClickPulse?: () => void
   isGitVault: boolean
-  mcpStatus?: McpStatus
-  onInstallMcp?: () => void
   isOffline: boolean
   isVaultReloading: boolean
   compact: boolean
@@ -170,7 +162,6 @@ function StatusBarPrimaryBadges({
       ) : (
         <MissingGitBadge onClick={onInitializeGit} showSeparator={!compact} compact={compact} locale={locale} />
       )}
-      {mcpStatus && <McpBadge status={mcpStatus} onInstall={onInstallMcp} showSeparator={!compact} compact={compact} locale={locale} />}
     </>
   )
 }
@@ -219,8 +210,6 @@ export function StatusBarPrimarySection({
   onOpenConflictResolver,
   buildNumber,
   onRemoveVault,
-  mcpStatus,
-  onInstallMcp,
   locale = 'en',
   stacked = false,
   compact = false,
@@ -273,8 +262,6 @@ export function StatusBarPrimarySection({
         conflictCount={conflictCount}
         onClickPulse={onClickPulse}
         isGitVault={isGitVault}
-        mcpStatus={mcpStatus}
-        onInstallMcp={onInstallMcp}
         isOffline={isOffline} isVaultReloading={isVaultReloading}
         compact={compact}
         locale={locale}

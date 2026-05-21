@@ -35,9 +35,16 @@ function envPort(names, fallback) {
   return fallback
 }
 
-const PORT = envPort(['ARTEMIS_WEB_PORT', 'PORT'], 5173)
-const MCP_WS_PORT = envPort(['ARTEMIS_MCP_WS_PORT', 'MCP_WS_PORT', 'WS_PORT'], 9710)
-const MCP_WS_UI_PORT = envPort(['ARTEMIS_MCP_WS_UI_PORT', 'ARTEMIS_MCP_UI_PORT', 'MCP_WS_UI_PORT', 'WS_UI_PORT'], 9711)
+function envString(names, fallback) {
+  for (const name of names) {
+    const raw = process.env[name]?.trim()
+    if (raw) return raw
+  }
+  return fallback
+}
+
+const HOST = envString(['ARTEMIS_HOST', 'HOST'], '0.0.0.0')
+const PORT = envPort(['ARTEMIS_PORT', 'ARTEMIS_WEB_PORT', 'PORT'], 5173)
 
 function isInsideRelativePath(relative) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
@@ -900,17 +907,6 @@ async function serveVaultApi(req, res) {
 const server = http.createServer(async (req, res) => {
   const url = req.url ?? '/'
 
-  if (new URL(url, 'http://localhost').pathname === '/api/mcp/info') {
-    sendJson(res, {
-      wsUrl: `ws://localhost:${MCP_WS_PORT}`,
-      uiWsUrl: `ws://localhost:${MCP_WS_UI_PORT}`,
-      wsPort: MCP_WS_PORT,
-      uiPort: MCP_WS_UI_PORT,
-      available: true,
-    })
-    return
-  }
-
   // API routes
   if (url.startsWith('/api/vault/')) {
     if (!await serveVaultApi(req, res)) {
@@ -929,6 +925,6 @@ const server = http.createServer(async (req, res) => {
   streamFile(filePath).pipe(res)
 })
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Artemis web server running on http://0.0.0.0:${PORT}`)
+server.listen(PORT, HOST, () => {
+  console.log(`Artemis web server running on http://${HOST}:${PORT}`)
 })

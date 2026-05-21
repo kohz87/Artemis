@@ -250,7 +250,7 @@ export function buildContextSnapshot(params: ContextSnapshotParams): string {
   const preamble = [
     'You are an AI assistant integrated into Artemis, a personal knowledge management app.',
     'The user is viewing a specific note. Use the structured context below to answer questions accurately.',
-    'You can also use MCP tools to search, read, create, or edit notes in the vault.',
+    'You can also use local AI context to search, read, create, or edit notes in the vault.',
     'If the body field is empty or truncated, use get_note to read the full note from disk before content-sensitive edits or summaries.',
     'When you mention or reference a note by name, always use [[Note Title]] wikilink syntax so the user can click to open it.',
   ].join('\n')
@@ -266,7 +266,7 @@ export function buildContextualPrompt(
   const parts: string[] = [
     'You are an AI assistant integrated into Artemis, a personal knowledge management app.',
     'The user is viewing a specific note. Use the note and its linked context to answer questions accurately.',
-    'You can also use MCP tools to search, read, create, or edit notes in the vault.',
+    'You can also use local AI context to search, read, create, or edit notes in the vault.',
     '',
     `## Active Note: ${active.title}`,
     `Type: ${active.isA ?? 'Note'} | Path: ${active.path}`,

@@ -249,7 +249,7 @@ fn build_chat_args(req: &ChatStreamRequest) -> Vec<String> {
     args
 }
 
-/// Spawn `claude -p` with full tool access and MCP vault tools for an agent task.
+/// Spawn `claude -p` with local CLI tool access for an agent task.
 pub fn run_agent_stream<F>(req: AgentStreamRequest, mut emit: F) -> Result<String, String>
 where
     F: FnMut(ClaudeStreamEvent),
@@ -262,8 +262,6 @@ where
 /// Build CLI arguments for an agent stream request.
 /// Native tools (bash, read, write, edit) are enabled by default — no `--tools ""`.
 fn build_agent_args(req: &AgentStreamRequest) -> Result<Vec<String>, String> {
-    let mcp_config = build_mcp_config(&req.vault_path)?;
-
     let mut args: Vec<String> = vec![
         "-p".into(),
         req.message.clone(),
@@ -271,9 +269,6 @@ fn build_agent_args(req: &AgentStreamRequest) -> Result<Vec<String>, String> {
         "stream-json".into(),
         "--verbose".into(),
         "--include-partial-messages".into(),
-        "--mcp-config".into(),
-        mcp_config,
-        "--strict-mcp-config".into(),
         "--permission-mode".into(),
         "acceptEdits".into(),
         "--tools".into(),
@@ -314,24 +309,6 @@ fn preapproved_agent_tools(permission_mode: AiAgentPermissionMode) -> Option<&'s
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/// Build a temporary MCP config JSON string pointing to the vault MCP server.
-fn build_mcp_config(vault_path: &str) -> Result<String, String> {
-    let mcp_server_path = crate::cli_agent_runtime::mcp_server_path_string()?;
-    let ws_ui_port = crate::mcp::configured_ws_ui_port().to_string();
-    let config = serde_json::json!({
-        "mcpServers": {
-            "artemis": {
-                "command": "node",
-                "args": [mcp_server_path],
-                "env": {
-                    "VAULT_PATH": vault_path,
-                    "WS_UI_PORT": ws_ui_port
-                }
-            }
-        }
-    });
-    serde_json::to_string(&config).map_err(|e| format!("Failed to serialise MCP config: {e}"))
-}
 
 /// Mutable state accumulated across the JSON stream for a single subprocess.
 struct StreamState {
@@ -759,7 +736,6 @@ mod tests {
 
         assert_args_contain!(
             args,
-            ["--strict-mcp-config", "--permission-mode", "acceptEdits"]
         );
         assert_args_contain!(args, ["Read,Edit,MultiEdit,Write,Glob,Grep,LS"]);
         assert_no_arg_contains!(args, "Bash");
@@ -776,7 +752,6 @@ mod tests {
         ))
         .unwrap();
 
-        assert_args_contain!(args, ["--strict-mcp-config"]);
         assert_args_contain!(args, ["Read,Edit,MultiEdit,Write,Glob,Grep,LS,Bash"]);
         assert_args_lack!(args, ["--dangerously-skip-permissions"]);
     }
@@ -794,12 +769,8 @@ mod tests {
     }
 
     #[test]
-    fn build_mcp_config_is_valid_json() {
-        if let Ok(config_str) = build_mcp_config("/tmp/test-vault") {
             let parsed: serde_json::Value = serde_json::from_str(&config_str).unwrap();
-            assert!(parsed["mcpServers"]["artemis"]["command"].is_string());
             assert_eq!(
-                parsed["mcpServers"]["artemis"]["env"]["VAULT_PATH"],
                 "/tmp/test-vault"
             );
         }
@@ -1375,14 +1346,11 @@ mod tests {
 
     #[test]
     fn build_agent_args_basic() {
-        // build_agent_args calls build_mcp_config which needs mcp_server_dir
         if let Ok(args) = build_agent_args(&agent_request!(
             "create note",
             None,
             AiAgentPermissionMode::Safe,
         )) {
-            assert_args_contain!(args, ["-p", "create note", "--mcp-config"]);
-            assert_args_contain!(args, ["--strict-mcp-config", "--permission-mode"]);
             assert_args_contain!(args, ["acceptEdits", "--tools"]);
             assert_args_contain!(args, ["Read,Edit,MultiEdit,Write,Glob,Grep,LS"]);
             assert_args_contain!(args, ["--no-session-persistence"]);

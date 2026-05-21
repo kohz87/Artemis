@@ -29,7 +29,6 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     defaultNoteWidth: 'normal',
     onSetNoteWidth: vi.fn(),
     onSetDefaultNoteWidth: vi.fn(),
-    onOpenMcpSetup: vi.fn(),
     onOpenVault: vi.fn(),
     activeNoteModified: false,
     onZoomIn: vi.fn(),
@@ -672,64 +671,6 @@ describe('groupSortKey', () => {
     expect(groupSortKey('Navigation')).toBeLessThan(groupSortKey('Note'))
     expect(groupSortKey('Note')).toBeLessThan(groupSortKey('Git'))
     expect(groupSortKey('Git')).toBeLessThan(groupSortKey('View'))
-  })
-})
-
-describe('install-mcp command', () => {
-  it('is enabled when mcpStatus is not_installed and handler provided', () => {
-    const config = makeConfig({ mcpStatus: 'not_installed', onInstallMcp: vi.fn() })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    expect(cmd).toBeDefined()
-    expect(cmd!.enabled).toBe(true)
-    expect(cmd!.label).toBe('Set Up Artemis MCP...')
-  })
-
-  it('is enabled when mcpStatus is installed and handler provided (manage use case)', () => {
-    const config = makeConfig({ mcpStatus: 'installed', onInstallMcp: vi.fn() })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    expect(cmd!.enabled).toBe(true)
-    expect(cmd!.label).toBe('Manage Artemis MCP...')
-  })
-
-  it('is enabled even when mcpStatus is checking', () => {
-    const config = makeConfig({ mcpStatus: 'checking', onInstallMcp: vi.fn() })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    expect(cmd!.enabled).toBe(true)
-  })
-
-  it('is enabled even when no handler provided', () => {
-    const config = makeConfig({ mcpStatus: 'not_installed' })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    expect(cmd!.enabled).toBe(true)
-  })
-
-  it('has setup keywords for discoverability', () => {
-    const config = makeConfig({ mcpStatus: 'installed', onInstallMcp: vi.fn() })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    expect(cmd!.keywords).toContain('setup')
-    expect(cmd!.keywords).toContain('external')
-    expect(cmd!.keywords).toContain('mcp')
-  })
-
-  it('executes onInstallMcp callback', () => {
-    const onInstallMcp = vi.fn()
-    const config = makeConfig({ mcpStatus: 'installed', onInstallMcp })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    cmd!.execute()
-    expect(onInstallMcp).toHaveBeenCalled()
-  })
-
-  it('is in Settings group', () => {
-    const config = makeConfig({ mcpStatus: 'installed', onInstallMcp: vi.fn() })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'install-mcp')
-    expect(cmd!.group).toBe('Settings')
   })
 })
 

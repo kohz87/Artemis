@@ -32,7 +32,6 @@ function renderDenseStatusBar() {
       onCommitPush={vi.fn()}
       onClickPulse={vi.fn()}
       buildNumber="b281"
-      mcpStatus="not_installed"
     />
   )
 }
@@ -372,7 +371,6 @@ describe('StatusBar', () => {
     expect(screen.queryByText('History')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribute')).not.toBeInTheDocument()
     expect(screen.queryByText('No remote')).not.toBeInTheDocument()
-    expect(screen.queryByText('MCP')).not.toBeInTheDocument()
     expect(screen.queryByText('b281')).not.toBeInTheDocument()
   })
 
@@ -411,45 +409,6 @@ describe('StatusBar', () => {
     )
     await expectTooltip(screen.getByRole('button', { name: 'View pending changes' }), 'View pending changes')
   })
-
-  it('shows MCP warning badge when status is not_installed', async () => {
-    render(
-      <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} mcpStatus="not_installed" />
-    )
-    expect(screen.getByTestId('status-mcp')).toBeInTheDocument()
-    await expectTooltip(screen.getByRole('button', { name: 'External AI tools not connected - click to set up' }), 'External AI tools not connected - click to set up')
-  })
-
-  it('hides MCP badge when status is installed', () => {
-    render(
-      <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} mcpStatus="installed" />
-    )
-    expect(screen.queryByTestId('status-mcp')).not.toBeInTheDocument()
-  })
-
-  it('hides MCP badge when status is checking', () => {
-    render(
-      <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} mcpStatus="checking" />
-    )
-    expect(screen.queryByTestId('status-mcp')).not.toBeInTheDocument()
-  })
-
-  it('hides MCP badge when no mcpStatus prop provided', () => {
-    render(
-      <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} />
-    )
-    expect(screen.queryByTestId('status-mcp')).not.toBeInTheDocument()
-  })
-
-  it('calls onInstallMcp when clicking MCP badge with not_installed status', () => {
-    const onInstallMcp = vi.fn()
-    render(
-      <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} mcpStatus="not_installed" onInstallMcp={onInstallMcp} />
-    )
-    fireEvent.click(screen.getByTestId('status-mcp'))
-    expect(onInstallMcp).toHaveBeenCalledOnce()
-  })
-
   it('shows Pull required label when syncStatus is pull_required', () => {
     render(
       <StatusBar noteCount={100} vaultPath="/Users/luca/Laputa" vaults={vaults} onSwitchVault={vi.fn()} syncStatus="pull_required" />

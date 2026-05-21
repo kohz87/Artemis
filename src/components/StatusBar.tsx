@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { McpStatus } from '../hooks/useMcpStatus'
 import type { ThemeMode } from '../lib/themeMode'
 import type { AppLocale } from '../lib/i18n'
 import type { GitRemoteStatus, SyncStatus } from '../types'
@@ -83,8 +82,6 @@ interface StatusBarProps {
   onToggleThemeMode?: () => void
   buildNumber?: string
   onRemoveVault?: (path: string) => void
-  mcpStatus?: McpStatus
-  onInstallMcp?: () => void
   locale?: AppLocale
 }
 
@@ -118,8 +115,6 @@ function StatusBarPrimaryFromFooter({
   onOpenConflictResolver,
   buildNumber,
   onRemoveVault,
-  mcpStatus,
-  onInstallMcp,
   locale = 'en',
   compact,
   stacked,
@@ -150,8 +145,6 @@ function StatusBarPrimaryFromFooter({
       onOpenConflictResolver={onOpenConflictResolver}
       buildNumber={buildNumber}
       onRemoveVault={onRemoveVault}
-      mcpStatus={mcpStatus}
-      onInstallMcp={onInstallMcp}
       locale={locale}
       stacked={stacked}
       compact={compact}

@@ -12,7 +12,6 @@ mod gemini_discovery;
 pub mod git;
 #[cfg(any(test, all(desktop, target_os = "linux")))]
 mod linux_appimage;
-pub mod mcp;
 #[cfg(desktop)]
 pub mod menu;
 pub mod opencode_cli;
@@ -38,7 +37,6 @@ use std::process::Command;
 #[cfg(desktop)]
 use std::path::{Path, PathBuf};
 #[cfg(desktop)]
-use std::process::Child;
 #[cfg(desktop)]
 use std::sync::Mutex;
 
@@ -61,9 +59,6 @@ fn suppress_windows_console(command: &mut Command) {
 fn suppress_windows_console(_command: &mut Command) {}
 
 #[cfg(desktop)]
-struct WsBridgeChild(Mutex<Option<Child>>);
-
-#[cfg(desktop)]
 struct AllowedAssetScopeRoots(Mutex<Vec<PathBuf>>);
 
 #[cfg(desktop)]
@@ -73,78 +68,6 @@ fn log_startup_result(label: &str, result: Result<usize, String>) {
         Err(e) => log::warn!("{}: {}", label, e),
         _ => {}
     }
-}
-
-#[cfg(desktop)]
-fn selected_mcp_bridge_vault_path(vault_list: &vault_list::VaultList) -> Option<PathBuf> {
-    vault_list
-        .active_vault
-        .as_deref()
-        .map(str::trim)
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from)
-}
-
-#[cfg(desktop)]
-fn validate_mcp_bridge_vault_path(vault_path: &Path) -> Result<PathBuf, String> {
-    let resolved = std::fs::canonicalize(vault_path).map_err(|e| {
-        format!(
-            "MCP bridge vault is not available: {} ({e})",
-            vault_path.display()
-        )
-    })?;
-
-    if !resolved.is_dir() {
-        return Err(format!(
-            "MCP bridge vault is not available: {} is not a directory",
-            vault_path.display()
-        ));
-    }
-
-    Ok(resolved)
-}
-
-#[cfg(desktop)]
-fn stop_ws_bridge_child(active_child: &mut Option<Child>) {
-    if let Some(mut child) = active_child.take() {
-        let _ = child.kill();
-        let _ = child.wait();
-        log::info!("ws-bridge child process stopped");
-    }
-}
-
-#[cfg(desktop)]
-pub(crate) fn sync_ws_bridge_for_vault(
-    app_handle: &tauri::AppHandle,
-    vault_path: Option<&Path>,
-) -> Result<&'static str, String> {
-    use tauri::Manager;
-
-    let state: tauri::State<'_, WsBridgeChild> = app_handle.state();
-    let mut active_child = state
-        .0
-        .lock()
-        .map_err(|_| "Failed to lock ws-bridge state".to_string())?;
-
-    let Some(vault_path) = vault_path else {
-        stop_ws_bridge_child(&mut active_child);
-        return Ok("stopped");
-    };
-
-    let resolved_vault_path = match validate_mcp_bridge_vault_path(vault_path) {
-        Ok(path) => path,
-        Err(e) => {
-            stop_ws_bridge_child(&mut active_child);
-            return Err(e);
-        }
-    };
-
-    stop_ws_bridge_child(&mut active_child);
-
-    let child = mcp::spawn_ws_bridge(&resolved_vault_path)?;
-
-    *active_child = Some(child);
-    Ok("started")
 }
 
 fn spawn_background_task<F>(thread_name: &'static str, task: F)
@@ -192,34 +115,6 @@ fn spawn_startup_tasks() {
         return;
     };
     spawn_startup_tasks_for_vault_with(vault_path, |path| run_startup_tasks_for_vault(&path));
-}
-
-#[cfg(desktop)]
-fn sync_ws_bridge_for_selected_vault(app_handle: &tauri::AppHandle) {
-    let vault_path = match vault_list::load_vault_list() {
-        Ok(vault_list) => selected_mcp_bridge_vault_path(&vault_list),
-        Err(e) => {
-            log::warn!("Failed to load active vault for ws-bridge startup: {}", e);
-            None
-        }
-    };
-
-    let Some(vault_path) = vault_path else {
-        log::info!("ws-bridge not started: no active vault selected");
-        return;
-    };
-
-    if let Err(e) = sync_ws_bridge_for_vault(app_handle, Some(&vault_path)) {
-        log::warn!("Failed to start ws-bridge: {}", e);
-    }
-}
-
-#[cfg(desktop)]
-fn spawn_initial_ws_bridge_sync(app: &tauri::App) {
-    let app_handle = app.handle().clone();
-    spawn_background_task("tolaria-ws-bridge-startup", move || {
-        sync_ws_bridge_for_selected_vault(&app_handle);
-    });
 }
 
 fn setup_common_plugins(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -312,7 +207,6 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(desktop)]
     {
         spawn_startup_tasks();
-        spawn_initial_ws_bridge_sync(app);
     }
 
     Ok(())
@@ -449,14 +343,6 @@ macro_rules! app_invoke_handler {
             commands::create_getting_started_vault,
             commands::check_vault_exists,
             commands::get_default_vault_path,
-            commands::register_mcp_tools,
-            commands::remove_mcp_tools,
-            commands::check_mcp_status,
-            commands::get_mcp_config_snippet,
-            commands::get_mcp_bridge_info,
-            commands::copy_text_to_clipboard,
-            commands::read_text_from_clipboard,
-            commands::sync_mcp_bridge_vault,
             commands::get_process_memory_snapshot,
             commands::repair_vault,
             commands::reinit_telemetry,
@@ -479,11 +365,6 @@ fn handle_run_event(app_handle: &tauri::AppHandle, event: &tauri::RunEvent) {
 
     window_state::handle_run_event(app_handle, event);
 
-    if let tauri::RunEvent::Exit = event {
-        let state: tauri::State<'_, WsBridgeChild> = app_handle.state();
-        let mut guard = state.0.lock().unwrap();
-        stop_ws_bridge_child(&mut guard);
-    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -495,7 +376,6 @@ pub fn run() {
 
     #[cfg(desktop)]
     let builder = builder
-        .manage(WsBridgeChild(Mutex::new(None)))
         .manage(AllowedAssetScopeRoots(Mutex::new(Vec::new())))
         .manage(window_state::MainWindowFrameState::default())
         .manage(vault_watcher::VaultWatcherState::new());
@@ -517,8 +397,7 @@ mod tests {
 
     #[cfg(desktop)]
     use super::{
-        missing_asset_scope_roots, selected_mcp_bridge_vault_path,
-        spawn_startup_tasks_for_vault_with, validate_mcp_bridge_vault_path,
+        missing_asset_scope_roots, spawn_startup_tasks_for_vault_with,
     };
     #[cfg(desktop)]
     use crate::vault_list::VaultList;
@@ -532,33 +411,6 @@ mod tests {
     fn macos_webview_shortcut_prevention_includes_ai_panel_shortcut() {
         assert_eq!(MACOS_WEBVIEW_RESERVED_COMMAND_KEYS, ["O", "F"]);
         assert_eq!(MACOS_WEBVIEW_RESERVED_COMMAND_SHIFT_KEYS, ["L"]);
-    }
-
-    #[cfg(desktop)]
-    #[test]
-    fn selected_mcp_bridge_vault_path_uses_persisted_active_vault() {
-        let list = VaultList {
-            vaults: Vec::new(),
-            active_vault: Some("/tmp/Selected Vault".to_string()),
-            hidden_defaults: Vec::new(),
-        };
-
-        assert_eq!(
-            selected_mcp_bridge_vault_path(&list),
-            Some(std::path::PathBuf::from("/tmp/Selected Vault"))
-        );
-    }
-
-    #[cfg(desktop)]
-    #[test]
-    fn selected_mcp_bridge_vault_path_ignores_blank_active_vault() {
-        let list = VaultList {
-            vaults: Vec::new(),
-            active_vault: Some("  ".to_string()),
-            hidden_defaults: Vec::new(),
-        };
-
-        assert_eq!(selected_mcp_bridge_vault_path(&list), None);
     }
 
     #[cfg(desktop)]
@@ -595,21 +447,6 @@ mod tests {
             .recv_timeout(std::time::Duration::from_secs(1))
             .unwrap();
         release_tx.send(()).unwrap();
-    }
-
-    #[cfg(desktop)]
-    #[test]
-    fn validate_mcp_bridge_vault_path_requires_existing_directory() {
-        let dir = tempfile::tempdir().unwrap();
-        let vault = dir.path().join("Vault With Spaces");
-        std::fs::create_dir(&vault).unwrap();
-
-        let resolved = validate_mcp_bridge_vault_path(&vault).unwrap();
-        assert_eq!(resolved, vault.canonicalize().unwrap());
-
-        let missing = dir.path().join("Missing Vault");
-        let err = validate_mcp_bridge_vault_path(&missing).unwrap_err();
-        assert!(err.contains("MCP bridge vault is not available"));
     }
 
     #[cfg(all(desktop, unix))]

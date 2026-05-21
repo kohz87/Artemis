@@ -62,18 +62,13 @@ fn build_settings(
     vault_path: &str,
     permission_mode: AiAgentPermissionMode,
 ) -> Result<String, String> {
-    let mcp_server_path = crate::cli_agent_runtime::mcp_server_path_string()?;
-    let ws_ui_port = crate::mcp::configured_ws_ui_port().to_string();
     let mut settings = serde_json::json!({
-        "mcpServers": {
             "artemis": {
                 "command": "node",
-                "args": [mcp_server_path],
                 "env": {
                     "VAULT_PATH": vault_path,
                     "WS_UI_PORT": ws_ui_port
                 },
-                "description": "Artemis active vault MCP server",
                 "trust": permission_mode == AiAgentPermissionMode::PowerUser
             }
         }
@@ -147,19 +142,14 @@ mod tests {
     }
 
     #[test]
-    fn safe_settings_include_artemis_mcp_and_exclude_shell() {
+    fn safe_settings_include_safe_permissions() {
         let settings = build_settings("/tmp/vault", AiAgentPermissionMode::Safe).unwrap();
         let json: serde_json::Value = serde_json::from_str(&settings).unwrap();
 
-        assert_eq!(json["mcpServers"]["artemis"]["command"], "node");
         assert_eq!(
-            json["mcpServers"]["artemis"]["env"]["VAULT_PATH"],
             "/tmp/vault"
         );
-        assert_eq!(json["mcpServers"]["artemis"]["env"]["WS_UI_PORT"], "9711");
-        assert_eq!(json["mcpServers"]["artemis"]["trust"], false);
         assert_eq!(json["tools"]["exclude"][0], "run_shell_command");
-        assert!(json["mcpServers"]["artemis"]["args"][0]
             .as_str()
             .unwrap()
             .ends_with("index.js"));
@@ -170,7 +160,6 @@ mod tests {
         let settings = build_settings("/tmp/vault", AiAgentPermissionMode::PowerUser).unwrap();
         let json: serde_json::Value = serde_json::from_str(&settings).unwrap();
 
-        assert_eq!(json["mcpServers"]["artemis"]["trust"], true);
         assert!(json.get("tools").is_none());
         assert_eq!(approval_mode(AiAgentPermissionMode::PowerUser), "yolo");
     }

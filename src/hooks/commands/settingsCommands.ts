@@ -5,7 +5,6 @@ import { createTranslator, type AppLocale } from '../../lib/i18n'
 import type { ThemeMode } from '../../lib/themeMode'
 
 interface SettingsCommandsConfig {
-  mcpStatus?: string
   vaultCount?: number
   isGettingStartedHidden?: boolean
   onOpenSettings: () => void
@@ -13,7 +12,6 @@ interface SettingsCommandsConfig {
   onCreateEmptyVault?: () => void
   onRemoveActiveVault?: () => void
   onRestoreGettingStarted?: () => void
-  onInstallMcp?: () => void
   onReloadVault?: () => void
   onRepairVault?: () => void
   onToggleGitignoredFilesVisibility?: () => void
@@ -95,21 +93,11 @@ function buildVaultSettingsCommands({
 }
 
 function buildMaintenanceCommands({
-  mcpStatus,
-  onInstallMcp,
   onReloadVault,
   onRepairVault,
   onToggleGitignoredFilesVisibility,
-}: Pick<SettingsCommandsConfig, 'mcpStatus' | 'onInstallMcp' | 'onReloadVault' | 'onRepairVault' | 'onToggleGitignoredFilesVisibility'>): CommandAction[] {
+}: Pick<SettingsCommandsConfig, 'onReloadVault' | 'onRepairVault' | 'onToggleGitignoredFilesVisibility'>): CommandAction[] {
   return [
-    {
-      id: 'install-mcp',
-      label: mcpStatus === 'installed' ? 'Manage Artemis MCP...' : 'Set Up Artemis MCP...',
-      group: 'Settings',
-      keywords: ['mcp', 'artemis', 'tools', 'external', 'setup', 'details', 'copy', 'export', 'manual', 'config', 'connect', 'disconnect'],
-      enabled: true,
-      execute: () => onInstallMcp?.(),
-    },
     {
       id: 'toggle-gitignored-files-visibility',
       label: 'Toggle Gitignored Files Visibility',
@@ -125,9 +113,9 @@ function buildMaintenanceCommands({
 
 export function buildSettingsCommands(config: SettingsCommandsConfig): CommandAction[] {
   const {
-    mcpStatus, vaultCount, isGettingStartedHidden,
+    vaultCount, isGettingStartedHidden,
     onOpenSettings, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onInstallMcp, onReloadVault, onRepairVault, onToggleGitignoredFilesVisibility,
+    onReloadVault, onRepairVault, onToggleGitignoredFilesVisibility,
     locale = 'en', onSetThemeMode,
   } = config
 
@@ -143,8 +131,6 @@ export function buildSettingsCommands(config: SettingsCommandsConfig): CommandAc
       onRestoreGettingStarted,
     }),
     ...buildMaintenanceCommands({
-      mcpStatus,
-      onInstallMcp,
       onReloadVault,
       onRepairVault,
       onToggleGitignoredFilesVisibility,

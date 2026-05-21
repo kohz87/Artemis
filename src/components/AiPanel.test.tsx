@@ -225,13 +225,6 @@ describe('AiPanel', () => {
     fireEvent.click(screen.getByTitle('New AI chat'))
     expect(mockClearConversation).toHaveBeenCalledOnce()
   })
-
-  it('keeps the MCP config action out of the AI panel header', () => {
-    render(<AiPanel onClose={vi.fn()} vaultPath="/tmp/vault" />)
-
-    expect(screen.queryByRole('button', { name: 'Copy MCP config' })).toBeNull()
-  })
-
   it('renders empty state without context', () => {
     render(<AiPanel onClose={vi.fn()} vaultPath="/tmp/vault" />)
     expect(screen.getByText('Open a note, then ask Claude Code about it')).toBeTruthy()
