@@ -21,10 +21,6 @@
         "resizable": true,
         "fullscreen": false,
         "titleBarStyle": "Overlay",
-        "trafficLightPosition": {
-          "x": 18,
-          "y": 24
-        },
         "hiddenTitle": true,
         "backgroundColor": "#F7F6F3",
         "dragDropEnabled": true

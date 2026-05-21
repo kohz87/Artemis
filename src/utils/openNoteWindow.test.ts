@@ -32,12 +32,6 @@ vi.mock('@tauri-apps/api/webviewWindow', () => ({
   },
 }))
 
-vi.mock('@tauri-apps/api/dpi', () => ({
-  LogicalPosition: class MockLogicalPosition {
-    constructor(public x: number, public y: number) {}
-  },
-}))
-
 describe('openNoteWindow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -79,7 +73,6 @@ describe('openNoteWindow', () => {
         height: 700,
         resizable: true,
         titleBarStyle: 'overlay',
-        trafficLightPosition: expect.objectContaining({ x: 18, y: 24 }),
         hiddenTitle: true,
         decorations: true,
       }),
@@ -105,4 +98,3 @@ describe('openNoteWindow', () => {
     )
   })
 })
-
