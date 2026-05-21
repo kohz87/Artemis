@@ -124,7 +124,7 @@ describe('useRawMode', () => {
     expect(onBeforeRawEnd).not.toHaveBeenCalled()
   })
 
-  it('persists editor_mode to vault config on toggle', async () => {
+  it('does not persist raw fallback mode to vault config on toggle', async () => {
     const saveFn = vi.fn()
     store.resetVaultConfigStore()
     store.bindVaultConfigStore(
@@ -135,21 +135,24 @@ describe('useRawMode', () => {
     const { result } = renderRawHook()
 
     await act(async () => { await result.current.handleToggleRaw() })
-    expect(store.getVaultConfig().editor_mode).toBe('raw')
+    expect(result.current.rawMode).toBe(true)
+    expect(store.getVaultConfig().editor_mode).toBeNull()
 
     await act(async () => { await result.current.handleToggleRaw() })
     expect(store.getVaultConfig().editor_mode).toBe('preview')
   })
 
-  it('restores raw mode from vault config on init', () => {
+  it('ignores and clears persisted raw fallback config on init', () => {
+    const saveFn = vi.fn()
     store.resetVaultConfigStore()
     store.bindVaultConfigStore(
       { zoom: null, view_mode: null, editor_mode: 'raw', tag_colors: null, status_colors: null, property_display_modes: null },
-      vi.fn(),
+      saveFn,
     )
 
     const { result } = renderRawHook()
-    expect(result.current.rawMode).toBe(true)
+    expect(result.current.rawMode).toBe(false)
+    expect(store.getVaultConfig().editor_mode).toBe('preview')
+    expect(saveFn).toHaveBeenCalledWith(expect.objectContaining({ editor_mode: 'preview' }))
   })
 })
-

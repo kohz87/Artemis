@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { getVaultConfig, updateVaultConfigField, subscribeVaultConfig } from '../utils/vaultConfigStore'
+import { getVaultConfig, updateVaultConfigField } from '../utils/vaultConfigStore'
 import { trackEvent } from '../lib/telemetry'
 
 interface UseRawModeParams {
@@ -11,23 +11,22 @@ interface UseRawModeParams {
   onBeforeRawEnd?: () => void
 }
 
-function loadEditorMode(): boolean {
-  return getVaultConfig().editor_mode === 'raw'
+function clearPersistedRawEditorFallback(): void {
+  if (getVaultConfig().editor_mode === 'raw') {
+    updateVaultConfigField('editor_mode', 'preview')
+  }
 }
 
 /**
  * Manages raw editor mode state.
- * The mode preference persists across tab switches and is stored in vault config.
+ * Raw mode is a temporary escape hatch; rich BlockNote editing must remain the default
+ * whenever a vault opens so stale fallback config cannot strand users in CodeMirror.
  */
 export function useRawMode({ activeTabPath, onFlushPending, onBeforeRawEnd }: UseRawModeParams) {
-  const [rawEnabled, setRawEnabled] = useState(loadEditorMode)
+  const [rawEnabled, setRawEnabled] = useState(false)
 
-  // Re-sync when vault config becomes available (e.g. after initial load)
   useEffect(() => {
-    return subscribeVaultConfig(() => {
-      const stored = getVaultConfig().editor_mode
-      setRawEnabled(stored === 'raw')
-    })
+    clearPersistedRawEditorFallback()
   }, [])
 
   const rawMode = rawEnabled && activeTabPath !== null
@@ -41,7 +40,7 @@ export function useRawMode({ activeTabPath, onFlushPending, onBeforeRawEnd }: Us
     } else {
       await onFlushPending?.()
       setRawEnabled(true)
-      updateVaultConfigField('editor_mode', 'raw')
+      clearPersistedRawEditorFallback()
     }
   }, [rawEnabled, onFlushPending, onBeforeRawEnd])
 
