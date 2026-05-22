@@ -10,7 +10,7 @@ date: 2026-04-11
 
 ADR 0050 moved renderer shortcuts and native menu events onto the same command dispatcher, but shortcut ownership still drifted across multiple places: `appKeyboardShortcuts.ts`, `appCommandDispatcher.ts`, command-palette metadata, and `menu.rs`. That made shortcut regressions easy to reintroduce because the same facts had to be updated manually in several files.
 
-The riskiest failures were exactly the native-owned commands that matter most in a keyboard-first app: `Cmd+\` for raw editor, `Cmd+Shift+I` for properties, and `Cmd+Shift+L` for the AI panel. We need one declarative place that says which command owns which shortcut, whether the shortcut is renderer-owned or native-menu-owned, and how tests should trigger it.
+The riskiest failures were exactly the native-owned commands that matter most in a keyboard-first app: `Cmd+\` for raw editor, `Cmd+Shift+I` for properties, and right-panel shortcuts. We need one declarative place that says which command owns which shortcut, whether the shortcut is renderer-owned or native-menu-owned, and how tests should trigger it.
 
 ## Decision
 

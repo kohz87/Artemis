@@ -23,7 +23,7 @@ As Laputa adds features that depend on vault files (type definitions, config fil
 ## Consequences
 
 - Type definitions (`type/project.md`, etc.) are seeded on vault open if missing.
-- Config files (`config/agents.md`, etc.) are seeded on vault open if missing.
+- Root type scaffolding (`type.md`, `note.md`) is seeded on vault open if missing; obsolete `config/agents.md` is removed.
 - `Repair Vault` command (Cmd+K) re-creates all expected files — useful after manual deletion or vault corruption.
 - All bootstrap operations are silent and idempotent — running twice has no effect.
 - `getting_started.rs` creates the Getting Started demo vault with all expected structure.

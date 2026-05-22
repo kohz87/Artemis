@@ -4,7 +4,7 @@ How to navigate the codebase, run the app, and find what you need.
 
 ## Prerequisites
 
-- **Node.js** 18+ and **pnpm**
+- **Node.js** 20+ and **pnpm 8+**
 - **Rust** 1.77.2+ (for the Tauri backend)
 - **git** CLI (required by the git integration features)
 
@@ -37,10 +37,10 @@ On some Wayland systems, the Linux AppImage may fail to launch with:
 Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...
 ```
 
-Recent Tolaria AppImages automatically disable unstable WebKitGTK AppImage rendering paths and retry startup with an architecture-matching system Wayland client library when they detect this class of AppImage + Wayland environment. If you are running an older build, use this workaround:
+Recent Artemis AppImages automatically disable unstable WebKitGTK AppImage rendering paths and retry startup with an architecture-matching system Wayland client library when they detect this class of AppImage + Wayland environment. If you are running an older build, use this workaround:
 
 ```bash
-WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 LD_PRELOAD=/usr/lib64/libwayland-client.so.0 ./Tolaria*.AppImage
+WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 LD_PRELOAD=/usr/lib64/libwayland-client.so.0 ./Artemis*.AppImage
 ```
 
 If your distribution stores the 64-bit library elsewhere, use that path instead, for example `/usr/lib/x86_64-linux-gnu/libwayland-client.so.0`. On 64-bit Fedora, avoid `/usr/lib/libwayland-client.so.0`; that path can point at a 32-bit library and be ignored by the loader with a wrong ELF class warning.
@@ -51,9 +51,9 @@ If your distribution stores the 64-bit library elsewhere, use that path instead,
 # Install dependencies
 pnpm install
 
-# Run in browser (no Rust needed — uses mock data)
-pnpm dev
-# Open http://localhost:5173
+# Run in browser (no Rust needed — uses mock data or the local vault API)
+pnpm dev:web
+# Open http://localhost:5202
 
 # Run with Tauri (full app, requires Rust)
 pnpm tauri dev
@@ -68,7 +68,7 @@ pnpm playwright:regression  # Full Playwright regression suite
 ## Optional Web Listening Configuration
 
 Vite reads `ARTEMIS_HOST` and `ARTEMIS_PORT` from `.env.local` or the shell when
-running `pnpm dev` / `pnpm dev:web`. The defaults are `localhost:5202` for Tauri
+running `pnpm dev:web` / `pnpm dev:web`. The defaults are `localhost:5202` for Tauri
 dev compatibility. Use `ARTEMIS_HOST=0.0.0.0` when another device on the network
 needs to reach the dev server:
 
@@ -91,12 +91,12 @@ Leave `ARTEMIS_PASSWORD` unset or blank to run without password protection. Succ
 
 `create_getting_started_vault` clones the public starter repo and then removes every git remote from the new local copy. That means Getting Started vaults open local-only by default. Users connect a compatible remote later through the bottom-bar `No remote` chip or the command palette, both of which feed the same `AddRemoteModal` and `git_add_remote` backend flow.
 
-Linux AppImage builds still use the user's system `git`. Before Tolaria spawns that `git` process, it removes AppImage loader overrides such as `LD_LIBRARY_PATH`, `LD_PRELOAD`, and `GIT_EXEC_PATH` so HTTPS clone helpers use the host git libraries instead of bundled AppImage libraries.
+Linux AppImage builds still use the user's system `git`. Before Artemis spawns that `git` process, it removes AppImage loader overrides such as `LD_LIBRARY_PATH`, `LD_PRELOAD`, and `GIT_EXEC_PATH` so HTTPS clone helpers use the host git libraries instead of bundled AppImage libraries.
 
 ## Directory Structure
 
 ```
-tolaria/
+artemis/
 ├── src/                          # React frontend
 │   ├── main.tsx                  # Entry point (renders <App />)
 │   ├── App.tsx                   # Root component — orchestrates layout + state
@@ -119,10 +119,6 @@ tolaria/
 │   │   ├── RawEditorView.tsx     # CodeMirror raw editor
 │   │   ├── Inspector.tsx         # Fourth panel: metadata + relationships
 │   │   ├── DynamicPropertiesPanel.tsx  # Editable frontmatter properties
-│   │   ├── AiPanel.tsx           # AI agent panel (selected CLI agent + per-vault permission mode)
-│   │   ├── AiMessage.tsx         # Agent message display
-│   │   ├── AiActionCard.tsx      # Agent tool action cards
-│   │   ├── AiAgentsOnboardingPrompt.tsx # First-launch AI agent installer prompt
 │   │   ├── SearchPanel.tsx       # Search interface
 │   │   ├── SettingsPanel.tsx     # App settings
 │   │   ├── StatusBar.tsx         # Bottom bar: vault picker + sync
@@ -153,10 +149,6 @@ tolaria/
 │   │   ├── useNoteActions.ts     # Composes creation + rename + frontmatter
 │   │   ├── useNoteCreation.ts    # Note/type creation
 │   │   ├── useNoteRename.ts     # Note renaming + wikilink updates
-│   │   ├── useCliAiAgent.ts      # Selected AI agent state + normalized session pipeline
-│   │   ├── aiAgentPermissionMode.ts # Safe/Power User mode normalization + labels
-│   │   ├── useAiAgentsStatus.ts  # Claude/Codex/OpenCode/Pi/Gemini availability polling
-│   │   ├── useAiAgentPreferences.ts # Default-agent persistence + cycling
 │   │   ├── useAutoSync.ts        # Auto git pull/push
 │   │   ├── useConflictResolver.ts # Git conflict handling
 │   │   ├── useEditorSave.ts      # Auto-save with debounce
@@ -180,9 +172,6 @@ tolaria/
 │   │   ├── frontmatter.ts        # TypeScript YAML parser
 │   │   ├── plainTextPaste.ts     # Shared Paste without Formatting command target registry
 │   │   ├── platform.ts           # Runtime platform + Linux chrome gating helpers
-│   │   ├── ai-agent.ts           # Agent stream utilities
-│   │   ├── ai-chat.ts            # Token estimation utilities
-│   │   ├── ai-context.ts         # Context snapshot builder
 │   │   ├── noteListHelpers.ts    # Sorting, filtering, date formatting
 │   │   ├── wikilink.ts           # Wikilink resolution
 │   │   ├── configMigration.ts    # localStorage → vault config migration
@@ -193,7 +182,6 @@ tolaria/
 │   │   └── ...
 │   │
 │   ├── lib/
-│   │   ├── aiAgents.ts           # Shared agent registry + status helpers
 │   │   ├── appUpdater.ts         # Frontend wrapper around channel-aware updater commands
 │   │   ├── i18n.ts               # App-owned localization runtime and locale resolution
 │   │   ├── locales/              # JSON locale catalogs (English source + translated locales)
@@ -227,10 +215,6 @@ tolaria/
 │   │   │   ├── conflict.rs, remote.rs, pulse.rs
 │   │   ├── telemetry.rs          # Sentry init + path scrubber
 │   │   ├── search.rs             # Keyword search (walkdir-based)
-│   │   ├── ai_agents.rs          # CLI-agent request normalization + adapter dispatch
-│   │   ├── claude_cli.rs         # Claude CLI adapter
-│   │   ├── codex_cli.rs          # Codex CLI adapter
-│   │   ├── pi_cli.rs             # Pi CLI adapter
 │   │   ├── app_updater.rs        # Alpha/stable updater endpoint selection
 │   │   ├── settings.rs           # App settings persistence
 │   │   ├── vault_config.rs       # Per-vault UI config
@@ -255,8 +239,6 @@ tolaria/
 ├── playwright.config.ts          # Full Playwright regression config
 ├── playwright.smoke.config.ts    # Curated pre-push Playwright config
 ├── ui-design.pen                 # Master design file
-├── AGENTS.md                     # Canonical shared instructions for coding agents
-├── CLAUDE.md                     # Claude Code compatibility shim importing AGENTS.md as an organized Note
 └── docs/                         # This documentation
 ```
 
@@ -264,7 +246,7 @@ tolaria/
 
 ### Fixtures
 
-- `demo-vault-v2/` is the small checked-in QA fixture used for native/manual Tolaria flows. It is intentionally curated around a handful of search, relationship, project-navigation, and attachment scenarios.
+- `demo-vault-v2/` is the small checked-in QA fixture used for native/manual Artemis flows. It is intentionally curated around a handful of search, relationship, project-navigation, and attachment scenarios.
 - `tests/fixtures/test-vault/` is the deterministic Playwright fixture copied into temp directories for isolated integration and smoke tests.
 - `python3 scripts/generate_demo_vault.py` generates the larger synthetic vault on demand at `generated-fixtures/demo-vault-large/` for scale/performance experiments. That output is gitignored and should not bloat the normal QA fixture.
 
@@ -297,8 +279,6 @@ tolaria/
 | `src-tauri/src/frontmatter/ops.rs` | YAML manipulation — how properties are updated/deleted in files. |
 | `src-tauri/src/git/` | All git operations (clone, commit, pull, push, conflicts, pulse, add-remote). |
 | `src-tauri/src/search.rs` | Keyword search — scans vault files with walkdir. |
-| `src-tauri/src/ai_agents.rs` | CLI-agent request normalization, availability aggregation, adapter dispatch, and Claude event mapping. |
-| `src-tauri/src/claude_cli.rs`, `src-tauri/src/codex_cli.rs`, `src-tauri/src/opencode_cli.rs`, `src-tauri/src/pi_cli.rs`, `src-tauri/src/gemini_cli.rs` | Per-agent command, config, discovery, and JSON event adapters. |
 | `src-tauri/src/app_updater.rs` | Desktop updater bridge — selects alpha/stable manifests and streams install progress. |
 
 ### Editor
@@ -306,24 +286,13 @@ tolaria/
 | File | Why it matters |
 |------|---------------|
 | `src/components/Editor.tsx` | BlockNote setup, breadcrumb bar, diff/raw toggle. |
-| `src/components/SingleEditorView.tsx` | Shared BlockNote shell, Tolaria formatting controllers, and suggestion menus. |
+| `src/components/SingleEditorView.tsx` | Shared BlockNote shell, Artemis formatting controllers, and suggestion menus. |
 | `src/components/editorSchema.tsx` | Custom wikilink inline content type definition. |
 | `src/components/tolariaEditorFormatting.tsx` | Markdown-safe formatting toolbar surface for BlockNote. |
 | `src/components/tolariaEditorFormattingConfig.ts` | Filters toolbar and slash-menu commands to markdown-roundtrippable actions. |
 | `src/utils/wikilinks.ts` | Wikilink preprocessing pipeline (markdown ↔ BlockNote). |
 | `src/components/RawEditorView.tsx` | CodeMirror 6 raw markdown editor. |
 
-### AI
-
-| File | Why it matters |
-|------|---------------|
-| `src/components/AiPanel.tsx` | AI agent panel — selected CLI agent with tool execution, reasoning, actions, and per-vault permission mode. |
-| `src/hooks/useCliAiAgent.ts` | Thin React owner for the selected CLI agent session state. |
-| `src/lib/aiAgentSession.ts` | Single message/session lifecycle for prompt normalization, history, streaming, and reset behavior. |
-| `src/lib/aiAgentPermissionMode.ts` | Safe/Power User mode normalization, display labels, and local transcript marker text. |
-| `src/lib/aiAgentFileOperations.ts` | Detects agent-created or modified vault files from normalized tool inputs. |
-| `src/lib/aiAgents.ts` | Supported agent definitions, status normalization, and default-agent helpers. |
-| `src/utils/ai-context.ts` | Context snapshot builder for AI conversations. |
 
 ### Styling
 
@@ -336,12 +305,10 @@ tolaria/
 
 | File | Why it matters |
 |------|---------------|
-| `src/hooks/useSettings.ts` | App settings (telemetry, release channel, theme mode, UI language, auto-sync interval, default AI agent). |
 | `src/lib/releaseChannel.ts` | Normalizes persisted updater-channel values (`stable` default, optional `alpha`). |
 | `src/lib/appUpdater.ts` | Frontend wrapper for channel-aware updater commands. |
 | `src/hooks/useMainWindowSizeConstraints.ts` | Derives the main-window minimum width from the visible panes and asks Tauri to grow back to fit wider layouts. |
-| `src/hooks/useVaultConfig.ts` | Per-vault local UI preferences (zoom, view mode, colors, Inbox columns, explicit organization workflow, AI permission mode). |
-| `src/components/SettingsPanel.tsx` | Settings UI for telemetry, release channel, sync interval, UI language, default AI agent, and the vault-level explicit organization toggle. |
+| `src/hooks/useVaultConfig.ts` | Per-vault local UI preferences (zoom, view mode, colors, Inbox columns, explicit organization workflow). |
 | `src/hooks/useUpdater.ts` | In-app updates using the selected alpha/stable feed. |
 
 ## Architecture Patterns
@@ -450,12 +417,5 @@ BASE_URL="http://localhost:5173" npx playwright test tests/smoke/<slug>.spec.ts
 
 1. **Global app/theme variables**: Edit `src/index.css`
 2. **Editor typography**: Edit `src/theme.json`
-
-### Work with the AI agent
-
-1. **Agent system prompt**: Edit `src/utils/ai-agent.ts` (inline system prompt string)
-2. **Context building**: Edit `src/utils/ai-context.ts` for what data is sent to the agent
-3. **Tool action display**: Edit `src/components/AiActionCard.tsx`
-4. **Permission-mode UI and request plumbing**: Edit `src/lib/aiAgentPermissionMode.ts`, `src/components/AiPanel*.tsx`, `src/hooks/useCliAiAgent.ts`, and `src/utils/streamAiAgent.ts`
 
 

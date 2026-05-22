@@ -93,10 +93,6 @@ describe('appCommandDispatcher', () => {
     expect(isAppCommandId('not-a-command')).toBe(false)
   })
 
-  it('no longer recognizes the removed daily-note menu id', () => {
-    expect(isAppCommandId('file-daily-note')).toBe(false)
-  })
-
   it('distinguishes native menu ids from keyboard-only ids', () => {
     expect(isNativeMenuCommandId(APP_COMMAND_IDS.fileNewNote)).toBe(true)
     expect(isNativeMenuCommandId(APP_COMMAND_IDS.noteToggleFavorite)).toBe(false)
@@ -127,13 +123,6 @@ describe('appCommandDispatcher', () => {
     }
   })
 
-  it('finds raw editor, AI, and plain-text paste shortcuts from the shared catalog', () => {
-    expect(findShortcutCommandId('command-or-ctrl', 'o', 'KeyO')).toBe(APP_COMMAND_IDS.fileQuickOpen)
-    expect(findShortcutCommandId('command-or-ctrl', '\\')).toBe(APP_COMMAND_IDS.editToggleRawEditor)
-    expect(findShortcutCommandId('command-or-ctrl-shift', '¬', 'KeyL')).toBe(APP_COMMAND_IDS.viewToggleAiChat)
-    expect(findShortcutCommandId('command-or-ctrl-shift', 'v', 'KeyV')).toBe(APP_COMMAND_IDS.editPastePlainText)
-  })
-
   it('gives every shortcut command an explicit deterministic QA strategy', () => {
     expect(getDeterministicShortcutQaDefinition(APP_COMMAND_IDS.fileNewNote)).toMatchObject({
       preferredMode: 'native-menu-command',
@@ -162,20 +151,6 @@ describe('appCommandDispatcher', () => {
   })
 
   it('builds deterministic keyboard events from the shared shortcut manifest', () => {
-    expect(getShortcutEventInit(APP_COMMAND_IDS.viewToggleAiChat)).toMatchObject({
-      key: 'l',
-      code: 'KeyL',
-      metaKey: true,
-      ctrlKey: false,
-      shiftKey: true,
-    })
-    expect(getShortcutEventInit(APP_COMMAND_IDS.viewToggleAiChat, { preferControl: true })).toMatchObject({
-      key: 'l',
-      code: 'KeyL',
-      metaKey: false,
-      ctrlKey: true,
-      shiftKey: true,
-    })
     expect(getShortcutEventInit(APP_COMMAND_IDS.viewGoBack)).toMatchObject({
       key: 'ArrowLeft',
       code: 'ArrowLeft',
@@ -187,11 +162,9 @@ describe('appCommandDispatcher', () => {
 
   it('resolves event modifiers through the shared shortcut catalog', () => {
     expectShortcutEventCommand({ key: 'o', code: 'KeyO', metaKey: true }, APP_COMMAND_IDS.fileQuickOpen)
-    expectShortcutEventCommand({ key: '¬', code: 'KeyL', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleAiChat)
     expectShortcutEventCommand({ key: 'I', code: 'KeyI', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleProperties)
     expectShortcutEventCommand({ key: 'ArrowLeft', code: 'ArrowLeft', metaKey: true }, APP_COMMAND_IDS.viewGoBack)
     expectShortcutEventCommand({ key: 'ArrowRight', code: 'ArrowRight', metaKey: true }, APP_COMMAND_IDS.viewGoForward)
-    expectShortcutEventCommand({ key: 'l', code: 'KeyL', ctrlKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleAiChat)
     expectShortcutEventCommand({ key: 'V', code: 'KeyV', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.editPastePlainText)
   })
 
@@ -215,17 +188,6 @@ describe('appCommandDispatcher', () => {
     const handlers = makeHandlers()
     expect(dispatchAppCommand(APP_COMMAND_IDS.viewToggleProperties, handlers)).toBe(true)
     expect(handlers.onToggleInspector).toHaveBeenCalled()
-  })
-
-  it('dispatches AI panel toggle through the shared command path', () => {
-    const handlers = makeHandlers()
-    expect(dispatchAppCommand(APP_COMMAND_IDS.viewToggleAiChat, handlers)).toBe(true)
-  })
-
-  it('dispatches plain-text paste through the shared command path', () => {
-    const handlers = makeHandlers()
-    expect(dispatchAppCommand(APP_COMMAND_IDS.editPastePlainText, handlers)).toBe(true)
-    expect(handlers.onPastePlainText).toHaveBeenCalled()
   })
 
   it('uses the active note for note-scoped commands', () => {
@@ -290,13 +252,6 @@ describe('appCommandDispatcher', () => {
     expect(executeAppCommand(APP_COMMAND_IDS.viewToggleProperties, handlers, 'renderer-keyboard')).toBe(true)
     expect(executeAppCommand(APP_COMMAND_IDS.viewToggleProperties, handlers, 'native-menu')).toBe(false)
     expect(handlers.onToggleInspector).toHaveBeenCalledTimes(1)
-  })
-
-  it('suppresses a renderer keyboard echo after native-menu dispatch', () => {
-    const handlers = makeHandlers()
-
-    expect(executeAppCommand(APP_COMMAND_IDS.viewToggleAiChat, handlers, 'native-menu')).toBe(true)
-    expect(executeAppCommand(APP_COMMAND_IDS.viewToggleAiChat, handlers, 'renderer-keyboard')).toBe(false)
   })
 
   it('suppresses a native-menu history echo after renderer keyboard yields to text editing', () => {

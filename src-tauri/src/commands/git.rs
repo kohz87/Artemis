@@ -201,7 +201,7 @@ fn is_broad_personal_folder(path: &std::path::Path) -> bool {
 
 #[cfg(desktop)]
 fn has_artemis_vault_marker(path: &std::path::Path) -> bool {
-    ["AGENTS.md", "CLAUDE.md", "type.md", "note.md"]
+    ["type.md", "note.md"]
         .iter()
         .any(|file| path.join(file).is_file())
         || ["attachments", "type", "views"]

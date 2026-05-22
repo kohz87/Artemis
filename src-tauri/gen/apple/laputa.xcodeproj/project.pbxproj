@@ -47,7 +47,6 @@
 		5F28F393EB20BA7F8F2102EF /* config_seed.rs */ = {isa = PBXFileReference; path = config_seed.rs; sourceTree = "<group>"; };
 		6288FD61B10C36115B12B4A4 /* cache.rs */ = {isa = PBXFileReference; path = cache.rs; sourceTree = "<group>"; };
 		692CE75FC8E670478C4209C8 /* remote.rs */ = {isa = PBXFileReference; path = remote.rs; sourceTree = "<group>"; };
-		6A5C3DA38846B440DD56E98A /* claude_cli.rs */ = {isa = PBXFileReference; path = claude_cli.rs; sourceTree = "<group>"; };
 		6AC39E9370FCCB01E81EC824 /* ai_chat.rs */ = {isa = PBXFileReference; path = ai_chat.rs; sourceTree = "<group>"; };
 		6F67F5CDD6BB137126C5AABB /* menu.rs */ = {isa = PBXFileReference; path = menu.rs; sourceTree = "<group>"; };
 		71EDBD38A067DA56FD3E375F /* getting_started.rs */ = {isa = PBXFileReference; path = getting_started.rs; sourceTree = "<group>"; };
@@ -229,7 +228,6 @@
 			isa = PBXGroup;
 			children = (
 				6AC39E9370FCCB01E81EC824 /* ai_chat.rs */,
-				6A5C3DA38846B440DD56E98A /* claude_cli.rs */,
 				077AD05C7FB4A784D360399B /* commands.rs */,
 				E1428C0A0CC22F741B7A4A0C /* lib.rs */,
 				50B53E0FE0FC2A5515B48A28 /* main.rs */,

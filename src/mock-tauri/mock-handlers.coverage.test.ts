@@ -147,7 +147,6 @@ describe('mockHandlers coverage', () => {
         anonymous_id: 'anon-1',
         release_channel: 'alpha',
         ui_language: 'zh-CN',
-        default_ai_agent: 'codex',
       },
     })
 
@@ -164,7 +163,6 @@ describe('mockHandlers coverage', () => {
       release_channel: 'alpha',
       theme_mode: null,
       ui_language: 'zh-CN',
-      default_ai_agent: 'codex',
     })
 
     const list = {

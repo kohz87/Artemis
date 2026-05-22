@@ -8,7 +8,7 @@ date: 2026-03-30
 
 ## Context
 
-`src-tauri/src/commands.rs` grew to 937 lines as Tauri command handlers accumulated for vault CRUD, git/GitHub sync, AI, system, and window operations. All commands shared a single file with no domain separation, making it hard to navigate, review, and extend. The file was a CodeScene hotspot dragging down overall code health.
+`src-tauri/src/commands.rs` grew to 937 lines as Tauri command handlers accumulated for vault CRUD, git/GitHub sync, system, and window operations. All commands shared a single file with no domain separation, making it hard to navigate, review, and extend. The file was a CodeScene hotspot dragging down overall code health.
 
 ## Decision
 

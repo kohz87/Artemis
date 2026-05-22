@@ -8,7 +8,7 @@ export interface AllNotesFileVisibility {
 }
 
 export const DEFAULT_ALL_NOTES_FILE_VISIBILITY: AllNotesFileVisibility = {
-  pdfs: false,
+  pdfs: true,
   images: false,
   unsupported: false,
 }
@@ -22,7 +22,7 @@ export function resolveAllNotesFileVisibility(
   settings: AllNotesFileVisibilitySettings | null | undefined,
 ): AllNotesFileVisibility {
   return {
-    pdfs: settings?.all_notes_show_pdfs === true,
+    pdfs: settings?.all_notes_show_pdfs ?? DEFAULT_ALL_NOTES_FILE_VISIBILITY.pdfs,
     images: settings?.all_notes_show_images === true,
     unsupported: settings?.all_notes_show_unsupported === true,
   }

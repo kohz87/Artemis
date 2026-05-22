@@ -7,7 +7,6 @@ files:
     command.footerSelect: 6d73339906ed42e20f6be91bf7f5f4a9
     command.footerClose: dcf77460e548fe215ef28583f092a496
     command.footerSend: 6b19fc9694fd8b7b3f1aafaca83db864
-    command.aiMode: 7197e3c5f9afd24022377176611f35cb
     command.openSettings: 638c05f4f159a403e04aebe94b46a2a8
     command.openSettings.keywords: ab6b5e03395f4db955ed9cbfd4de33b7
     command.openLanguageSettings: e5a425aa6222fab3df66c0e1e0ca4183
@@ -73,8 +72,6 @@ files:
     command.view.defaultNoteWidthWide: 41f326763e3e3954912dfd45d04bd87c
     command.view.leftLayout: 5046a7166675e2d0175b9da3befdcaca
     command.view.centerLayout: 3bc6759c005178aae519aa3dd227cb74
-    command.view.toggleAiPanel: 4279cbf31767465f25feff6e7bdd336e
-    command.view.newAiChat: 1b0a886d6e77f628ec96c2d71cdb0a9b
     command.view.toggleBacklinks: b3c4be2d2c07bb8df181355a2c3658a7
     command.view.moveViewUp: 76f92d3250e028609349d825c672f13e
     command.view.moveViewDown: 9deea30162b8d3234f8d52795ad7393f
@@ -87,18 +84,11 @@ files:
     command.settings.openVault: c40e74822da9417fdf52eb4a37bb23f2
     command.settings.removeVault: 390e2b2031cde0dd18381efee0923bea
     command.settings.restoreGettingStarted: b3358dc1c7b873b2a02ac6f05473fe4d
-    command.settings.manageExternalAi: c36b9bd171f11a18a1e624365d2b57ac
-    command.settings.setupExternalAi: 24eea679eb699763daa2e3f2a67fcf9a
     command.settings.reloadVault: f6e506dad6b6cf2be24d9438d458ae54
     command.settings.repairVault: cee560b1fd5ad9d1ff1c19a0a2afe77a
     command.settings.useLightMode: a76d5b1c076983bc113d247f0520c166
     command.settings.useDarkMode: ba7873c42ae00542ba71db9be3b6761f
     command.settings.toggleGitignoredFilesVisibility: 0a2d3ea4e8ff8b00a801183caeb97a03
-    command.ai.openAgents: 612abe804edd0f5ae228a534f77f3d23
-    command.ai.restoreGuidance: 23331fecc692d11d85cf24838ed273f2
-    command.ai.switchToAgent: 5bb02187e653b360ab7ed661403271f2
-    command.ai.switchDefault: 42724de254240d598fbcc40fdb5b18a3
-    command.ai.switchDefaultWithAgent: d405f7914bb1cd86172f108f3c33d953
     settings.title: f4f70727dc34561dfde1a3c529b6205c
     settings.close: 7812b3644f897c5d3efb0dd63440e751
     settings.sync.title: 36f62a237420dcdc7096ad3a9018c4d9
@@ -144,62 +134,6 @@ files:
     settings.allNotesVisibility.imagesDescription: 1704e10d5e5cdc17d2d2a5fb7b8969bf
     settings.allNotesVisibility.unsupported: 257fe04419c9f6543a43e58b1edf9eb5
     settings.allNotesVisibility.unsupportedDescription: a3b8aa66900c742f001cd4533b3df44a
-    settings.aiAgents.title: 27f08387b26e1ceeb1b60bd9c97e7a47
-    settings.aiAgents.description: 042a8037f1a4f90c76ce31a49fdff59c
-    settings.aiAgents.default: 6af573559fd05d8c35bc57b41cc78e24
-    settings.aiAgents.defaultTarget: 5acfc74fd97a6dd2d67d15c66de5eed5
-    settings.aiAgents.agentGroup: 965530cbbec45b1754ed3ece120399f7
-    settings.aiAgents.localGroup: d34f4b997ce78da5aa57d657a5d6fcb5
-    settings.aiAgents.apiGroup: 589a257cbd265eaa7de93de8b4084dff
-    settings.aiAgents.installed: 73329564760013a7824ff9d5d1af91ff
-    settings.aiAgents.missing: ea21841da70e6405af19fabc4ff8bdd9
-    settings.aiAgents.ready: 909a648c713be25fcd050725d0a41e37
-    settings.aiAgents.notInstalled: 0ac3f76ef78bfdbab6331731ee56ba22
-    settings.aiAgents.apiReady: e5b06f6ef4ef5f4bc2848d46195e3f48
-    settings.aiAgents.apiLocalKey: 119de2f31867b273a134f05bc56b9e57
-    settings.aiAgents.apiEnv: e011db3dff54ed3deae37a9615e31ebf
-    settings.aiAgents.apiNoKey: 5bbccbfcd09b28902bbf5319dd6e6053
-    settings.aiAgents.installedTitle: 5cb9b5ae5ebc66652814dff4584705cc
-    settings.aiAgents.installedDescription: fb9ba9667725fb40fa1e5d58a2c02692
-    settings.aiAgents.noVersion: 89831adb7114946e916b9c31d57a1e33
-    settings.aiProviders.title: 63eb84d8510f9f086d282ec7d47adaa1
-    settings.aiProviders.description: 6c86c013eb6fb198b51e29ec47d66464
-    settings.aiProviders.localTitle: c7c20443d8aaf04271df9d713f5c02ce
-    settings.aiProviders.localDescription: 7abed40ef2e46741c64ff47e423cca39
-    settings.aiProviders.apiTitle: 66537b9e5200ebbbfbd091144d8afbcc
-    settings.aiProviders.apiDescription: 6ec773352e05a805af3abcebeff4e756
-    settings.aiProviders.kind: 27703c8f150ac4bb0a3a83a7857353af
-    settings.aiProviders.kind.ollama: c23e8db458397f37c8e8d98e94e55a18
-    settings.aiProviders.kind.lmStudio: 7b9b319662715e90583e823a6c3cfdbe
-    settings.aiProviders.kind.openAi: 0523b13262b12c215d8009938f5c14f1
-    settings.aiProviders.kind.anthropic: f431db65cea024a5f19eab835afefee2
-    settings.aiProviders.kind.gemini: 766cc4dd4d5005652e8514e3513683f8
-    settings.aiProviders.kind.openRouter: a0607683815b6585fb80e7cac72ac59a
-    settings.aiProviders.kind.compatible: 1a4dc90a183c26d9026c6ac7727aa4cd
-    settings.aiProviders.name: 49ee3087348e8d44e1feda1917443987
-    settings.aiProviders.baseUrl: ade86bc4899761ad46c52e381b6228bb
-    settings.aiProviders.model: 6bd36c36869288188863bd53a9bc5ed1
-    settings.aiProviders.key: 656a6828d7ef1bb791e42087c4b5ee6e
-    settings.aiProviders.keyPlaceholder: 57dbf3720af3f156018bfff7f5a99b23
-    settings.aiProviders.keyStorage: 3e5b8cfbc66d3a33dad3fda058bf5851
-    settings.aiProviders.keyStorage.local: 7c6189f734f3c66d162a3f06529af1d9
-    settings.aiProviders.keyStorage.env: a71b071971d7c54e9af381c9bea093d9
-    settings.aiProviders.keyStorage.none: 94c841331ccd5179a283487f96285c90
-    settings.aiProviders.keyEnv: cb72671bd5cf65512d4c94e8ad6182ef
-    settings.aiProviders.keySafety: 0d59d7e4def35e51c4bb785d74180afc
-    settings.aiProviders.keySafetyLocal: 8ef2ba0192ac725fa1a3e737e852387c
-    settings.aiProviders.localSafety: 60fb65e4e0d35cec3135584d8219e8fd
-    settings.aiProviders.add: a9f8e8b4ca3cbc4fc3bff5d59d6a5419
-    settings.aiProviders.addLocal: 681985f2e412f22fcd55a0553f6e4bee
-    settings.aiProviders.addApi: 767b46f2a51aa9dd050cb226cd86e192
-    settings.aiProviders.test: 602009d5aea1c1ef06fd777968f7e80e
-    settings.aiProviders.testing: 9d770c909c2c69b09eae2372c4cf405d
-    settings.aiProviders.testSuccess: 51677ed54231e41a4fe40850d90b64b2
-    settings.aiProviders.empty: 9378027dec7f93fcc5011c5e528bdf82
-    settings.aiProviders.defaultEndpoint: 666b355c305dd4c7b4649d3d7b4c5d11
-    settings.aiProviders.keyLocalSaved: f4a102d6a67212e21f0f31f0758aea81
-    settings.aiProviders.keyEnvSaved: bfed2d745dd76dbea9341d27e06c39f2
-    settings.aiProviders.noKey: 1ab089f80ef4dc6c1ce3e173f5b405a0
     settings.workflow.title: 24f47cdbe9ddba774a7cc53e51d9032e
     settings.workflow.description: aa9a07539b87cf407c3edc8a22732d45
     settings.workflow.explicit: 54a5b5c27937d25271c3127d093e8361
@@ -236,35 +170,6 @@ files:
     viewDialog.saveError: 80fe81f3ca09ea03af03fdb9ae809eda
     viewDialog.selectedIcon: 5f98b507ccec0bbc51ca7e8a5b270250
     viewDialog.selectedColor: 192ec1a9973f328c3620cd3fa670c745
-    ai.permission.safe.short: c6eea0560cd6f377e78dff2c85cc9122
-    ai.permission.safe.control: 386cc66605d50e5bf1fb726f97e55b55
-    ai.permission.safe.tooltip: 3bd635e2b2223da302994d77bfd7edfd
-    ai.permission.powerUser.short: d4a47db271fc1ef3cd17f7396326b057
-    ai.permission.powerUser.control: d4a47db271fc1ef3cd17f7396326b057
-    ai.permission.powerUser.tooltip: 2585ecdb79ca02a3ee779bb61552de03
-    ai.permission.modeAria: 3ff6346566a4c44fd5c7395907125d3e
-    ai.permission.changed: b5d06ad47e6053fe5a73f4571a40e00c
-    ai.panel.title: 4412225fe5b326643b8c2e1d9b7b10ae
-    ai.panel.status.checking: 118740af1c4521b917e29791d661db82
-    ai.panel.status.missing: fe07f8eac233c229d81cbe9aa25668a0
-    ai.panel.status.ready: 296a0ac791eab2df130789f55fdc109b
-    ai.panel.mode.chat: 55dcdf017b51fc96f7b5f9d63013b95d
-    ai.panel.mode.chatDescription: d7744ae39e7920a8eac7b21b58fce348
-    ai.panel.newChat: 1b0a886d6e77f628ec96c2d71cdb0a9b
-    ai.panel.close: d00ba22b83762f5a6e66db0be9e916d7
-    ai.panel.linkedCount: 5292fda189a357c9597b1cb0e1b0900b
-    ai.panel.empty.checkingTitle: 0dde2076cb53fe497d05d231296d50bb
-    ai.panel.empty.checkingDescription: 31e41510d851c366860377ba0c956f0b
-    ai.panel.empty.missingTitle: a2b764da52cb43b191bb4ecfd8ea4d26
-    ai.panel.empty.missingDescription: 91825c7d86b1d588d44a33e1d94af950
-    ai.panel.empty.withContextTitle: 66f02985937083e4ef62b98cc9f25aee
-    ai.panel.empty.noContextTitle: e919aeb0a49b58e494e43e5f6f6597c9
-    ai.panel.empty.withContextDescription: dd8faefcc8160a2db800a41d6628facb
-    ai.panel.empty.noContextDescription: 6a6e610835808016d1f2790c3f991a54
-    ai.panel.placeholder.checking: 08fec77719c37d3d6279b2641b37b4d3
-    ai.panel.placeholder.missing: 547c492026d115608067988b7cfbb9a9
-    ai.panel.placeholder.ready: 31f5265c2e0432a7ca10d08e5c6f3114
-    ai.panel.send: 747c6a3564774149c989884e0c581d53
     save.toast.saved: 248336101b461380a4b2391a7625493d
     save.toast.nothingToSave: 86ae8cef7371e639f3c007449a2f7d1f
     save.toast.missingActiveVault: 49cf5064a7dce757f895950d8beeed68
@@ -520,26 +425,6 @@ files:
     status.history.onlyGit: 7da5397c33ada1b73a81c5a449cbab16
     status.history.open: 802ec1fd97592612c19ebef7bebbb5c2
     status.history.label: 16d2b386b2034b9488996466aaae0b57
-    status.claude.missing: 89021856e6152467f54ed33faed55e2f
-    status.claude.label: 38c66b824d5769e42c3866005296525b
-    status.claude.install: 1f4688bc2a2acc268811c9edcec810a1
-    status.ai.noAgents: 0876a176a6297e79366d0a2935851f81
-    status.ai.noAgentsTooltip: 1bdc02ec2dd7f9701b4371ffd5770318
-    status.ai.selectedMissing: a37f3dbc73725219e90d709fe0d3ad97
-    status.ai.defaultAgent: 79650d57d1678e56c75dbbcba6ea87f7
-    status.ai.defaultTarget: 65ea5bdb609833c4baffd2cbd0e86542
-    status.ai.restoreDetails: 47a913b58ce40add6521bc93e807476f
-    status.ai.withGuidance: 1eafd34810db6bba54dac7aa549b5182
-    status.ai.active: 059e3a3167c2ab00f4ca872e82a48d98
-    status.ai.unavailable: 0d3e6e3afef545710aa24ed2ea4990af
-    status.ai.install: 349838fb1d851d3e2014b9fe39203275
-    status.ai.installAgent: 78ac3395d977f8b86ca9a02f781f4af8
-    status.ai.vaultGuidance: 7bb4644efe6ae7cec9993c8bd85f1519
-    status.ai.restoreGuidance: 23331fecc692d11d85cf24838ed273f2
-    status.ai.openOptions: d387b1ab67586c7a2d83db8900a4dd8e
-    status.ai.modelTargets: 8f3ceb96e088f8bdaecc236778401ac9
-    status.ai.localChat: 215a24e3d38fb8b68deea6dad0142326
-    status.ai.apiChat: 6dffd5b9997885efe701631cea5c470d
     pulse.title: 16d2b386b2034b9488996466aaae0b57
     pulse.today: 1dd1c5fb7f25cd41b291d43a89e3aefd
     pulse.yesterday: ebfe9ce86e6e9fb953aa7a25b59c1956

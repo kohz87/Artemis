@@ -79,13 +79,13 @@ test.afterEach(async () => {
 
 test('plain filename-like text typed in BlockNote stays plain through raw-mode round trips', async ({ page }) => {
   await openNote(page, 'Note B')
-  await appendPlainFilenameParagraph(page, 'AGENTS.md')
+  await appendPlainFilenameParagraph(page, 'README.md')
   await appendPlainFilenameParagraph(page, 'docs/README.md')
 
   await openRawMode(page)
 
   const raw = await getRawEditorContent(page)
-  expect(raw).toContain('AGENTS.md')
+  expect(raw).toContain('README.md')
   expect(raw).toContain('docs/README.md')
   expect(raw).not.toMatch(/\[AGENTS\.md\]\(/)
   expect(raw).not.toMatch(/\[docs\/README\.md\]\(/)

@@ -7,7 +7,7 @@ import {
 
 describe('looksLikeLocalFileReference', () => {
   it('treats bare filenames with file extensions as local file references', () => {
-    expect(looksLikeLocalFileReference({ raw: 'AGENTS.md' })).toBe(true)
+    expect(looksLikeLocalFileReference({ raw: 'README.md' })).toBe(true)
     expect(looksLikeLocalFileReference({ raw: 'README.txt' })).toBe(true)
   })
 
@@ -26,7 +26,7 @@ describe('looksLikeLocalFileReference', () => {
 
 describe('shouldAutoLinkTolariaHref', () => {
   it('rejects plain filename-like text', () => {
-    expect(shouldAutoLinkTolariaHref({ raw: 'AGENTS.md' })).toBe(false)
+    expect(shouldAutoLinkTolariaHref({ raw: 'README.md' })).toBe(false)
     expect(shouldAutoLinkTolariaHref({ raw: 'docs/README.md' })).toBe(false)
   })
 
@@ -40,8 +40,8 @@ describe('shouldAutoLinkTolariaHref', () => {
 describe('shouldStripAutoLinkedLocalFileMark', () => {
   it('strips accidental link marks that mirror local file text', () => {
     expect(shouldStripAutoLinkedLocalFileMark({
-      href: { raw: 'https://AGENTS.md' },
-      text: { raw: 'AGENTS.md' },
+      href: { raw: 'https://README.md' },
+      text: { raw: 'README.md' },
     })).toBe(true)
     expect(shouldStripAutoLinkedLocalFileMark({
       href: { raw: 'https://docs/README.md' },
@@ -56,7 +56,7 @@ describe('shouldStripAutoLinkedLocalFileMark', () => {
     })).toBe(false)
     expect(shouldStripAutoLinkedLocalFileMark({
       href: { raw: 'https://example.com/agents' },
-      text: { raw: 'AGENTS.md' },
+      text: { raw: 'README.md' },
     })).toBe(false)
   })
 })

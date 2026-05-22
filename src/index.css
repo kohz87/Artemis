@@ -426,7 +426,7 @@
   text-decoration-style: dotted;
 }
 
-/* --- AI Chat markdown rendering --- */
+/* --- Markdown rendering --- */
 
 .ai-markdown {
   font-size: 13px;
@@ -562,7 +562,7 @@
 .ai-markdown .hljs-deletion { color: var(--syntax-highlight-deletion); background: var(--syntax-highlight-deletion-bg); }
 .ai-markdown .hljs-meta { color: var(--syntax-highlight-comment); }
 
-/* --- AI panel working border animation --- */
+/* --- Working border animation --- */
 
 @keyframes ai-border-pulse {
   0%, 100% { border-color: var(--accent-blue); opacity: 1; }

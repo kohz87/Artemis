@@ -3,11 +3,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::ai_models::{normalize_ai_model_providers, AiModelProvider};
-
 const APP_CONFIG_DIR: &str = "com.tolaria.app";
 const LEGACY_APP_CONFIG_DIR: &str = "com.laputa.app";
-const SUPPORTED_DEFAULT_AI_AGENTS: &[&str] = &["claude_code", "codex", "opencode", "pi", "gemini"];
 pub const DEFAULT_HIDE_GITIGNORED_FILES: bool = true;
 const SUPPORTED_NOTE_WIDTH_MODES: &[&str] = &["normal", "wide"];
 const SUPPORTED_UI_LANGUAGE_ALIASES: &[(&str, &str)] = &[
@@ -81,9 +78,6 @@ pub struct Settings {
     pub note_width_mode: Option<String>,
     pub note_width_overrides: Option<HashMap<String, String>>,
     pub initial_h1_auto_rename_enabled: Option<bool>,
-    pub default_ai_agent: Option<String>,
-    pub default_ai_target: Option<String>,
-    pub ai_model_providers: Option<Vec<AiModelProvider>>,
     pub hide_gitignored_files: Option<bool>,
     pub all_notes_show_pdfs: Option<bool>,
     pub all_notes_show_images: Option<bool>,
@@ -116,12 +110,6 @@ pub fn effective_release_channel(value: Option<&str>) -> &'static str {
     }
 }
 
-pub fn normalize_default_ai_agent(value: Option<&str>) -> Option<String> {
-    match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
-        Some(agent) if SUPPORTED_DEFAULT_AI_AGENTS.contains(&agent.as_str()) => Some(agent),
-        _ => None,
-    }
-}
 
 pub fn normalize_theme_mode(value: Option<&str>) -> Option<String> {
     match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
@@ -184,10 +172,8 @@ fn normalize_settings(settings: Settings) -> Settings {
         theme_mode: normalize_theme_mode(settings.theme_mode.as_deref()),
         ui_language: normalize_ui_language(settings.ui_language.as_deref()),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
+        note_width_overrides: settings.note_width_overrides,
         initial_h1_auto_rename_enabled: settings.initial_h1_auto_rename_enabled,
-        default_ai_agent: normalize_default_ai_agent(settings.default_ai_agent.as_deref()),
-        default_ai_target: normalize_optional_string(settings.default_ai_target),
-        ai_model_providers: normalize_ai_model_providers(settings.ai_model_providers),
         hide_gitignored_files: settings.hide_gitignored_files,
         all_notes_show_pdfs: settings.all_notes_show_pdfs,
         all_notes_show_images: settings.all_notes_show_images,
@@ -339,9 +325,6 @@ mod tests {
                 "wide".to_string(),
             )])),
             initial_h1_auto_rename_enabled: Some(false),
-            default_ai_agent: Some("codex".to_string()),
-            default_ai_target: Some("agent:codex".to_string()),
-            ai_model_providers: None,
             hide_gitignored_files: Some(false),
             all_notes_show_pdfs: Some(true),
             all_notes_show_images: Some(true),
@@ -378,7 +361,6 @@ mod tests {
                 "wide".to_string(),
             )])),
             initial_h1_auto_rename_enabled: Some(false),
-            default_ai_agent: Some("codex".to_string()),
             hide_gitignored_files: Some(false),
             all_notes_show_pdfs: Some(true),
             all_notes_show_images: Some(false),
@@ -404,7 +386,6 @@ mod tests {
             Some("wide")
         );
         assert_eq!(loaded.initial_h1_auto_rename_enabled, Some(false));
-        assert_eq!(loaded.default_ai_agent.as_deref(), Some("codex"));
         assert_eq!(loaded.hide_gitignored_files, Some(false));
         assert_eq!(loaded.all_notes_show_pdfs, Some(true));
         assert_eq!(loaded.all_notes_show_images, Some(false));
@@ -433,7 +414,6 @@ mod tests {
             theme_mode: Some("  dark  ".to_string()),
             ui_language: Some("  zh-cn  ".to_string()),
             note_width_mode: Some("  WIDE  ".to_string()),
-            default_ai_agent: Some("  codex  ".to_string()),
             ..Default::default()
         });
         assert_eq!(loaded.anonymous_id.as_deref(), Some("test-uuid"));
@@ -441,7 +421,6 @@ mod tests {
         assert_eq!(loaded.theme_mode.as_deref(), Some("dark"));
         assert_eq!(loaded.ui_language.as_deref(), Some("zh-CN"));
         assert_eq!(loaded.note_width_mode.as_deref(), Some("wide"));
-        assert_eq!(loaded.default_ai_agent.as_deref(), Some("codex"));
     }
 
     #[test]
@@ -471,42 +450,6 @@ mod tests {
             ..Default::default()
         });
         assert!(loaded.release_channel.is_none());
-    }
-
-    #[test]
-    fn test_invalid_default_ai_agent_is_filtered() {
-        let loaded = save_and_reload(Settings {
-            default_ai_agent: Some("cursor".to_string()),
-            ..Default::default()
-        });
-        assert!(loaded.default_ai_agent.is_none());
-    }
-
-    #[test]
-    fn test_opencode_default_ai_agent_is_preserved() {
-        let loaded = save_and_reload(Settings {
-            default_ai_agent: Some("opencode".to_string()),
-            ..Default::default()
-        });
-        assert_eq!(loaded.default_ai_agent.as_deref(), Some("opencode"));
-    }
-
-    #[test]
-    fn test_pi_default_ai_agent_is_preserved() {
-        let loaded = save_and_reload(Settings {
-            default_ai_agent: Some("pi".to_string()),
-            ..Default::default()
-        });
-        assert_eq!(loaded.default_ai_agent.as_deref(), Some("pi"));
-    }
-
-    #[test]
-    fn test_gemini_default_ai_agent_is_preserved() {
-        let loaded = save_and_reload(Settings {
-            default_ai_agent: Some("gemini".to_string()),
-            ..Default::default()
-        });
-        assert_eq!(loaded.default_ai_agent.as_deref(), Some("gemini"));
     }
 
     #[test]

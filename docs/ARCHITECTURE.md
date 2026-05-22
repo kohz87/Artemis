@@ -1,6 +1,6 @@
 # Architecture
 
-Tolaria is a personal knowledge and life management desktop app. It reads a vault of markdown files with YAML frontmatter and presents them in a four-panel UI inspired by Bear Notes.
+Artemis is a personal knowledge and life management desktop app. It reads a vault of markdown files with YAML frontmatter and presents them in a four-panel UI inspired by Bear Notes.
 
 ## Design Principles
 
@@ -10,18 +10,17 @@ The vault is a folder of plain markdown files. The app never owns the data — i
 
 ### Convention over configuration
 
-Tolaria is opinionated. Standard field names (`type:`, `status:`, `url:`, `Workspace:`, `belongs_to:`, `related_to:`, `has:`, `start_date:`, `end_date:`) have well-defined meanings and trigger specific UI behavior — without any setup. Relationship defaults are stored in snake_case on disk and humanized in the UI. This is not convention *instead of* configuration: users can override defaults via config files in their vault (e.g. `config/relations.md`, `config/semantic-properties.md`). But the defaults work out of the box, and most users never need to touch them.
+Artemis is opinionated. Standard field names (`type:`, `status:`, `url:`, `Workspace:`, `belongs_to:`, `related_to:`, `has:`, `start_date:`, `end_date:`) have well-defined meanings and trigger specific UI behavior — without any setup. Relationship defaults are stored in snake_case on disk and humanized in the UI. This is not convention *instead of* configuration: users can override defaults via config files in their vault (e.g. `config/relations.md`, `config/semantic-properties.md`). But the defaults work out of the box, and most users never need to touch them.
 
-This principle directly serves AI-readability: the more structure comes from shared conventions rather than per-user custom configurations, the easier it is for an AI agent to understand and navigate the vault correctly — without needing bespoke instructions for every setup.
 
 ### Where to store state: vault vs. app settings
 
-When deciding where to persist a piece of data, ask: **"Would the user want this to follow them across all their Tolaria installations — other devices, future platforms (tablet, web)?"**
+When deciding where to persist a piece of data, ask: **"Would the user want this to follow them across all their Artemis installations — other devices, future platforms (tablet, web)?"**
 
 | Follows the vault | Stays with the installation |
 |-------------------|-----------------------------|
 | Type icon, type color | Editor zoom level |
-| Pinned properties per type | API keys (OpenAI, Google) |
+| Pinned properties per type | Installation-specific app preferences |
 | Sidebar label overrides | Auto-sync interval |
 | Property display order | Window size / position |
 | Per-note `_width` rich-editor width override | Default rich-editor note width |
@@ -44,9 +43,9 @@ Examples:
 
 No field names, folder paths, or vault-specific values should be hardcoded in the application source code. What can be a convention should be a convention. What needs to be configurable should live in a file. Relationship fields are detected dynamically by checking whether values contain `[[wikilinks]]` — no hardcoded field name lists.
 
-### AI-first knowledge graph
+### Local-first knowledge graph
 
-Notes are not just documents — they are nodes in a structured graph of people, projects, events, responsibilities, and ideas. Every design decision should ask: "Does this make the knowledge graph easier for a human *and* an AI to navigate?" Conventions that are legible to both are better than conventions that are legible only to one.
+Notes are not just documents — they are nodes in a structured graph of people, projects, events, responsibilities, and ideas. Every design decision should ask: "Does this make the knowledge graph easier for a human to navigate?" Conventions that are legible to both are better than conventions that are legible only to one.
 
 ### Three representations, one authority
 
@@ -102,7 +101,7 @@ Large-vault reproduction and keyboard QA steps live in [LARGE-VAULT-LOADING-QA.m
 
 #### Note Opening Fast Path
 
-Note opening uses bounded in-memory fast paths for raw content and parsed editor blocks. `useTabManagement` owns the markdown/text prefetch cache and treats every cached value as a performance hint only: identity-matched entries (`modifiedAt` + `fileSize`) can be reused immediately, while identity-missing or identity-mismatched cached text is checked with `validate_note_content`, which compares the cached text with the current file bytes inside the validated vault boundary. If validation fails, Tolaria discards the cached entry and reads fresh disk content before swapping the editor.
+Note opening uses bounded in-memory fast paths for raw content and parsed editor blocks. `useTabManagement` owns the markdown/text prefetch cache and treats every cached value as a performance hint only: identity-matched entries (`modifiedAt` + `fileSize`) can be reused immediately, while identity-missing or identity-mismatched cached text is checked with `validate_note_content`, which compares the cached text with the current file bytes inside the validated vault boundary. If validation fails, Artemis discards the cached entry and reads fresh disk content before swapping the editor.
 
 The note list opportunistically preloads visible and adjacent markdown/text entries after a short delay. When a large warmed Markdown note resolves, `useEditorTabSwap` may parse it into a bounded parsed-block cache only after foreground editor work has been idle and the rich editor is mounted. Parsed blocks are keyed by vault, path, and exact source content; every async swap carries a generation/source-content token so stale conversion results cannot overwrite newer file content or dirty editor state. The editor never renders a preview surface that later morphs into BlockNote. See [ADR-0105](./adr/0105-editor-correctness-and-responsiveness-contract.md).
 
@@ -124,7 +123,6 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 | Backend language | Rust (edition 2021) | 1.77.2 |
 | Frontmatter parsing | gray_matter | 0.2 |
 | Filesystem watcher | notify | 6.1 |
-| AI (agent panel) | CLI agent adapters (Claude Code + Codex + OpenCode + Pi + Gemini) | - |
 | Search | Keyword (walkdir-based file scan) | - |
 | Localization | App-owned runtime + JSON catalogs (`src/lib/i18n.ts`, `src/lib/locales/*.json`, `lara.yaml`) | English fallback + Lara CLI sync |
 | Tests | Vitest (unit), Playwright (E2E/smoke), cargo test (Rust) | - |
@@ -142,13 +140,12 @@ flowchart TD
             NL["NoteList / PulseView\n(filtered list / activity)"]
             ED["Editor\n(BlockNote + diff + raw)"]
             IN["Right Panel\n(Inspector + TOC)"]
-            AIP["AiPanel\n(selected CLI agent + tools)"]
             SP["SearchPanel\n(keyword search)"]
             ST["StatusBar\n(vault picker + sync + version)"]
             CP["CommandPalette\n(Cmd+K launcher)"]
 
             App --> WS & SB & NL & ED & SP & ST & CP
-            ED --> IN & AIP
+            ED --> IN
         end
 
         subgraph RB["Rust Backend"]
@@ -158,17 +155,14 @@ flowchart TD
             GIT["git/\n(commit, sync, clone)"]
             SETTINGS["settings.rs"]
             SEARCH["search.rs"]
-            CLI["ai_agents.rs\n+ CLI adapters"]
         end
 
         subgraph EXT["External Services"]
-            CCLI["Claude / Codex / OpenCode / Pi / Gemini CLI\n(agent subprocesses)"]
             GCLI["git CLI\n(system executable)"]
             REMOTE["Git remotes\n(GitHub/GitLab/Gitea/etc.)"]
         end
 
         FE -->|"Tauri IPC"| RB
-        CLI -->|"spawn subprocess"| CCLI
         GIT -->|"clone / fetch / push / pull"| GCLI
         GCLI -->|"network auth via user config"| REMOTE
     end
@@ -187,7 +181,7 @@ flowchart TD
 │        │ OR          │                         │ OR         │
 │ All    │ Pulse View  │ [Breadcrumb Bar]        │ TOC        │
 │ Changes│             │                         │ OR         │
-│ Pulse  │ [Search]    │ # My Note               │ AI Agent   │
+│ Pulse  │ [Search]    │ # My Note               │ Inspector  │
 │ Inbox  │ [Sort/Filt] │                         │            │
 │        │             │                         │ Context    │
 │Projects│ Note 1      │ Content here...         │ Messages   │
@@ -201,12 +195,12 @@ flowchart TD
 └──────────────────────────────────────────────────────────────┘
 ```
 
-- **Sidebar** (220-400px, resizable): Top-level filters (All Notes, Changes, Pulse), saved Views, collapsible type-based section groups, and a dedicated folder tree. The folder tree starts with a vault-root row labeled from the opened vault path, shows root-level files when selected, and nests user-created folders plus default vault folders such as `attachments/` and `views/` underneath it; only the dedicated `type/` directory stays hidden because note types already have their own sidebar section. Saved Views persist a top-level YAML `order` field in each view file and use the same ordered-list mental model as Types: pointer users can drag the existing view row, double-click to rename it, or right-click for edit/rename/appearance/delete actions, while keyboard users can use the row context key for the same menu and command-palette move actions for ordering. The folder tree supports inline folder creation and rename, exposes a right-click menu for copy-path/rename/delete actions, and auto-expands ancestor folders when the current selection or rename target is nested. Type sections and folder rows also act as note drop targets: dropping a note on a type updates its `type:` frontmatter, while dropping it on a folder runs the same crash-safe move path as the command palette flow. Each type can have a custom icon, color, sort, and visibility set via its `type: Type` document; new type documents created by Tolaria are written at the vault root.
+- **Sidebar** (220-400px, resizable): Top-level filters (All Notes, Changes, Pulse), saved Views, collapsible type-based section groups, and a dedicated folder tree. The folder tree starts with a vault-root row labeled from the opened vault path, shows root-level files when selected, and nests user-created folders plus default vault folders such as `attachments/` and `views/` underneath it; only the dedicated `type/` directory stays hidden because note types already have their own sidebar section. Saved Views persist a top-level YAML `order` field in each view file and use the same ordered-list mental model as Types: pointer users can drag the existing view row, double-click to rename it, or right-click for edit/rename/appearance/delete actions, while keyboard users can use the row context key for the same menu and command-palette move actions for ordering. The folder tree supports inline folder creation and rename, exposes a right-click menu for copy-path/rename/delete actions, and auto-expands ancestor folders when the current selection or rename target is nested. Type sections and folder rows also act as note drop targets: dropping a note on a type updates its `type:` frontmatter, while dropping it on a folder runs the same crash-safe move path as the command palette flow. Each type can have a custom icon, color, sort, and visibility set via its `type: Type` document; new type documents created by Artemis are written at the vault root.
 - **Note List / Pulse View** (220-500px, resizable): When a section group, filter, or saved view is selected, shows filtered notes with snippets, modified dates, status indicators, and per-context note-list controls. When `selection.kind === 'entity'`, the same pane enters **Neighborhood** mode: the source note is pinned at the top as a normal active row, outgoing relationship groups render first, inverse/backlink groups follow, empty groups stay visible with `0`, and duplicates across groups are allowed when multiple relationships are true. Plain click / `Enter` open the focused note without replacing the current Neighborhood, while Cmd/Ctrl-click and Cmd/Ctrl-`Enter` pivot the pane into the clicked note's Neighborhood. Folder-backed lists also show non-Markdown files: previewable image and PDF binaries get file indicators and open in the editor pane, while unsupported binaries remain muted instead of auto-launching an external app. Saved views reuse the same sort and visible-column controls as the built-in lists, and those changes persist back into the view `.yml` definition (`sort`, `listPropertiesDisplay`). When Pulse filter is active, shows `PulseView` — a chronological git activity feed grouped by day.
 - **Editor** (flex, fills remaining space): Single note open at a time (no tabs — see ADR-0003). Breadcrumb bar with word count, rich-editor width toggle, copy-path, and the secondary-overflow Table of Contents action, BlockNote rich text editor with wikilink support, Markdown-compatible inline/display math rendering, first-class Mermaid diagram blocks, markdown-safe formatting controls, and schema-backed fenced code block highlighting via `@blocknote/code-block`. Can toggle to diff view (modified files), raw CodeMirror view, or a wide rich-editor reading surface with preserved side margins; raw CodeMirror remains full-width and unaffected by note width mode. Inline rich-editor images open in a localized shadcn lightbox on double-click while normal single-click BlockNote selection remains untouched, and tiny tracking-style images are ignored. Binary image and PDF files render through `FilePreview` as ordinary vault files; unsupported/broken binaries show explicit in-app fallback states and keyboard focus returns to the note list on `Escape`. Decomposed into `Editor` (orchestrator), `EditorContent`, `FilePreview`, `EditorRightPanel`, `TableOfContentsPanel`, `SingleEditorView`, with hooks `useDiffMode`, `useEditorFocus`, and `useEditorSave`, plus the `useRawMode`/`RawEditorView` pair for markdown source editing. Rich BlockNote input and raw CodeMirror input both route typed `->`, `<-`, and `<->` through the shared `src/utils/arrowLigatures.ts` resolver so arrow ligatures stay consistent across mode switches while escaped ASCII sequences remain literal. Navigation history (Cmd+[/]) replaces tabs.
 
   BlockNote tables are contained by `EditorTheme.css` instead of schema changes. The table block clips horizontal overflow to the editor width, preserves BlockNote's explicit column widths with `width: max-content`, and allows automatic-width tables to fit the note surface with `max-width: 100%`. Cells use `overflow-wrap: anywhere`, `white-space: normal`, and viewport-bounded max widths so long words wrap in Chromium and Firefox; the Safari/WebKit path uses the same standard CSS plus `-webkit-overflow-scrolling: touch` for mobile overflow. Validation status for the table responsive CSS is: Chromium responsive-layout check passed (5/5), Firefox table-browser suite passed (13/13 across 1280×720, 1920×1080, 390×844, and 768×1024), and Safari/WebKit automation was skipped on this Linux host because Playwright WebKit could not launch due missing system libraries after the task owner explicitly allowed skipping Playwright-only checks.
-- **Right side panels** (200-500px or hidden): Properties, Table of Contents, and AI Agent are mutually exclusive panels mounted by `EditorRightPanel` and coordinated by `useRightPanelExclusion`. Properties shows frontmatter, relationships, instances, backlinks, and git history; Table of Contents is lazy-mounted only while open, derives a title-rooted H1/H2/H3 hierarchy through a debounced Web Worker per ADR-0109, and reuses folder-tree indentation/guide geometry with heading icons while resolving live BlockNote block IDs at click time for navigation; AI Agent keeps the selected CLI/API target controller mounted for tool execution and chat state. The breadcrumb bar toggles Table of Contents, AI, and Properties actions, and opening one replaces the others. Per-note `icon` is a suggested Properties field and the command palette's "Set Note Icon" action opens that field directly. When viewing a Type note, Properties shows an **Instances** section listing all notes of that type (sorted by modified_at desc, capped at 50).
+- **Right side panels** (200-500px or hidden): Properties and Table of Contents are coordinated by `EditorRightPanel` and `useRightPanelExclusion`.
 
 Panels are separated by `ResizeHandle` components that support drag-to-resize. `useLayoutPanels` clamps the sidebar, note-list, and inspector widths before applying them, keeps the side panes from flex-shrinking below their protected widths, and persists the last chosen widths in installation-local localStorage under `tolaria:layout-panels`.
 
@@ -215,8 +209,8 @@ The main Tauri window derives its minimum width from the visible panes instead o
 The main Tauri window also persists its last normal size and screen position in the app config directory as `window-state.json`. The state stores logical window points, while `window_state.rs` migrates older physical-pixel state on read so Retina and non-Retina launches restore the same user-facing bounds. On startup, the restored frame applies only to the main window and clamps to the currently available monitor work areas, so stale coordinates from a disconnected display fall back to a visible placement. Maximized, fullscreen, minimized, and detached note-window frames are not written as the restore baseline.
 
 
-Linux uses custom React-rendered window chrome instead of the native Tauri menu bar. `setup_linux_window_chrome()` drops server-side decorations on the main window, `openNoteInNewWindow()` does the same for detached note windows, and `LinuxTitlebar`/`LinuxMenuButton` route both window controls and menu actions back through the same shared command pipeline that the desktop native menus use. The native app menu keeps macOS-only Services/Hide entries off Windows and Linux, registers a window-scoped menu event handler on Windows where Tauri delivers menu clicks through the main `WebviewWindow`, and cross-platform custom items such as Check for Updates emit Tolaria command IDs with visible updater feedback.
-When Tolaria is launched from a Linux AppImage, `run()` also applies AppImage-only WebKitGTK startup safeguards without changing native package installs. It injects `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` independently unless the user already set either variable, and on Wayland sessions it re-execs once with the first architecture-matching system `libwayland-client.so` in `LD_PRELOAD` when the user has not provided their own preload. The candidate order prefers Fedora-style `lib64` and Debian-style `x86_64-linux-gnu` paths before generic `/usr/lib`, and the ELF header is checked so a 64-bit Tolaria process does not retry with a 32-bit Wayland client library. The same AppImage path checks whether `fc-match` resolves the default emoji font to `Noto-COLRv1.ttf`; when the user has not provided `FONTCONFIG_FILE` or `FONTCONFIG_PATH`, Tolaria writes a cache-local fontconfig file that rejects only that matched font file and exports it before WebKit starts. The rendering overrides keep AppImage WebViews from blanking after accelerated compositing/DMA-BUF failures, the re-exec addresses AppImage library-order failures that can surface as `Could not create default EGL display: EGL_BAD_PARAMETER`, and the fontconfig guard avoids known WebKit crashes in COLRv1 emoji font rendering while leaving other emoji fonts available.
+Linux uses custom React-rendered window chrome instead of the native Tauri menu bar. `setup_linux_window_chrome()` drops server-side decorations on the main window, `openNoteInNewWindow()` does the same for detached note windows, and `LinuxTitlebar`/`LinuxMenuButton` route both window controls and menu actions back through the same shared command pipeline that the desktop native menus use. The native app menu keeps macOS-only Services/Hide entries off Windows and Linux, registers a window-scoped menu event handler on Windows where Tauri delivers menu clicks through the main `WebviewWindow`, and cross-platform custom items such as Check for Updates emit Artemis command IDs with visible updater feedback.
+When Artemis is launched from a Linux AppImage, `run()` also applies AppImage-only WebKitGTK startup safeguards without changing native package installs. It injects `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` independently unless the user already set either variable, and on Wayland sessions it re-execs once with the first architecture-matching system `libwayland-client.so` in `LD_PRELOAD` when the user has not provided their own preload. The candidate order prefers Fedora-style `lib64` and Debian-style `x86_64-linux-gnu` paths before generic `/usr/lib`, and the ELF header is checked so a 64-bit Artemis process does not retry with a 32-bit Wayland client library. The same AppImage path checks whether `fc-match` resolves the default emoji font to `Noto-COLRv1.ttf`; when the user has not provided `FONTCONFIG_FILE` or `FONTCONFIG_PATH`, Artemis writes a cache-local fontconfig file that rejects only that matched font file and exports it before WebKit starts. The rendering overrides keep AppImage WebViews from blanking after accelerated compositing/DMA-BUF failures, the re-exec addresses AppImage library-order failures that can surface as `Could not create default EGL display: EGL_BAD_PARAMETER`, and the fontconfig guard avoids known WebKit crashes in COLRv1 emoji font rendering while leaving other emoji fonts available.
 
 ## Multi-Window (Note Windows)
 
@@ -236,149 +230,6 @@ Notes can be opened in separate Tauri windows for focused editing. Secondary win
 - Secondary windows are sized 800×700; macOS keeps the overlay title bar, while Linux mounts the shared React titlebar on undecorated windows
 - Capabilities config (`src-tauri/capabilities/default.json`) grants permissions to both `main` and `note-*` window labels
 
-## AI System
-
-### AI Agent (AiPanel)
-
-
-1. **Frontend** (`AiPanel` + `useCliAiAgent` + `aiAgentSession.ts` + `aiAgents.ts` + `aiTargets.ts`) — one normalized session lifecycle for message state, reasoning blocks, tool action cards, response display, onboarding, default-target selection, and the per-vault Safe / Power User permission mode shown in the panel header for coding agents
-2. **Backend orchestration** (`ai_agents.rs`) — normalizes agent availability, streaming, and the request permission mode before dispatching to per-agent adapters
-
-
-#### Agent Event Flow
-
-```mermaid
-sequenceDiagram
-    participant U as User (AiPanel)
-    participant FE as useCliAiAgent (Frontend)
-    participant R as ai_agents.rs (Rust)
-    participant C as Selected CLI Agent
-
-    U->>FE: sendMessage(text, references)
-    FE->>FE: buildContextSnapshot(activeNote, linkedNotes, openTabs)
-    FE->>R: invoke('stream_ai_agent', {agent, message, systemPrompt, vaultPath, permissionMode})
-    R->>R: pick adapter for claude_code, codex, opencode, or pi
-
-    loop Normalized stream
-        C-->>R: Claude NDJSON, Codex JSONL, OpenCode JSON, Pi JSON, or Gemini JSONL events
-        R-->>FE: emit("ai-agent-stream", event)
-        alt TextDelta
-            FE->>FE: accumulate response (revealed on Done)
-        else ThinkingDelta
-            FE->>FE: show reasoning block (collapses on first text)
-        else ToolStart
-            FE->>FE: add AiActionCard with spinner
-        else ToolDone
-            FE->>FE: update card with output
-        else Done
-            FE->>FE: reveal full response
-            FE->>FE: detect file operations → reload vault if needed
-        end
-    end
-
-    V-->>C: tool results
-```
-
-#### File Operation Detection
-
-When the agent writes or edits vault files, `aiAgentFileOperations.ts` detects this from normalized tool inputs and calls `onFileCreated` or `onFileModified` callbacks to trigger vault reload. Unrecognized write-like operations fall back to a full vault refresh.
-
-### Context Building
-
-The agent panel (`ai-context.ts`) builds a structured JSON snapshot from the active note and linked entries:
-
-```json
-{
-  "activeNote": { "path", "title", "type", "frontmatter", "body", "wordCount", "bodyTruncated?" },
-  "openTabs": [{ "path", "title", "type", "frontmatter" }],
-  "noteList": [{ "path", "title", "type" }],
-  "vault": { "types", "totalNotes" },
-  "referencedNotes": [{ "title", "path", "type" }]
-}
-```
-
-
-### Direct Model Targets
-
-Tolaria also supports direct model targets for local servers and API providers. These targets are stored as app-level provider metadata and can be selected in Settings or the status bar alongside coding agents. `src/shared/aiModelProviderCatalog.json` is the shared source for provider defaults, local/API grouping, API-key environment placeholders, and runtime fallback base URLs; the renderer imports it through `aiTargets.ts`, and Tauri includes the same JSON in `ai_models.rs`. Direct model targets run in Chat mode: they receive the same note-context snapshot and conversation history, but they do not receive vault-write tools or shell access. The backend `stream_ai_model` command supports OpenAI-compatible chat completions and Anthropic Messages-compatible calls, including Ollama, LM Studio, OpenRouter, OpenAI, Anthropic, Gemini, and custom compatible endpoints.
-
-Provider secrets are not written to `settings.json`. Hosted API targets can use Tolaria's local app-data secrets file (`ai-provider-secrets.json`, outside vaults/worktrees and owner-only on Unix) or reference an environment variable name. Local endpoints can omit authentication.
-
-### Authentication
-
-Each CLI agent authenticates itself outside Tolaria. Claude Code uses its existing CLI login; Codex surfaces a friendly prompt to run `codex login` when needed; OpenCode surfaces a friendly prompt to run `opencode auth login` or configure a provider when needed; Pi surfaces a friendly prompt to run `pi /login` or configure a provider API key when needed. Tolaria does not store model-provider API keys in app settings; direct provider secrets stay in local app data or user-managed environment variables.
-
-
-
-### Tool Surface (14 tools)
-
-| Tool | Params | Description |
-|------|--------|-------------|
-| `open_note` | `path` | Open and read a note by relative path |
-| `read_note` | `path` | Read note content (alias for `open_note`) |
-| `create_note` | `path, title, [type]` | Create new note with title and optional type frontmatter |
-| `search_notes` | `query, [limit]` | Search notes by title or content substring |
-| `append_to_note` | `path, text` | Append text to end of existing note |
-| `edit_note_frontmatter` | `path, patch` | Merge key-value patch into YAML frontmatter |
-| `delete_note` | `path` | Delete a note file from the vault |
-| `link_notes` | `source_path, property, target_title` | Add a target to an array property in frontmatter |
-| `list_notes` | `[type_filter], [sort]` | List all notes, optionally filtered by type |
-| `vault_context` | — | Get vault summary: entity types + 20 recent notes + configFiles |
-| `ui_open_note` | `path` | Open a note in the Tolaria UI editor |
-| `ui_open_tab` | `path` | Open a note in a new UI tab |
-| `ui_highlight` | `element, [path]` | Highlight a UI element (editor, tab, properties, notelist) |
-| `ui_set_filter` | `type` | Set the sidebar filter to a specific type |
-
-### Transports
-
-- **WebSocket** — live bridge for Tolaria app integration:
-  - Port **9710**: Tool bridge — AI/Claude clients call vault tools here
-
-### Explicit External Tool Setup
-
-- `~/.gemini/settings.json` (Gemini CLI)
-
-
-### Architecture
-
-```mermaid
-flowchart TD
-        IDX["index.js"]
-        VAULT["vault.js\n(findMarkdownFiles, readNote, createNote,\nsearchNotes, appendToNote, editNoteFrontmatter,\ndeleteNote, linkNotes, listNotes, vaultContext)"]
-        WSB["ws-bridge.js"]
-
-        IDX -->|"stdio transport"| STDIO["Claude Code / Cursor"]
-        IDX --> VAULT
-        IDX --> WSB
-        WSB -->|"port 9710 — tool bridge"| AI["AI Clients\n(Claude Code, external)"]
-        WSB -->|"port 9711 — UI bridge"| FE["Frontend\n(useAiActivity)"]
-    end
-
-```
-
-### WebSocket Bridge
-
-```mermaid
-flowchart LR
-    WSB <--> VAULT["vault.js"]
-```
-
-**Tool bridge protocol** (port 9710):
-- Request: `{ "id": "req-1", "tool": "search_notes", "args": { "query": "test" } }`
-- Response: `{ "id": "req-1", "result": { ... } }`
-
-**UI bridge protocol** (port 9711):
-- Broadcast: `{ "type": "ui_action", "action": "open_note", "path": "..." }`
-- `useAiActivity` hook receives these and applies them (highlight with 800ms feedback, open note, set filter, etc.)
-
-
-
-| Function | Purpose |
-|----------|---------|
-| `spawn_ws_bridge(vault_path)` | Spawns `ws-bridge.js` as child process with VAULT_PATH env |
-
-The `WsBridgeChild` state wrapper in `lib.rs` ensures the bridge process is replaced on vault switches, stopped when no active vault is selected, and killed plus waited on app exit via the `RunEvent::Exit` handler. The same desktop layer keeps Tauri asset protocol access limited to vault roots loaded during the current app session; command calls remain active-vault scoped for reads, writes, and external opens.
-
 ## Search
 
 Search is keyword-based, using `walkdir` to scan all `.md` files in the vault directory. No external binary or indexing step required.
@@ -396,9 +247,9 @@ The vault cache (`src-tauri/src/vault/cache.rs`) accelerates vault scanning usin
 
 ### Cache File
 
-`~/.laputa/cache/<vault-hash>.json` — stored outside the vault directory so it never pollutes the user's git repo. The vault path is normalized through `vault/path_identity.rs` before hashing, so macOS `/tmp` aliases and separator variants share the same cache identity. Stores: vault path, git HEAD commit hash, all VaultEntry objects. Version: v13 (bumped on VaultEntry field changes to force full rescan). Cache replacement is best-effort: Tolaria writes a temp file, fsyncs it, and renames it into place only after a short-lived writer lock plus an on-disk fingerprint check confirm another window/process has not already refreshed the cache. Failures are logged and the app falls back to rebuilding from the filesystem.
+`~/.laputa/cache/<vault-hash>.json` — stored outside the vault directory so it never pollutes the user's git repo. The vault path is normalized through `vault/path_identity.rs` before hashing, so macOS `/tmp` aliases and separator variants share the same cache identity. Stores: vault path, git HEAD commit hash, all VaultEntry objects. Version: v13 (bumped on VaultEntry field changes to force full rescan). Cache replacement is best-effort: Artemis writes a temp file, fsyncs it, and renames it into place only after a short-lived writer lock plus an on-disk fingerprint check confirm another window/process has not already refreshed the cache. Failures are logged and the app falls back to rebuilding from the filesystem.
 
-`<vault>/.tolaria-rename-txn/` — hidden, scan-ignored staging directory for crash-safe note renames. Tolaria stores temporary backup files plus one manifest per in-flight rename here. On the next vault scan, unfinished transactions are recovered before entries are listed so users do not see a missing note or a visible duplicate after a crash.
+`<vault>/.tolaria-rename-txn/` — hidden, scan-ignored staging directory for crash-safe note renames. Artemis stores temporary backup files plus one manifest per in-flight rename here. On the next vault scan, unfinished transactions are recovered before entries are listed so users do not see a missing note or a visible duplicate after a crash.
 
 ### Three Cache Strategies
 
@@ -426,7 +277,7 @@ The app uses internal app-owned light and dark themes (see [ADR-0081](adr/0081-i
 
 ## Localization
 
-Tolaria's app chrome uses an app-owned localization runtime in `src/lib/i18n.ts`, backed by flat JSON catalogs in `src/lib/locales/` and Lara CLI synchronization through `lara.yaml` (see [ADR-0087](adr/0087-json-catalogs-and-lara-cli-localization.md)). `en.json` is the canonical source catalog, locale files are one file per locale, and English remains the fallback for any missing locale file or key. The installation-local `ui_language` setting stores an explicit locale when the user chooses one; `null` means "follow the system language when Tolaria supports it, otherwise English." Legacy stored values such as `zh-Hans` are normalized to canonical locale codes like `zh-CN`.
+Artemis's app chrome uses an app-owned localization runtime in `src/lib/i18n.ts`, backed by flat JSON catalogs in `src/lib/locales/` and Lara CLI synchronization through `lara.yaml` (see [ADR-0087](adr/0087-json-catalogs-and-lara-cli-localization.md)). `en.json` is the canonical source catalog, locale files are one file per locale, and English remains the fallback for any missing locale file or key. The installation-local `ui_language` setting stores an explicit locale when the user chooses one; `null` means "follow the system language when Artemis supports it, otherwise English." Legacy stored values such as `zh-Hans` are normalized to canonical locale codes like `zh-CN`.
 
 `App.tsx` derives the effective locale from settings and browser/system language hints, then passes it down to localized surfaces. Settings exposes a keyboard-accessible shadcn `Select`, and the command palette includes actions to open language settings or switch directly to a supported language.
 
@@ -467,21 +318,19 @@ On first launch, `useOnboarding` checks if the default vault exists. If not, it 
 
 If the selected vault disappears after startup, `useVaultLoader` re-checks `check_vault_exists` when reloads or vault-derived surfaces fail. A confirmed missing path clears cached entries, folders, views, modified-file state, and prefetched note content, then `App` reuses the `vault-missing` `WelcomeScreen` state so note and view actions cannot keep targeting the stale active vault.
 
-When an opened folder is not yet a git repo, Tolaria shows a dismissible Git setup dialog and a persistent `Git disabled` status-bar warning. Markdown scanning, note browsing, note editing, and search continue normally. Git-dependent surfaces (history, changes, commit, sync, conflict resolution, remotes, AutoGit, and auto-sync) stay unavailable until the user explicitly initializes Git from the dialog, the status-bar warning, or the `Initialize Git for Current Vault` command-palette action.
+When an opened folder is not yet a git repo, Artemis shows a dismissible Git setup dialog and a persistent `Git disabled` status-bar warning. Markdown scanning, note browsing, note editing, and search continue normally. Git-dependent surfaces (history, changes, commit, sync, conflict resolution, remotes, AutoGit, and auto-sync) stay unavailable until the user explicitly initializes Git from the dialog, the status-bar warning, or the `Initialize Git for Current Vault` command-palette action.
 
-When the user enables Git later, `init_git_repo` runs `git init`, ensures Tolaria's default `.gitignore`, stages the vault, and writes the initial `Initial vault setup` commit. Before app-managed setup and remote-connection commits, Tolaria ensures the vault has local `user.name` / `user.email` values, falling back to `Tolaria <vault@tolaria.md>` when the vault has no local Git identity yet. That app-managed setup commit explicitly disables commit signing for the single command so inherited global or local `commit.gpgsign` preferences cannot strand onboarding when GPG is missing or misconfigured. Later `git_commit` calls honor the user's signing configuration first, then retry the same app-managed commit once with `commit.gpgsign=false` only when Git reports a signing-helper failure, so working GPG/SSH signing setups continue to sign while broken GPG setups do not create repeated opaque commit failures.
+When the user enables Git later, `init_git_repo` runs `git init`, ensures Artemis's default `.gitignore`, stages the vault, and writes the initial `Initial vault setup` commit. Before app-managed setup and remote-connection commits, Artemis ensures the vault has local `user.name` / `user.email` values, falling back to `Artemis <vault@tolaria.md>` when the vault has no local Git identity yet. That app-managed setup commit explicitly disables commit signing for the single command so inherited global or local `commit.gpgsign` preferences cannot strand onboarding when GPG is missing or misconfigured. Later `git_commit` calls honor the user's signing configuration first, then retry the same app-managed commit once with `commit.gpgsign=false` only when Git reports a signing-helper failure, so working GPG/SSH signing setups continue to sign while broken GPG setups do not create repeated opaque commit failures.
 
-Once a vault is ready, `useAiAgentsOnboarding` can show a one-time `AiAgentsOnboardingPrompt`. That prompt reads `useAiAgentsStatus` so first launch surfaces whether Claude Code, Codex, OpenCode, Pi, and Gemini CLI are installed, offers per-agent install links when they are missing, and stores local dismissal so the prompt does not repeat on every launch.
 
-`useGettingStartedClone` reuses the same parent-folder semantics for the status-bar / command-palette clone action, and `Toast` is rendered through the AI-agents onboarding gate so the resolved destination path stays visible right after a successful clone.
 
-The starter content no longer lives in the app repo. `src-tauri/src/vault/getting_started.rs` holds the public starter repo URL (`refactoringhq/tolaria-getting-started`), delegates the clone to the git backend, then normalizes Tolaria-managed root guidance and type scaffolding (`AGENTS.md`, `CLAUDE.md`, `type.md`, `note.md`) so fresh starter vaults pick up the current defaults even when the remote starter repo still carries a legacy copy or an older pre-`type:` `is_a`-era template. `AGENTS.md` stays the canonical vault guidance file; `CLAUDE.md` is a compatibility shim that imports it for Claude Code without duplicating the instructions, and Tolaria seeds it as an organized `Note` so it stays out of the way in a fresh vault. Optional `GEMINI.md` guidance is created only by the explicit AI guidance restore action. The clone helper still accepts the legacy `LAPUTA_GETTING_STARTED_REPO_URL` environment override so older automation can continue to redirect the starter source during the transition.
+The starter content no longer lives in the app repo. `src-tauri/src/vault/getting_started.rs` holds the public starter repo URL (`refactoringhq/tolaria-getting-started`), delegates the clone to the git backend, then normalizes Artemis-managed root type scaffolding (`type.md`, `note.md`) so fresh starter vaults pick up the current defaults even when the remote starter repo still carries an older pre-`type:` `is_a`-era template. The clone helper still accepts the legacy `LAPUTA_GETTING_STARTED_REPO_URL` environment override so older automation can continue to redirect the starter source during the transition.
 
-After the clone completes, Tolaria removes every configured git remote from the new starter vault. Getting Started vaults therefore open as local-only by default, and users opt into a remote later with the explicit Add Remote flow.
+After the clone completes, Artemis removes every configured git remote from the new starter vault. Getting Started vaults therefore open as local-only by default, and users opt into a remote later with the explicit Add Remote flow.
 
 ### Remote Clone & Auth Model
 
-Tolaria no longer implements provider-specific OAuth or remote-repository APIs. All remote git work goes through the user's existing system git configuration.
+Artemis no longer implements provider-specific OAuth or remote-repository APIs. All remote git work goes through the user's existing system git configuration.
 
 **Flow:**
 1. User opens `CloneVaultModal` from onboarding or the vault menu
@@ -493,7 +342,7 @@ Tolaria no longer implements provider-specific OAuth or remote-repository APIs. 
 
 **Auth model:**
 - SSH keys, Git Credential Manager, macOS Keychain helpers, `gh auth`, and other git helpers all work without app-specific setup
-- No provider tokens are stored in Tolaria settings
+- No provider tokens are stored in Artemis settings
 - The same flow works for GitHub, GitLab, Bitbucket, Gitea, and self-hosted remotes
 
 ## Pulse View
@@ -595,9 +444,9 @@ flowchart TD
     STATUS["Click sync badge"] --> POPUP["GitStatusPopup\n(branch, ahead/behind)"]
 ```
 
-`useGitRemoteStatus` re-checks `git_remote_status` when the commit dialog opens and again right before submit. If `hasRemote` is false, Tolaria keeps the flow local-only: the status bar shows a neutral `No remote` chip, the dialog copy switches from "Commit & Push" to "Commit", and no `git_push` call is attempted.
+`useGitRemoteStatus` re-checks `git_remote_status` when the commit dialog opens and again right before submit. If `hasRemote` is false, Artemis keeps the flow local-only: the status bar shows a neutral `No remote` chip, the dialog copy switches from "Commit & Push" to "Commit", and no `git_push` call is attempted.
 
-If the current vault is not a Git repository, Tolaria treats Git as disabled instead of degraded. The status bar replaces changes, commit, sync, remote, conflict, and history controls with a `Git disabled` warning that reopens Git setup. Command registration follows the same state: only `Initialize Git for Current Vault` is available in the Git group, while pull, commit, changes, conflict, and remote commands are hidden. `useAutoSync` is disabled for non-git vaults so the app does not run background Git commands against plain folders.
+If the current vault is not a Git repository, Artemis treats Git as disabled instead of degraded. The status bar replaces changes, commit, sync, remote, conflict, and history controls with a `Git disabled` warning that reopens Git setup. Command registration follows the same state: only `Initialize Git for Current Vault` is available in the Git group, while pull, commit, changes, conflict, and remote commands are hidden. `useAutoSync` is disabled for non-git vaults so the app does not run background Git commands against plain folders.
 
 The same local-only state enables the explicit Add Remote flow. `AddRemoteModal` is reachable from the `No remote` chip and the command palette. The backend `git_add_remote` command ensures the local author identity, adds `origin`, fetches it, refuses incompatible histories, and only enables tracking after a safe push or fast-forward-compatible check succeeds.
 
@@ -628,7 +477,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `rename.rs` | `rename_note` / `rename_note_filename` / `move_note_to_folder` — stage crash-safe file moves, update `title` frontmatter when needed, recover unfinished rename transactions, and report backlink rewrite failures |
 | `image.rs` | `save_image` / `copy_image_to_vault` — save editor image attachments with sanitized filenames |
 | `migration.rs` | `flatten_vault`, `vault_health_check`, `migrate_is_a_to_type` |
-| `config_seed.rs` | Maintains vault AI guidance (`AGENTS.md`, `CLAUDE.md`, and optional `GEMINI.md` shims), migrates legacy `config/agents.md`, and repairs missing root type scaffolding such as `type.md` and `note.md` |
+| `config_seed.rs` | Removes obsolete legacy `config/agents.md` and repairs missing root type scaffolding such as `type.md` and `note.md` |
 | `getting_started.rs` | Clones and normalizes the public Getting Started starter vault |
 
 ## Rust Backend Modules
@@ -639,8 +488,6 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `frontmatter/` | YAML frontmatter read/write (`mod.rs`, `yaml.rs`, `ops.rs`) |
 | `git/` | Git operations (`commit.rs`, `status.rs`, `history.rs`, `conflict.rs`, `remote.rs`, `pulse.rs`, `clone.rs`, `connect.rs`) |
 | `search.rs` | Keyword search — walkdir-based vault file scan with Gitignored-content visibility filtering |
-| `ai_agents.rs` | CLI-agent request normalization and adapter dispatch |
-| `claude_cli.rs`, `codex_cli.rs`, `opencode_cli.rs`, `pi_cli.rs`, `gemini_cli.rs` | CLI-agent command/config/event adapters |
 | `commands/` | Tauri command handlers (split into submodules) |
 | `settings.rs` | App settings persistence |
 | `vault_config.rs` | Per-vault UI config |
@@ -671,10 +518,8 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `open_vault_file_external` | Legacy/native-only boundary command; the web UI no longer exposes external file launching |
 | `start_vault_watcher` / `stop_vault_watcher` | Start or stop native active-vault filesystem change events |
 | `check_vault_exists` | Check if vault path exists |
-| `create_empty_vault` | Create a git-backed vault, then seed root `AGENTS.md`, `CLAUDE.md`, `type.md`, and `note.md` defaults |
-| `create_getting_started_vault` | Clone the public Getting Started vault, refresh Tolaria-managed guidance/config defaults, and keep the cloned repo clean |
-| `get_vault_ai_guidance_status` | Report whether `AGENTS.md`, `CLAUDE.md`, and optional `GEMINI.md` guidance are managed, missing, broken, or custom |
-| `restore_vault_ai_guidance` | Restore any missing/broken Tolaria-managed guidance files without overwriting custom ones |
+| `create_empty_vault` | Create a git-backed vault, then seed root `type.md` and `note.md` defaults |
+| `create_getting_started_vault` | Clone the public Getting Started vault, refresh Artemis-managed type/config defaults, and keep the cloned repo clean |
 
 ### Frontmatter
 
@@ -722,10 +567,6 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 
 | Command | Description |
 |---------|-------------|
-| `stream_claude_chat` | Claude CLI chat mode (streaming) |
-| `check_claude_cli` | Check if Claude CLI is available |
-| `get_ai_agents_status` | Check Claude Code + Codex + OpenCode + Pi + Gemini availability |
-| `stream_ai_agent` | Stream Claude Code, Codex, OpenCode, Pi, or Gemini through the normalized agent event layer |
 | `copy_text_to_clipboard` | Copy setup snippets through the native desktop clipboard command path |
 | `read_text_from_clipboard` | Read current desktop clipboard text for command-driven plain-text paste |
 
@@ -762,7 +603,7 @@ if (isTauri()) {
 }
 ```
 
-The mock layer includes sample entries across all entity types, full markdown content with realistic frontmatter, mock git history, mock AI responses, and mock pulse commits. It also tracks per-vault remote state so browser-mode Getting Started and empty-vault flows now behave like the desktop app: local-only until `git_add_remote` succeeds.
+The mock layer includes sample entries across all entity types, full markdown content with realistic frontmatter, mock git history, and mock pulse commits. It also tracks per-vault remote state so browser-mode Getting Started and empty-vault flows now behave like the desktop app: local-only until `git_add_remote` succeeds.
 
 Browser smoke tests can also override `window.__mockHandlers` before the app boots. The AutoGit smoke bridge uses that path directly for seeded saves so the mocked git dirty-state stays synchronized even when the optional browser vault API is serving note content.
 
@@ -779,19 +620,17 @@ No Redux or global context. State lives in the root `App.tsx` and custom hooks:
 | `useNoteRename` | — | Note renaming and folder moves with wikilink update |
 | `useNoteRetargeting` | — | Shared note retargeting logic for drag/drop and command-palette actions |
 | `useTauriDragDropEvent` | — | Shared native window drag/drop event subscription and cleanup |
-| `useNativePathDrop` | — | Tauri-native file/folder path drops for AI and command text inputs |
+| `useNativePathDrop` | — | Tauri-native file/folder path drops for command text inputs |
 | `frontmatterOps` | — (pure functions) | Frontmatter CRUD: key→VaultEntry mapping, mock/Tauri dispatch |
 | `useTabManagement` | Navigation history, note switching | Note navigation lifecycle |
 | `useVaultSwitcher` | `vaultPath`, `extraVaults` | Vault switching |
 | `useTheme` | Editor theme CSS vars and theme-mode bridge | Editor typography and app theme runtime |
-| `useCliAiAgent` | `messages`, `status`, tool actions | Selected AI agent conversation backed by the shared session pipeline and vault permission mode |
 | `useAutoSync` | Sync interval, pull/push state | Git auto-sync |
 | `useAutoGit` | Last activity timestamp, idle/inactive checkpoint triggers | Automatic commit/push checkpoints |
 | `useCommitFlow` | Commit dialog state, shared manual/automatic checkpoint runner | Git commit/push orchestration |
 | `useGitRemoteStatus` | `remoteStatus`, `refreshRemoteStatus()` | On-demand remote detection for commit UI |
 | `useUnifiedSearch` | Query, results, loading state | Keyword search |
-| `useSettings` | App settings (telemetry, release channel, theme mode, UI language, auto-sync interval, AutoGit thresholds, default AI agent, Gitignored-content visibility, All Notes file visibility) | Persistent settings |
-| `useVaultConfig` | Per-vault UI preferences, AI permission mode | Vault-specific config |
+| `useVaultConfig` | Per-vault UI preferences | Vault-specific config |
 | `appCommandDispatcher` | Manifest-backed shortcut/menu command IDs | Shared execution path for renderer and native menu commands |
 
 Data flows unidirectionally: `App` passes data and callbacks as props to child components. No child-to-child communication — everything goes through `App`.
@@ -846,13 +685,13 @@ push to main
   → build job:
       → pnpm install, stamp version, pnpm build, tauri build --target aarch64-apple-darwin --bundles app
       → pnpm install, stamp version, pnpm build, tauri build --target x86_64-apple-darwin --bundles app
-      → upload signed Apple Silicon and Intel .app.tar.gz + .sig updater artifacts named Tolaria_<version>_macOS_Silicon and Tolaria_<version>_macOS_Intel
+      → upload signed Apple Silicon and Intel .app.tar.gz + .sig updater artifacts named Artemis_<version>_macOS_Silicon and Artemis_<version>_macOS_Intel
   → build-windows job:
       → pnpm install, stamp version, tauri build --target x86_64-pc-windows-msvc --bundles nsis
       → upload NSIS installer, optional MSI artifacts, and signed Windows updater bundles
   → release job:
       → generate alpha-latest.json with darwin-aarch64, darwin-x86_64, Linux, and Windows updater URLs
-      → publish GitHub prerelease alpha-vYYYY.M.D-alpha.NNNN named Tolaria Alpha YYYY.M.D.N
+      → publish GitHub prerelease alpha-vYYYY.M.D-alpha.NNNN named Artemis Alpha YYYY.M.D.N
   → pages job:
       → build static HTML release history page
       → publish alpha/latest.json
@@ -869,7 +708,7 @@ push stable-vYYYY.M.D tag
   → build job:
       → pnpm install, stamp version, pnpm build, tauri build --target aarch64-apple-darwin
       → pnpm install, stamp version, pnpm build, tauri build --target x86_64-apple-darwin
-      → upload signed Apple Silicon and Intel .app.tar.gz + .sig and .dmg artifacts named Tolaria_<version>_macOS_Silicon and Tolaria_<version>_macOS_Intel
+      → upload signed Apple Silicon and Intel .app.tar.gz + .sig and .dmg artifacts named Artemis_<version>_macOS_Silicon and Artemis_<version>_macOS_Intel
   → build-linux job:
       → pnpm install, stamp version, tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage
       → upload .deb, .AppImage, and signed Linux updater bundles
@@ -878,7 +717,7 @@ push stable-vYYYY.M.D tag
       → upload NSIS installer, optional MSI artifacts, and signed Windows updater bundles
   → release job:
       → generate stable-latest.json with macOS Apple Silicon, macOS Intel, Linux, and Windows updater URLs plus platform-specific manual download URLs
-      → publish GitHub release Tolaria YYYY.M.D
+      → publish GitHub release Artemis YYYY.M.D
   → pages job:
       → publish stable/latest.json
       → publish stable/download/ and download/ as permanent redirect URLs for the latest stable platform installer
@@ -940,7 +779,6 @@ sequenceDiagram
 - `anonymous_id` is a locally-generated UUID, never tied to identity
 - `send_default_pii: false` on both SDKs
 - PostHog: `autocapture: false`, `persistence: 'memory'`, no cookies
-- Product events use categorical metadata only: file preview kind/action, AI agent id/permission mode/counts/status, and All Notes visibility category/enabled state.
 
 **Architecture:**
 - **Rust:** `sentry` crate initialized in `lib.rs::setup()` via `telemetry::init_sentry_from_settings()`
@@ -951,7 +789,7 @@ sequenceDiagram
 
 ### Updates
 
-Tolaria uses the Tauri updater plugin for automatic updates:
+Artemis uses the Tauri updater plugin for automatic updates:
 
 - `src-tauri/tauri.conf.json` points the default desktop feed at `stable/latest.json`
 - `useUpdater(releaseChannel)` waits 3 seconds after launch, then calls Rust commands instead of hard-coding one updater endpoint in the frontend
@@ -999,13 +837,11 @@ Desktop-only modules gated at the crate level:
 Desktop-only features gated at the function level in `commands/`:
 - Git operations (commit, pull, push, status, history, diff, conflicts)
 - Clone-by-URL via system git (`clone_repo`)
-- CLI AI agent streaming (Claude, Codex, OpenCode, Pi, Gemini)
 - Menu state updates
 
 Features that work on both platforms without changes:
 - Vault scan, note read/write, rename, delete, archive
 - Frontmatter read/write/delete
-- AI chat (Anthropic API via `reqwest`)
 - Search (pure Rust in-memory)
 - Settings persistence
 - Vault list management

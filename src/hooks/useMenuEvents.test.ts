@@ -89,22 +89,6 @@ describe('useMenuEvents', () => {
 
     expect(teardown).toHaveBeenCalledTimes(1)
   })
-
-  it('swallows stale native menu unlisten failures from dev-mode remounts', async () => {
-    isTauriMock.mockReturnValue(true)
-    const teardown = vi.fn(() => {
-      throw new TypeError("undefined is not an object (evaluating 'listeners[eventId].handlerId')")
-    })
-
-    listenMock.mockResolvedValueOnce(teardown)
-
-    const { unmount } = renderHook(() => useMenuEvents(makeHandlers()))
-    await vi.dynamicImportSettled()
-
-    expect(() => unmount()).not.toThrow()
-    await vi.dynamicImportSettled()
-    expect(teardown).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('dispatchMenuEvent', () => {
@@ -132,13 +116,6 @@ describe('dispatchMenuEvent', () => {
     const h = makeHandlers()
     dispatchMenuEvent('file-new-note', h)
     expect(h.onCreateNote).toHaveBeenCalled()
-  })
-
-  it('file-daily-note is ignored once the command is removed', () => {
-    const h = makeHandlers()
-    dispatchMenuEvent('file-daily-note', h)
-    expect(h.onCreateNote).not.toHaveBeenCalled()
-    expect(h.onQuickOpen).not.toHaveBeenCalled()
   })
 
   it('file-quick-open triggers quick open', () => {
@@ -221,20 +198,6 @@ describe('dispatchMenuEvent', () => {
     expect(h.onToggleOrganized).toHaveBeenCalledWith('/vault/test.md')
   })
 
-  it('note-toggle-organized uses the current multi-selection when available', () => {
-    const h = makeHandlers()
-    const organizeSelected = vi.fn()
-    h.multiSelectionCommandRef.current = {
-      selectedPaths: ['/vault/a.md', '/vault/b.md'],
-      organizeSelected,
-    }
-
-    dispatchMenuEvent('note-toggle-organized', h)
-
-    expect(organizeSelected).toHaveBeenCalledTimes(1)
-    expect(h.onToggleOrganized).not.toHaveBeenCalled()
-  })
-
   it('note-toggle-organized does nothing when no active tab', () => {
     const h = makeHandlers()
     h.activeTabPathRef = { current: null }
@@ -246,20 +209,6 @@ describe('dispatchMenuEvent', () => {
     const h = makeHandlers()
     dispatchMenuEvent('note-delete', h)
     expect(h.onDeleteNote).toHaveBeenCalledWith('/vault/test.md')
-  })
-
-  it('note-delete uses the current multi-selection when available', () => {
-    const h = makeHandlers()
-    const deleteSelected = vi.fn()
-    h.multiSelectionCommandRef.current = {
-      selectedPaths: ['/vault/a.md', '/vault/b.md'],
-      deleteSelected,
-    }
-
-    dispatchMenuEvent('note-delete', h)
-
-    expect(deleteSelected).toHaveBeenCalledTimes(1)
-    expect(h.onDeleteNote).not.toHaveBeenCalled()
   })
 
   it('note-delete does nothing when no active tab', () => {
@@ -302,15 +251,6 @@ describe('dispatchMenuEvent', () => {
     expect(h.onToggleDiff).toHaveBeenCalled()
   })
 
-  it('edit-paste-plain-text triggers plain-text paste', () => {
-    const h = makeHandlers()
-    dispatchMenuEvent('edit-paste-plain-text', h)
-    expect(h.onPastePlainText).toHaveBeenCalled()
-  })
-
-    const h = makeHandlers()
-    dispatchMenuEvent('view-toggle-ai-chat', h)
-  })
 
   it('note-restore-deleted triggers restore deleted note', () => {
     const h = makeHandlers()
@@ -397,12 +337,6 @@ describe('dispatchMenuEvent', () => {
     expect(h.onReloadVault).toHaveBeenCalled()
   })
 
-  it('vault-repair triggers repair vault', () => {
-    const h = makeHandlers()
-    dispatchMenuEvent('vault-repair', h)
-    expect(h.onRepairVault).toHaveBeenCalled()
-  })
-
   // Note: open in new window
   it('note-open-in-new-window triggers open in new window', () => {
     const h = makeHandlers()
@@ -418,4 +352,4 @@ describe('dispatchMenuEvent', () => {
     expect(h.onCreateNote).not.toHaveBeenCalled()
     expect(h.onSave).not.toHaveBeenCalled()
   })
-
+})

@@ -66,7 +66,6 @@ proposed → active → superseded
 | [0008](0008-underscore-system-properties.md) | Underscore convention for system properties | active |
 | [0009](0009-keyword-only-search.md) | Keyword-only search (remove semantic indexing) | active |
 | [0010](0010-dynamic-wikilink-relationship-detection.md) | Dynamic wikilink relationship detection | active |
-| [0012](0012-claude-cli-for-ai-agent.md) | Claude CLI subprocess for AI agent | active |
 | [0013](0013-remove-theming-system.md) | Remove vault-based theming system | superseded -> [0081](0081-internal-light-dark-theme-runtime.md) |
 | [0014](0014-git-based-vault-cache.md) | Git-based incremental vault cache | active |
 | [0015](0015-auto-save-with-debounce.md) | Auto-save with 500ms debounce | superseded → [0102](0102-low-end-safe-autosave-idle-window.md) |
@@ -81,8 +80,6 @@ proposed → active → superseded
 | [0024](0024-cache-outside-vault.md) | Vault cache stored outside vault directory | active |
 | [0025](0025-type-field-canonical.md) | type: as canonical field (replacing Is A:) | active |
 | [0026](0026-props-down-no-global-state.md) | Props-down callbacks-up (no global state) | active |
-| [0027](0027-dual-ai-architecture.md) | Dual AI architecture (API chat + CLI agent) | superseded |
-| [0028](0028-cli-agent-only-no-api-key.md) | CLI agent only — no direct Anthropic API key | active |
 | [0029](0029-domain-command-builder-pattern.md) | Domain command builder pattern for useCommandRegistry | active |
 | [0030](0030-rust-commands-module-split.md) | Rust commands/ module split by domain | active |
 | [0031](0031-full-app-for-note-windows.md) | Full App instance for secondary note windows | active |
@@ -112,14 +109,10 @@ proposed → active → superseded
 | [0055](0055-h1-is-the-only-editor-title-surface.md) | H1 is the only editor title surface | superseded → [0068](0068-h1-only-title-surface-with-optional-untitled-auto-rename.md) |
 | [0056](0056-system-git-cli-auth-no-provider-oauth.md) | System git auth only — no provider-specific OAuth or repo APIs | active |
 | [0057](0057-alpha-stable-release-channels-and-beta-cohorts.md) | Alpha/stable release channels with PostHog beta cohorts | superseded → [0066](0066-calendar-semver-versioning-for-alpha-and-stable-releases.md) |
-| [0058](0058-claude-code-first-launch-onboarding-gate.md) | Claude Code first-launch onboarding gate | superseded → [0062](0062-selectable-cli-ai-agents.md) |
 | [0059](0059-local-only-git-commits-without-remote.md) | Local-only git commits for vaults without a remote | active |
 | [0060](0060-network-aware-ui-gating-for-remote-features.md) | Network-aware UI gating for remote-dependent features | active |
-| [0061](0061-ai-prompt-bridge-event-bus.md) | AI prompt bridge — module-level event bus for cross-component prompt routing | active |
-| [0062](0062-selectable-cli-ai-agents.md) | Selectable CLI AI agents with a shared panel architecture | active |
 | [0063](0063-blocknote-code-block-package-for-editor-highlighting.md) | BlockNote code-block package for editor syntax highlighting | active |
 | [0064](0064-ratcheted-codescene-thresholds.md) | Ratcheted CodeScene thresholds as the quality gate baseline | active |
-| [0065](0065-root-managed-ai-guidance-files.md) | Root-managed AI guidance files with Claude shim | active |
 | [0066](0066-calendar-semver-versioning-for-alpha-and-stable-releases.md) | Calendar-semver versioning for alpha and stable releases | active |
 | [0067](0067-autogit-idle-and-inactive-checkpoints.md) | AutoGit idle and inactive checkpoints | active |
 | [0068](0068-h1-only-title-surface-with-optional-untitled-auto-rename.md) | H1-only title surface with optional untitled auto-rename | active |
@@ -128,7 +121,6 @@ proposed → active → superseded
 | [0071](0071-external-vault-refresh-and-clean-tab-reopen.md) | External vault updates reload derived state and reopen the clean active note | active |
 | [0072](0072-confirmed-vault-paths-gate-startup-state.md) | Confirmed vault paths gate startup state | active |
 | [0073](0073-persistent-linkify-protocol-registry-across-editor-remounts.md) | Persistent linkify protocol registry across editor remounts | active |
-| [0074](0074-explicit-external-ai-tool-setup-and-least-privilege-desktop-scope.md) | Explicit external AI tool setup and least-privilege desktop scope | active |
 | [0075](0075-crash-safe-note-rename-transactions.md) | Crash-safe note rename transactions | active |
 | [0076](0076-note-retargeting-separates-type-and-folder-moves.md) | Note retargeting separates type changes from folder moves | active |
 | [0077](0077-concurrent-safe-vault-cache-replacement.md) | Concurrent-safe vault cache replacement | active |
@@ -141,20 +133,14 @@ proposed → active → superseded
 | [0085](0085-non-git-vault-support.md) | Non-git vaults open with explicit later Git initialization | active |
 | [0088](0088-markdown-durable-mermaid-diagrams.md) | Markdown-durable Mermaid diagrams in notes | active |
 | [0089](0089-active-vault-filesystem-watcher.md) | Active vault filesystem watcher | active |
-| [0090](0090-pi-cli-agent-adapter.md) | Pi CLI agent adapter | active |
-| [0091](0091-gemini-cli-external-ai-setup.md) | Gemini CLI external AI setup | active |
-| [0092](0092-vault-ai-agent-permission-modes.md) | Vault-scoped AI agent permission modes | superseded -> [0103](0103-adapter-specific-ai-permission-semantics.md) |
-| [0093](0093-shared-cli-agent-runtime-adapters.md) | Shared CLI agent runtime adapters | active |
 | [0094](0094-gitignored-content-visibility-boundary-filter.md) | Gitignored content visibility as a command-boundary filter | active |
 | [0095](0095-saved-view-order-field.md) | Saved views use an explicit YAML order field | active |
 | [0096](0096-root-created-type-documents.md) | Root-created type documents | active |
-| [0097](0097-gemini-cli-agent-adapter.md) | Gemini CLI agent adapter | active |
 | [0098](0098-in-app-image-and-pdf-file-previews.md) | In-app image and PDF previews for binary vault files | active |
 | [0099](0099-cumulative-vault-asset-scope.md) | Cumulative vault asset scope for previews | active |
 | [0100](0100-synthetic-vault-root-folder-row.md) | Synthetic vault-root row in folder navigation | active |
 | [0101](0101-categorical-product-analytics-events.md) | Categorical product analytics events | active |
 | [0102](0102-low-end-safe-autosave-idle-window.md) | Low-end-safe autosave idle window | active |
-| [0103](0103-adapter-specific-ai-permission-semantics.md) | Adapter-specific AI permission semantics | active |
 | [0104](0104-tauri-frontend-readiness-watchdog.md) | Tauri frontend readiness watchdog | active |
 | [0105](0105-editor-correctness-and-responsiveness-contract.md) | Editor correctness and responsiveness contract | active |
 | [0106](0106-shared-app-command-manifest.md) | Shared app command manifest | active |

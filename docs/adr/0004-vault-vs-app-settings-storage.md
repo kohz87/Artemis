@@ -23,7 +23,7 @@ Examples:
 | Note type icon (`_icon`) | Vault frontmatter | Follows the vault everywhere |
 | Note type color (`_color`) | Vault frontmatter | Follows the vault everywhere |
 | Note sort preference | Vault frontmatter (type file) | Per-vault, consistent across devices |
-| API keys (Anthropic, OpenAI) | App settings | Installation-specific |
+| Optional password/session settings | App settings | Installation-specific |
 | GitHub token | App settings | Installation-specific |
 | Window size / zoom | App settings | Device-specific |
 | Editor zoom level | App settings | Device-specific |

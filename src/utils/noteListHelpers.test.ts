@@ -75,7 +75,7 @@ describe('filterEntries', () => {
     expect(result.map((entry) => entry.title)).toEqual(['Real Note'])
   })
 
-  it('hides PDFs, images, and unsupported files from All Notes by default', () => {
+  it('shows PDFs in All Notes by default while hiding images and unsupported files', () => {
     const entries = [
       makeEntry({ path: '/vault/note.md', filename: 'note.md', title: 'Note', fileKind: 'markdown' }),
       makeEntry({ path: '/vault/Guide.PDF', filename: 'Guide.PDF', title: 'PDF', fileKind: 'binary' }),
@@ -86,7 +86,7 @@ describe('filterEntries', () => {
 
     const result = filterEntries(entries, allSelection, { subFilter: 'open' })
 
-    expect(result.map((entry) => entry.title)).toEqual(['Note'])
+    expect(result.map((entry) => entry.title)).toEqual(['Note', 'PDF'])
   })
 
   it('shows selected non-Markdown categories in All Notes without swallowing PDFs or images into unsupported files', () => {

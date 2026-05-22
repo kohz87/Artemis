@@ -41,7 +41,6 @@ test.describe('Breadcrumb action icon size regression', () => {
 
     await expectIconSize('Search within this note', page)
     await expectIconSize('Open the raw editor', page)
-    await expectIconSize('Open the AI panel', page)
     await expectIconSize('Archive this note', page)
   })
 })

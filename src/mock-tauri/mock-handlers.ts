@@ -72,7 +72,6 @@ let mockSettings: Settings = {
   release_channel: null,
   theme_mode: null,
   ui_language: null,
-  default_ai_agent: 'claude_code',
 }
 
 const DEFAULT_MOCK_VAULT_PATH = '/Users/mock/demo-vault-v2'
@@ -97,13 +96,6 @@ if (webSnapshot.entries?.length) MOCK_ENTRIES.splice(0, MOCK_ENTRIES.length, ...
 if (webSnapshot.settings) mockSettings = { ...mockSettings, ...webSnapshot.settings }
 if (webSnapshot.vaultList) mockVaultList = webSnapshot.vaultList
 if (webSnapshot.lastVaultPath !== undefined) mockLastVaultPath = webSnapshot.lastVaultPath
-
-let mockVaultAiGuidanceStatus = {
-  agents_state: 'managed',
-  claude_state: 'managed',
-  gemini_state: 'managed',
-  can_restore: false,
-} as const
 
 function normalizeMockVaultPath(path: string | null | undefined): string | null {
   const trimmed = path?.trim()
@@ -323,26 +315,6 @@ export const mockHandlers: Record<string, (args: any) => any> = {
   get_vault_pulse: (): PulseCommit[] => [],
   get_conflict_files: (): string[] => [],
   get_conflict_mode: () => 'none',
-  check_claude_cli: () => ({ installed: false, version: null }),
-  get_ai_agents_status: () => ({
-    claude_code: { installed: false, version: null },
-    codex: { installed: false, version: null },
-    opencode: { installed: false, version: null },
-    pi: { installed: false, version: null },
-    gemini: { installed: false, version: null },
-  }),
-  get_vault_ai_guidance_status: () => ({ ...mockVaultAiGuidanceStatus }),
-  restore_vault_ai_guidance: () => {
-    mockVaultAiGuidanceStatus = {
-      agents_state: 'managed',
-      claude_state: 'managed',
-      gemini_state: 'managed',
-      can_restore: false,
-    }
-    return { ...mockVaultAiGuidanceStatus }
-  },
-  stream_claude_chat: () => 'mock-session',
-  stream_ai_agent: () => null,
   save_note_content: (args: { path: string; content: string }) => {
     MOCK_CONTENT[args.path] = args.content
     applyEntryPatch(args.path, {
@@ -379,7 +351,6 @@ export const mockHandlers: Record<string, (args: any) => any> = {
       release_channel: s.release_channel,
       theme_mode: s.theme_mode ?? null,
       ui_language: s.ui_language ?? null,
-      default_ai_agent: s.default_ai_agent ?? null,
     }
     saveWebVaultSettings(mockSettings)
     return null
@@ -465,15 +436,7 @@ export const mockHandlers: Record<string, (args: any) => any> = {
     setMockRemoteState(targetPath, false)
     return targetPath
   },
-  repair_vault: (): string => {
-    mockVaultAiGuidanceStatus = {
-      agents_state: 'managed',
-      claude_state: 'managed',
-      gemini_state: 'managed',
-      can_restore: false,
-    }
-    return 'Vault repaired'
-  },
+  repair_vault: (): string => 'Vault repaired',
   reinit_telemetry: (): null => null,
 }
 

@@ -7,13 +7,11 @@ import {
   GitCommitHorizontal,
   Loader2,
   RefreshCw,
-  Terminal,
 } from 'lucide-react'
 import { GitDiff, Pulse } from '@phosphor-icons/react'
 import { ActionTooltip, type ActionTooltipCopy } from '@/components/ui/action-tooltip'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { ClaudeCodeStatus } from '../../hooks/useClaudeCodeStatus'
 import { translate, type AppLocale, type TranslationKey } from '../../lib/i18n'
 import type { GitRemoteStatus, LastCommitInfo, SyncStatus } from '../../types'
 import { openExternalUrl } from '../../utils/url'
@@ -39,8 +37,6 @@ const SYNC_COLORS: Record<string, string> = {
   pull_required: 'var(--accent-orange)',
 }
 
-
-const CLAUDE_INSTALL_URL = 'https://docs.anthropic.com/en/docs/claude-code'
 
 function formatElapsedSync(locale: AppLocale, lastSyncTime: number | null): string {
   if (!lastSyncTime) return translate(locale, 'status.sync.notSynced')
@@ -93,17 +89,6 @@ function commitButtonTooltipCopy(locale: AppLocale, remoteStatus: GitRemoteStatu
 }
 
 
-function getClaudeCodeBadgeConfig(locale: AppLocale, status: ClaudeCodeStatus, version?: string | null) {
-  if (status === 'checking') return null
-  const missing = status === 'missing'
-  const label = translate(locale, missing ? 'status.claude.missing' : 'status.claude.label')
-  return {
-    missing,
-    label,
-    tooltip: missing ? translate(locale, 'status.claude.install') : `${label}${version ? ` ${version}` : ''}`,
-    onActivate: missing ? () => openExternalUrl(CLAUDE_INSTALL_URL) : undefined,
-  }
-}
 
 function handleStatusBarActionKeyDown(
   event: ReactKeyboardEvent<HTMLButtonElement>,
@@ -271,7 +256,6 @@ type StatusWarningBadgeProps = {
   | { kind: 'conflict'; count: number; onClick?: () => void }
   | { kind: 'missingGit'; onClick?: () => void }
  
-  | { kind: 'claude'; status: ClaudeCodeStatus; version?: string | null }
 )
 
 interface StatusBadgeDisplayOptions {
@@ -289,11 +273,6 @@ type MissingGitBadgeProps = StatusBadgeDisplayOptions & {
   onClick?: () => void
 }
 
-
-type ClaudeCodeBadgeProps = StatusBadgeDisplayOptions & {
-  status: ClaudeCodeStatus
-  version?: string | null
-}
 
 function withStatusBadgeDefaults({
   showSeparator = true,
@@ -324,18 +303,6 @@ function getStatusWarningBadgeConfig(props: StatusWarningBadgeProps): StatusWarn
         label: translate(props.locale, 'status.git.disabled'),
         trailingWarning: true,
       }
-    case 'claude': {
-      const config = getClaudeCodeBadgeConfig(props.locale, props.status, props.version)
-      return config && {
-        copyLabel: config.tooltip,
-        onClick: config.onActivate,
-        testId: 'status-claude-code',
-        className: config.missing ? 'text-[var(--accent-orange)]' : undefined,
-        icon: <Terminal size={13} />,
-        label: config.label,
-        trailingWarning: config.missing,
-      }
-    }
   }
 }
 
@@ -829,21 +796,5 @@ export function PulseBadge({
         </span>
       </StatusBarAction>
     </>
-  )
-}
-
-
-export function ClaudeCodeBadge({
-  status,
-  version,
-  ...displayOptions
-}: ClaudeCodeBadgeProps) {
-  return (
-    <StatusWarningBadge
-      kind="claude"
-      status={status}
-      version={version}
-      {...withStatusBadgeDefaults(displayOptions)}
-    />
   )
 }

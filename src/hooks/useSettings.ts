@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from '../mock-tauri'
-import { normalizeStoredAiAgent } from '../lib/aiAgents'
-import { normalizeAiModelProviders } from '../lib/aiTargets'
 import { shouldHideGitignoredFiles } from '../lib/gitignoredVisibility'
 import {
   notifyGitignoredVisibilityChanged,
@@ -46,9 +44,6 @@ const EMPTY_SETTINGS: Settings = {
   ui_language: null,
   note_width_mode: null,
   note_width_overrides: null,
-  default_ai_agent: null,
-  default_ai_target: null,
-  ai_model_providers: null,
   hide_gitignored_files: null,
   all_notes_show_pdfs: null,
   all_notes_show_images: null,
@@ -71,7 +66,6 @@ function normalizeNoteWidthOverrides(value: unknown): Settings['note_width_overr
 }
 
 function normalizeSettings(settings: Settings): Settings {
-  const aiModelProviders = normalizeAiModelProviders(settings.ai_model_providers)
   const noteWidthOverrides = Object.prototype.hasOwnProperty.call(settings, 'note_width_overrides')
     ? { note_width_overrides: normalizeNoteWidthOverrides(settings.note_width_overrides) }
     : {}
@@ -85,9 +79,6 @@ function normalizeSettings(settings: Settings): Settings {
     ui_language: null,
     note_width_mode: normalizeNoteWidthMode(settings.note_width_mode),
     ...noteWidthOverrides,
-    default_ai_agent: normalizeStoredAiAgent(settings.default_ai_agent),
-    default_ai_target: settings.default_ai_target?.trim() || null,
-    ai_model_providers: aiModelProviders.length > 0 ? aiModelProviders : null,
     hide_gitignored_files: settings.hide_gitignored_files ?? null,
     all_notes_show_pdfs: settings.all_notes_show_pdfs ?? null,
     all_notes_show_images: settings.all_notes_show_images ?? null,

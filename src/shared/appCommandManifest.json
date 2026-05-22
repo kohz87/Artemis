@@ -211,21 +211,6 @@
         "accelerator": "Ctrl+Shift+I"
       }
     },
-    "viewToggleAiChat": {
-      "id": "view-toggle-ai-chat",
-      "route": {
-        "kind": "handler"
-      },
-      "menuOwned": true,
-      "shortcut": {
-        "combo": "command-or-ctrl-shift",
-        "key": "l",
-        "code": "KeyL",
-        "display": "Ctrl+Shift+L",
-        "accelerator": "Ctrl+Shift+L",
-        "requiresManualNativeAcceleratorQa": true
-      }
-    },
     "viewToggleBacklinks": {
       "id": "view-toggle-backlinks",
       "route": {
@@ -727,10 +712,6 @@
           "kind": "command",
           "command": "editToggleRawEditor",
           "label": "Toggle Raw Editor"
-        },
-        {
-          "kind": "command",
-          "command": "viewToggleAiChat"
         },
         {
           "kind": "command",

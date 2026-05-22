@@ -40,8 +40,8 @@ function untitledNoteRow(page: Page) {
 }
 
 async function expectFreshVaultSeedEntries(page: Page) {
-  await expect(page.getByText('AGENTS.md — Tolaria Vault', { exact: true })).toBeVisible()
-  await expect(page.getByText('CLAUDE.md', { exact: true })).toBeVisible()
+  await expect(page.getByText('Type', { exact: true })).toBeVisible()
+  await expect(page.getByText('Note', { exact: true })).toBeVisible()
   await expect(page.getByText('Config', { exact: true })).toHaveCount(0)
 }
 
@@ -84,8 +84,6 @@ async function installEmptyVaultMocks(
 
     function buildFreshVaultSeedEntries(vaultPath: string): MockEntry[] {
       return [
-        buildEntry(vaultPath, 'AGENTS.md — Tolaria Vault', { fileName: 'AGENTS.md' }),
-        buildEntry(vaultPath, 'CLAUDE.md', { fileName: 'CLAUDE.md' }),
         buildEntry(vaultPath, 'Type', { fileName: 'type.md', isA: 'Type' }),
         buildEntry(vaultPath, 'Note', { fileName: 'note.md', isA: 'Type' }),
       ]

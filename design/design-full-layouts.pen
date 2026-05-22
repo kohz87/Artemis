@@ -570,7 +570,7 @@
                               "id": "TtXDd",
                               "name": "proj3Txt",
                               "fill": "$--muted-foreground",
-                              "content": "AI Habit Tracker",
+                              "content": "Habit Tracker",
                               "fontFamily": "Inter",
                               "fontSize": 13,
                               "fontWeight": "normal"
@@ -3112,7 +3112,7 @@
                   "id": "bVd9g",
                   "name": "aiText",
                   "fill": "$--muted-foreground",
-                  "content": "Claude Sonnet 4",
+                  "content": "Markdown Preview",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -3753,7 +3753,7 @@
                               "id": "9SY8F",
                               "name": "proj3Txt",
                               "fill": "$--muted-foreground",
-                              "content": "AI Habit Tracker",
+                              "content": "Habit Tracker",
                               "fontFamily": "Inter",
                               "fontSize": 13,
                               "fontWeight": "normal"
@@ -6616,7 +6616,7 @@
                   "id": "qzFAM",
                   "name": "aiText",
                   "fill": "$--muted-foreground",
-                  "content": "Claude Sonnet 4",
+                  "content": "Markdown Preview",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -7256,7 +7256,7 @@
                               "id": "4p5Tw",
                               "name": "proj3Txt",
                               "fill": "$--muted-foreground",
-                              "content": "AI Habit Tracker",
+                              "content": "Habit Tracker",
                               "fontFamily": "Inter",
                               "fontSize": 13,
                               "fontWeight": "normal"
@@ -9893,7 +9893,7 @@
                   "id": "W6In1",
                   "name": "aiText",
                   "fill": "$--muted-foreground",
-                  "content": "Claude Sonnet 4",
+                  "content": "Markdown Preview",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -10534,7 +10534,7 @@
                               "id": "zflkU",
                               "name": "proj3Txt",
                               "fill": "$--muted-foreground",
-                              "content": "AI Habit Tracker",
+                              "content": "Habit Tracker",
                               "fontFamily": "Inter",
                               "fontSize": 13,
                               "fontWeight": "normal"
@@ -13059,7 +13059,7 @@
                   "id": "D1hG8",
                   "name": "aiText",
                   "fill": "$--muted-foreground",
-                  "content": "Claude Sonnet 4",
+                  "content": "Markdown Preview",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "normal"

@@ -128,7 +128,7 @@ owner: Luca Rossi
 # Grow Newsletter
 
 ## Purpose
-Build a sustainable audience through high-quality weekly essays on **engineering leadership**, **AI**, and **personal systems**.
+Build a sustainable audience through high-quality weekly essays on **engineering leadership**, **writing craft**, and **personal systems**.
 
 ## Key Metrics
 - Subscriber count (target: 100k by Q2 2026)
@@ -381,7 +381,7 @@ A broad topic covering everything from frontend to systems programming.
 ## Subtopics of Interest
 - **Frontend**: React, TypeScript, CSS
 - **Desktop**: Tauri, Electron alternatives
-- **AI/ML**: LLMs, agents, code generation
+- **Tooling**: build systems, developer experience, automation
 - **Systems**: Rust, performance optimization
 `,
   '/Users/luca/Laputa/trading.md': `---
@@ -424,17 +424,6 @@ Related to:
 # Engineering Leadership 101
 
 The transition from IC to manager is the hardest career shift in engineering.
-`,
-  '/Users/luca/Laputa/ai-agents-primer.md': `---
-title: AI Agents Primer
-type: Essay
-Belongs to:
-  - "[[grow-newsletter]]"
----
-
-# AI Agents Primer
-
-AI agents are autonomous systems that can plan, execute, and adapt to achieve goals.
 `,
   '/Users/luca/Laputa/maria-bianchi.md': `---
 title: Maria Bianchi

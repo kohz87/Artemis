@@ -45,7 +45,6 @@ const slowVaultEntries = [
 async function installSlowVaultMock(page: Page): Promise<void> {
   await page.addInitScript((entries) => {
     localStorage.setItem('tolaria_welcome_dismissed', '1')
-    localStorage.setItem('tolaria:ai-agents-onboarding-dismissed', '1')
     localStorage.setItem('tolaria:claude-code-onboarding-dismissed', '1')
 
     const mockWindow = window as MockWindow

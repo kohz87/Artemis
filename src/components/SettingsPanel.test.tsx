@@ -25,7 +25,6 @@ const emptySettings: Settings = {
   release_channel: null,
   theme_mode: null,
   ui_language: null,
-  default_ai_agent: null,
   hide_gitignored_files: null,
   all_notes_show_pdfs: null,
   all_notes_show_images: null,
@@ -103,7 +102,7 @@ describe('SettingsPanel', () => {
       release_channel: null,
       theme_mode: 'light',
       hide_gitignored_files: true,
-      all_notes_show_pdfs: false,
+      all_notes_show_pdfs: true,
       all_notes_show_images: false,
       all_notes_show_unsupported: false,
     }))
@@ -124,13 +123,13 @@ describe('SettingsPanel', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('renders All Notes file visibility switches off by default', () => {
+  it('renders All Notes PDF visibility on by default while other file switches stay off', () => {
     render(
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
     )
 
     expect(screen.getByText('Show PDFs')).toBeInTheDocument()
-    expect(within(screen.getByTestId('settings-all-notes-show-pdfs')).getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+    expect(within(screen.getByTestId('settings-all-notes-show-pdfs')).getByRole('switch')).toHaveAttribute('aria-checked', 'true')
     expect(within(screen.getByTestId('settings-all-notes-show-images')).getByRole('switch')).toHaveAttribute('aria-checked', 'false')
     expect(within(screen.getByTestId('settings-all-notes-show-unsupported')).getByRole('switch')).toHaveAttribute('aria-checked', 'false')
   })
@@ -165,7 +164,7 @@ describe('SettingsPanel', () => {
     fireEvent.keyDown(screen.getByTestId('settings-panel'), { key: 'Escape' })
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      all_notes_show_pdfs: true,
+      all_notes_show_pdfs: false,
       all_notes_show_images: false,
       all_notes_show_unsupported: false,
     }))

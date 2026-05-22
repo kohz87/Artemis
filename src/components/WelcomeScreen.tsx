@@ -287,7 +287,7 @@ function getWelcomeScreenPresentation(
       heroBackground: 'transparent',
       heroIcon: <img src={tolariaIcon} alt="Artemis icon" style={BRAND_ICON_STYLE} />,
       openFolderLabel: 'Open existing vault',
-      subtitle: 'Markdown knowledge management for the age of AI',
+      subtitle: 'Local-first markdown knowledge management',
       templateDescription: isOffline
         ? `Requires internet - clone later. Suggested path: ${defaultVaultPath}`
         : 'Download the getting started vault',

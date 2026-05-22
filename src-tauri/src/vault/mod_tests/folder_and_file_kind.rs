@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashMap;
 use std::path::Path;
 
 #[test]
@@ -68,6 +69,26 @@ fn test_list_properties_display_values_and_non_leakage() {
 
     let absent = parse_test_entry(&dir, "books.md", "---\ntype: Type\n---\n# Books\n");
     assert!(absent.list_properties_display.is_empty());
+}
+
+#[test]
+fn test_scan_vault_includes_nested_pdf_files() {
+    let dir = TempDir::new().unwrap();
+    create_test_file(dir.path(), "notes/overview.md", "# Overview\n");
+    create_test_file(
+        dir.path(),
+        "finances/statements/DBS/2025/01_2025_Credit Cards Consolidated Statement.pdf",
+        "%PDF-1.7\n",
+    );
+
+    let entries = scan_vault(dir.path(), &HashMap::new()).unwrap();
+
+    let pdf_entry = entries
+        .iter()
+        .find(|entry| entry.filename == "01_2025_Credit Cards Consolidated Statement.pdf")
+        .expect("nested PDF should be indexed as a vault entry");
+    assert_eq!(pdf_entry.title, "01_2025_Credit Cards Consolidated Statement.pdf");
+    assert_eq!(pdf_entry.file_kind, "binary");
 }
 
 #[test]

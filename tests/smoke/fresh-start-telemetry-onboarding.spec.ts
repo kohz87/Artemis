@@ -20,7 +20,6 @@ async function mockFreshStart(
     const browserWindow = window as BrowserWindow
 
     localStorage.clear()
-    localStorage.setItem('tolaria:ai-agents-onboarding-dismissed', '1')
     localStorage.setItem('tolaria:claude-code-onboarding-dismissed', '1')
     if (config.rememberWelcomeDismissal) {
       localStorage.setItem('tolaria_welcome_dismissed', '1')

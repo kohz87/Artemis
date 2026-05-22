@@ -1,27 +1,11 @@
-pub mod ai_agents;
-pub mod ai_models;
 pub mod app_updater;
-pub mod claude_cli;
-mod cli_agent_runtime;
-pub mod codex_cli;
 mod commands;
 pub mod frontmatter;
-pub mod gemini_cli;
-mod gemini_config;
-mod gemini_discovery;
 pub mod git;
 #[cfg(any(test, all(desktop, target_os = "linux")))]
 mod linux_appimage;
 #[cfg(desktop)]
 pub mod menu;
-pub mod opencode_cli;
-mod opencode_config;
-mod opencode_discovery;
-mod opencode_events;
-pub mod pi_cli;
-mod pi_config;
-mod pi_discovery;
-mod pi_events;
 pub mod search;
 pub mod settings;
 pub mod telemetry;
@@ -37,8 +21,9 @@ use std::process::Command;
 #[cfg(desktop)]
 use std::path::{Path, PathBuf};
 #[cfg(desktop)]
-#[cfg(desktop)]
 use std::sync::Mutex;
+#[cfg(desktop)]
+use tauri::Manager;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -90,9 +75,8 @@ fn run_startup_tasks_for_vault(vault_path: &Path) {
         "Migrated is_a to type on startup",
         vault::migrate_is_a_to_type(vp_str),
     );
-    // Migrate legacy config/agents.md -> root AGENTS.md (one-time, idempotent)
+    // Remove obsolete legacy config/agents.md and seed starter type definitions if missing.
     vault::migrate_agents_md(vp_str);
-    // Seed AGENTS.md and starter type definitions at vault root if missing
     vault::seed_config_files(vp_str);
 }
 
@@ -146,8 +130,6 @@ fn setup_desktop_plugins(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
 
 #[cfg(all(desktop, target_os = "linux"))]
 fn setup_linux_window_chrome(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::Manager;
-
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_decorations(false);
     }
@@ -245,8 +227,6 @@ pub(crate) fn sync_vault_asset_scope(
     app_handle: &tauri::AppHandle,
     vault_path: &Path,
 ) -> Result<(), String> {
-    use tauri::Manager;
-
     let requested_roots = vault_asset_scope_roots(vault_path)?;
     let scope = app_handle.asset_protocol_scope();
     let state: tauri::State<'_, AllowedAssetScopeRoots> = app_handle.state();
@@ -302,16 +282,6 @@ macro_rules! app_invoke_handler {
             commands::git_discard_file,
             commands::is_git_repo,
             commands::init_git_repo,
-            commands::check_claude_cli,
-            commands::get_ai_agents_status,
-            commands::get_vault_ai_guidance_status,
-            commands::restore_vault_ai_guidance,
-            commands::stream_claude_chat,
-            commands::stream_ai_agent,
-            commands::stream_ai_model,
-            commands::save_ai_model_provider_api_key,
-            commands::delete_ai_model_provider_api_key,
-            commands::test_ai_model_provider,
             commands::reload_vault,
             commands::reload_vault_entry,
             commands::sync_vault_asset_scope_for_window,
@@ -319,6 +289,8 @@ macro_rules! app_invoke_handler {
             commands::sync_note_title,
             commands::save_image,
             commands::copy_image_to_vault,
+            commands::copy_text_to_clipboard,
+            commands::read_text_from_clipboard,
             commands::delete_note,
             commands::batch_delete_notes,
             commands::batch_delete_notes_async,
@@ -361,8 +333,6 @@ fn with_invoke_handler(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
 
 #[cfg(desktop)]
 fn handle_run_event(app_handle: &tauri::AppHandle, event: &tauri::RunEvent) {
-    use tauri::Manager;
-
     window_state::handle_run_event(app_handle, event);
 
 }
@@ -408,7 +378,7 @@ mod tests {
     use super::vault_asset_scope_roots;
 
     #[test]
-    fn macos_webview_shortcut_prevention_includes_ai_panel_shortcut() {
+    fn macos_webview_shortcut_prevention_includes_app_shortcuts() {
         assert_eq!(MACOS_WEBVIEW_RESERVED_COMMAND_KEYS, ["O", "F"]);
         assert_eq!(MACOS_WEBVIEW_RESERVED_COMMAND_SHIFT_KEYS, ["L"]);
     }

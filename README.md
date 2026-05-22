@@ -12,6 +12,9 @@ Artemis is a local-first markdown knowledge base for writing, organizing, search
 - Optional web password gate: protect a standalone web session with `ARTEMIS_PASSWORD`.
 - Configurable network binding: use `ARTEMIS_HOST` and `ARTEMIS_PORT` for local, LAN, or server deployments.
 
+
+Artemis no longer requires or configures AI providers, model catalogs, MCP servers, or API keys. Current configuration is limited to the web listener, optional password gate, localization/telemetry build-time settings, Tauri desktop settings, and per-vault note/git metadata.
+
 ## Requirements
 
 For web development:
@@ -52,7 +55,7 @@ cd Artemis
 pnpm install
 ```
 
-Create a local environment file if you want custom ports, telemetry keys, localization credentials, or password protection:
+Create a local environment file if you want custom ports, telemetry keys, localization credentials, or password protection. No AI/API-key environment variables are required:
 
 ```bash
 cp .env.example .env.local
@@ -137,7 +140,7 @@ Start the Tauri desktop app:
 pnpm tauri dev
 ```
 
-Tauri uses the same React frontend and native Rust commands for filesystem, git, updater, and desktop integrations.
+Tauri uses the same React frontend and native Rust commands for filesystem, git, updater, clipboard, window, and desktop integrations. AI provider/API/MCP commands are not part of the current app surface.
 
 ## Useful commands
 

@@ -8,7 +8,7 @@ date: 2026-04-21
 
 ## Context
 
-ADR-0002 makes the filesystem the source of truth, and ADR-0043 keeps locally edited frontmatter reactive inside the running UI. But external vault mutations still had a gap. A `git pull` or an AI agent edit could change notes on disk while the app kept showing stale note-list state, stale derived relationships, or an editor surface that still rendered the pre-refresh BlockNote document.
+ADR-0002 makes the filesystem the source of truth, and ADR-0043 keeps locally edited frontmatter reactive inside the running UI. But external vault mutations still had a gap. A `git pull` could change notes on disk while the app kept showing stale note-list state, stale derived relationships, or an editor surface that still rendered the pre-refresh BlockNote document.
 
 The fix needed to satisfy a few constraints at once:
 
@@ -21,7 +21,7 @@ The fix needed to satisfy a few constraints at once:
 
 **All external vault mutations now reconcile through one shared refresh path that reloads vault-derived state and then conditionally reopens the active note from disk.**
 
-Tolaria now routes post-pull refreshes and AI-agent file modifications through the same `refreshPulledVaultState()` helper.
+Tolaria now routes post-pull refreshes through the same `refreshPulledVaultState()` helper.
 
 That shared path does the following:
 

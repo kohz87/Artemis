@@ -43,7 +43,6 @@ const entry = {
 async function installMissingVaultMock(page: Page): Promise<void> {
   await page.addInitScript((noteEntry: typeof entry) => {
     localStorage.setItem('tolaria_welcome_dismissed', '1')
-    localStorage.setItem('tolaria:ai-agents-onboarding-dismissed', '1')
     localStorage.setItem('tolaria:claude-code-onboarding-dismissed', '1')
 
     const missingError = () => new Error('Active vault is not available')

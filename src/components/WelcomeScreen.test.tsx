@@ -31,7 +31,7 @@ describe('WelcomeScreen', () => {
     it('renders welcome title and subtitle', () => {
       render(<WelcomeScreen {...defaultProps} />)
       expect(screen.getByText('Welcome to Artemis')).toBeInTheDocument()
-      expect(screen.getByText('Markdown knowledge management for the age of AI')).toBeInTheDocument()
+      expect(screen.getByText('Local-first markdown knowledge management')).toBeInTheDocument()
     })
 
     it('renders the local Artemis branding icon', () => {

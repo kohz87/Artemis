@@ -1629,7 +1629,6 @@ function App() {
         <CommandPalette
           open={dialogs.showCommandPalette}
           commands={commands}
-          entries={vault.entries}
           locale={appLocale}
           onClose={dialogs.closeCommandPalette}
         />

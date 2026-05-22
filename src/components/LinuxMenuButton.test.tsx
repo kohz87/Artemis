@@ -38,10 +38,6 @@ describe('LinuxMenuButton', () => {
     expect(screen.getByText('Ctrl+Shift+V')).toBeInTheDocument()
     fireEvent.click(await screen.findByText('Paste without Formatting'))
     expect(invoke).toHaveBeenCalledWith('trigger_menu_command', { id: 'edit-paste-plain-text' })
-
-    await openSubmenu('Note')
-    fireEvent.click(await screen.findByText('Ctrl+Shift+L'))
-    expect(invoke).toHaveBeenCalledWith('trigger_menu_command', { id: 'view-toggle-ai-chat' })
   }, MENU_TEST_TIMEOUT_MS)
 
   it('invokes direct window actions from the Window submenu', async () => {

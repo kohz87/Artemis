@@ -1,11 +1,16 @@
 import type { VaultEntry } from '../types'
-import type { NoteReference } from '../utils/ai-context'
 import { resolveEntry } from '../utils/wikilink'
 import {
   chipToken,
   normalizeInlineWikilinkValue,
   toInlineWikilinkTarget,
 } from './inlineWikilinkTokens'
+
+export interface NoteReference {
+  title: string
+  path: string
+  type: string | null
+}
 
 export interface InlineWikilinkChip {
   entry: VaultEntry
