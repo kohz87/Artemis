@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌳</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Artemis black moon icon">
+  <defs>
+    <mask id="artemis-crescent-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="black" />
+      <circle cx="28" cy="32" r="24" fill="white" />
+      <circle cx="41" cy="25" r="24" fill="black" />
+    </mask>
+  </defs>
+  <rect width="64" height="64" fill="#050505" mask="url(#artemis-crescent-mask)" />
+</svg>
