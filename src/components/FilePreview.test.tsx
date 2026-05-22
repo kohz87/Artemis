@@ -58,6 +58,7 @@ const pdfEntry: VaultEntry = {
 describe('FilePreview', () => {
   beforeEach(() => {
     trackEventMock.mockClear()
+    window.localStorage.clear()
   })
 
   it('routes header file actions to the active file path', () => {
@@ -84,14 +85,28 @@ describe('FilePreview', () => {
   it('renders supported PDF files through the asset preview path', () => {
     render(<FilePreview entry={pdfEntry} />)
 
-    expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute('data', '/api/vault/asset?path=%2Fvault%2FAttachments%2Freport.pdf')
+    expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute('data', '/api/vault/asset?path=%2Fvault%2FAttachments%2Freport.pdf#page=1&zoom=100')
     expect(screen.getByText('PDF file')).toBeInTheDocument()
+  })
+
+  it('persists PDF page and zoom settings across preview remounts', () => {
+    const { unmount } = render(<FilePreview entry={pdfEntry} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    fireEvent.change(screen.getByLabelText('PDF page'), { target: { value: '3' } })
+
+    expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute('data', '/api/vault/asset?path=%2Fvault%2FAttachments%2Freport.pdf#page=3&zoom=125')
+
+    unmount()
+    render(<FilePreview entry={pdfEntry} />)
+
+    expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute('data', '/api/vault/asset?path=%2Fvault%2FAttachments%2Freport.pdf#page=3&zoom=125')
   })
 
   it('renders supported PDFs when binary metadata is unavailable', () => {
     render(<FilePreview entry={{ ...pdfEntry, fileKind: undefined }} />)
 
-    expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute('data', '/api/vault/asset?path=%2Fvault%2FAttachments%2Freport.pdf')
+    expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute('data', '/api/vault/asset?path=%2Fvault%2FAttachments%2Freport.pdf#page=1&zoom=100')
   })
 
   it('provides a graceful fallback when a PDF preview cannot render', () => {

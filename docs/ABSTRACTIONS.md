@@ -162,7 +162,7 @@ interface VaultEntry {
 | `text` | UTF-8 editable formats such as `.yml`, `.json`, `.ts`, `.py`, `.sh` | Opens through the raw editor without Markdown note semantics |
 | `binary` | Images, PDFs, archives, other non-text files | Stays a normal vault file; previewable images and PDFs open in `FilePreview`, unsupported or broken binaries show an explicit fallback |
 
-Asset previewability is inferred in the renderer from the filename extension (`src/utils/filePreview.ts`) rather than stored as a new persisted kind. Supported images render through `<img>` and supported PDFs render through the webview/browser PDF object renderer. Unsupported or broken binaries remain in the web UI with an explicit fallback rather than launching a system app, so the filesystem stays the source of truth without converting assets into proprietary objects.
+Asset previewability is inferred in the renderer from the filename extension (`src/utils/filePreview.ts`) rather than stored as a new persisted kind. Supported images render through `<img>` and supported PDFs render through the webview/browser PDF object renderer with local, per-file page and zoom settings applied through the PDF URL fragment. Unsupported or broken binaries remain in the web UI with an explicit fallback rather than launching a system app, so the filesystem stays the source of truth without converting assets into proprietary objects.
 
 ### Note Content Freshness
 

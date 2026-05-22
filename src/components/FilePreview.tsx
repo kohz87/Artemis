@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { ClipboardText, FileDashed, FilePdf, ImageSquare, WarningCircle } from '@phosphor-icons/react'
 import type { VaultEntry } from '../types'
 import { trackFilePreviewAction, trackFilePreviewFailed, trackFilePreviewOpened } from '../lib/productAnalytics'
 import { filePreviewKind, previewFileTypeLabel, type FilePreviewKind } from '../utils/filePreview'
 import { filePreviewAssetSrc } from '../utils/filePreviewAsset'
+import {
+  clampPdfZoom,
+  pdfPreviewSrc,
+  readPdfPreviewSettings,
+  writePdfPreviewSettings,
+  type PdfPreviewSettings,
+} from '../utils/pdfPreviewSettings'
 import { focusNoteListContainer } from '../utils/neighborhoodHistory'
 import { Button } from './ui/button'
 
@@ -106,29 +113,83 @@ function FilePreviewHeader({
   )
 }
 
+function FilePreviewPdfControls({
+  settings,
+  onPageChange,
+  onZoomChange,
+}: {
+  settings: PdfPreviewSettings
+  onPageChange: (page: number) => void
+  onZoomChange: (zoom: number) => void
+}) {
+  const handlePageChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const page = Number.parseInt(event.target.value, 10)
+    if (Number.isInteger(page) && page > 0) onPageChange(page)
+  }, [onPageChange])
+
+  const zoomOut = useCallback(() => onZoomChange(clampPdfZoom(settings.zoom - 25)), [onZoomChange, settings.zoom])
+  const zoomIn = useCallback(() => onZoomChange(clampPdfZoom(settings.zoom + 25)), [onZoomChange, settings.zoom])
+
+  return (
+    <div className="flex h-[44px] shrink-0 items-center justify-end gap-2 border-b border-border px-4 text-[12px] text-muted-foreground">
+      <label className="flex items-center gap-2">
+        Page
+        <input
+          aria-label="PDF page"
+          className="h-8 w-16 rounded-md border border-input bg-background px-2 text-foreground"
+          min={1}
+          type="number"
+          value={settings.page}
+          onChange={handlePageChange}
+        />
+      </label>
+      <Button type="button" variant="ghost" size="sm" onClick={zoomOut} aria-label="Zoom out">
+        −
+      </Button>
+      <span aria-label="PDF zoom" className="min-w-12 text-center text-foreground">{settings.zoom}%</span>
+      <Button type="button" variant="ghost" size="sm" onClick={zoomIn} aria-label="Zoom in">
+        +
+      </Button>
+    </div>
+  )
+}
+
 function FilePreviewPdf({
   entry,
   pdfSrc,
+  settings,
+  onPageChange,
+  onZoomChange,
 }: {
   entry: VaultEntry
   pdfSrc: string
+  settings: PdfPreviewSettings
+  onPageChange: (page: number) => void
+  onZoomChange: (zoom: number) => void
 }) {
   const fallback = fallbackContentForPreviewKind('pdf')
 
   return (
-    <object
-      data={pdfSrc}
-      type="application/pdf"
-      title={entry.title}
-      className="h-full min-h-[320px] w-full bg-background"
-      data-testid="pdf-file-preview"
-    >
-      <FilePreviewFallback
-        icon={fallback.icon}
-        title={fallback.title}
-        description={fallback.description}
+    <div className="flex h-full min-h-[320px] flex-col">
+      <FilePreviewPdfControls
+        settings={settings}
+        onPageChange={onPageChange}
+        onZoomChange={onZoomChange}
       />
-    </object>
+      <object
+        data={pdfPreviewSrc(pdfSrc, settings)}
+        type="application/pdf"
+        title={entry.title}
+        className="min-h-[320px] w-full flex-1 bg-background"
+        data-testid="pdf-file-preview"
+      >
+        <FilePreviewFallback
+          icon={fallback.icon}
+          title={fallback.title}
+          description={fallback.description}
+        />
+      </object>
+    </div>
   )
 }
 
@@ -163,20 +224,34 @@ function FilePreviewBody({
   previewKind,
   assetSrc,
   imageFailed,
+  pdfSettings,
   onImageError,
+  onPdfPageChange,
+  onPdfZoomChange,
 }: {
   entry: VaultEntry
   previewKind: FilePreviewKind | null
   assetSrc: string | null
   imageFailed: boolean
+  pdfSettings: PdfPreviewSettings
   onImageError: () => void
+  onPdfPageChange: (page: number) => void
+  onPdfZoomChange: (zoom: number) => void
 }) {
   if (shouldRenderImagePreview(previewKind === 'image', assetSrc, imageFailed)) {
     return <FilePreviewImage entry={entry} imageSrc={assetSrc} onImageError={onImageError} />
   }
 
   if (previewKind === 'pdf' && assetSrc !== null) {
-    return <FilePreviewPdf entry={entry} pdfSrc={assetSrc} />
+    return (
+      <FilePreviewPdf
+        entry={entry}
+        pdfSrc={assetSrc}
+        settings={pdfSettings}
+        onPageChange={onPdfPageChange}
+        onZoomChange={onPdfZoomChange}
+      />
+    )
   }
 
   const fallback = fallbackContentForPreviewKind(previewKind)
@@ -195,9 +270,16 @@ export function FilePreview({
   onCopyFilePath,
 }: FilePreviewProps) {
   const [failedImagePath, setFailedImagePath] = useState<string | null>(null)
+  const [storedPdfSettings, setStoredPdfSettings] = useState(() => ({
+    path: entry.path,
+    settings: readPdfPreviewSettings(entry.path),
+  }))
   const previewKind = filePreviewKind(entry)
   const assetSrc = useMemo(() => (previewKind ? filePreviewAssetSrc(entry.path) : null), [entry.path, previewKind])
   const fileTypeLabel = previewFileTypeLabel(entry)
+  const pdfSettings = storedPdfSettings.path === entry.path
+    ? storedPdfSettings.settings
+    : readPdfPreviewSettings(entry.path)
   const imageFailed = failedImagePath === entry.path
   const handleImageError = useCallback(() => {
     setFailedImagePath(entry.path)
@@ -207,6 +289,24 @@ export function FilePreview({
   useEffect(() => {
     trackFilePreviewOpened(previewKind)
   }, [entry.path, previewKind])
+
+  useEffect(() => {
+    if (previewKind === 'pdf') writePdfPreviewSettings(entry.path, pdfSettings)
+  }, [entry.path, pdfSettings, previewKind])
+
+  const handlePdfPageChange = useCallback((page: number) => {
+    setStoredPdfSettings((current) => ({
+      path: entry.path,
+      settings: { ...(current.path === entry.path ? current.settings : readPdfPreviewSettings(entry.path)), page },
+    }))
+  }, [entry.path])
+
+  const handlePdfZoomChange = useCallback((zoom: number) => {
+    setStoredPdfSettings((current) => ({
+      path: entry.path,
+      settings: { ...(current.path === entry.path ? current.settings : readPdfPreviewSettings(entry.path)), zoom },
+    }))
+  }, [entry.path])
 
   const handleCopyFilePath = useCallback(() => {
     trackFilePreviewAction('copy_path', previewKind)
@@ -240,7 +340,10 @@ export function FilePreview({
           previewKind={previewKind}
           assetSrc={assetSrc}
           imageFailed={imageFailed}
+          pdfSettings={pdfSettings}
           onImageError={handleImageError}
+          onPdfPageChange={handlePdfPageChange}
+          onPdfZoomChange={handlePdfZoomChange}
         />
       </div>
     </section>

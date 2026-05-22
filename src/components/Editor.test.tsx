@@ -237,6 +237,7 @@ describe('Editor', () => {
     blockNoteViewState.onChange = null
     mockEditor.document = [{ id: '1', type: 'paragraph', content: [], props: {}, children: [] }]
     clearParsedNoteBlockCache()
+    window.localStorage.clear()
   })
 
   it('shows empty state when no tabs are open', () => {
@@ -309,7 +310,7 @@ describe('Editor', () => {
 
     expect(screen.getByTestId('pdf-file-preview')).toHaveAttribute(
       'data',
-      '/api/vault/asset?path=%2Fvault%2Fassets%2Freport.pdf',
+      '/api/vault/asset?path=%2Fvault%2Fassets%2Freport.pdf#page=1&zoom=100',
     )
     expect(screen.queryByTestId('blocknote-view')).not.toBeInTheDocument()
   })
