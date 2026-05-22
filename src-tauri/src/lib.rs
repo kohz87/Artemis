@@ -370,8 +370,6 @@ mod tests {
         missing_asset_scope_roots, spawn_startup_tasks_for_vault_with,
     };
     #[cfg(desktop)]
-    use crate::vault_list::VaultList;
-    #[cfg(desktop)]
     use std::path::PathBuf;
 
     #[cfg(all(desktop, unix))]

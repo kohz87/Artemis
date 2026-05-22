@@ -7,8 +7,9 @@ pub const GETTING_STARTED_REPO_URL: &str =
 /// Default location for the Getting Started vault.
 pub fn default_vault_path() -> Result<PathBuf, String> {
     dirs::document_dir()
+        .or_else(dirs::home_dir)
         .map(|d| d.join("Getting Started"))
-        .ok_or_else(|| "Could not determine Documents directory".to_string())
+        .ok_or_else(|| "Could not determine Documents or home directory".to_string())
 }
 
 const GETTING_STARTED_REQUIRED_CONFIG_FILES: [&str; 2] = ["type.md", "note.md"];
@@ -134,7 +135,8 @@ fn vault_has_pending_changes(vault_path: &Path) -> Result<bool, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-        use std::path::Path;
+    use std::fs;
+    use std::path::Path;
     use std::process::Command as StdCommand;
 
     fn init_source_repo(path: &Path) {
