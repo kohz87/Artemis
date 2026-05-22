@@ -387,7 +387,7 @@ async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo }: Fix
         ) ?? null
       },
       get() {
-        return applyFixtureVaultOverrides(ref) ?? ref
+        return ref
       },
     })
   }, {
