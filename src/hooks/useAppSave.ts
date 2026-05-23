@@ -1,9 +1,8 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { useEditorSaveWithLinks } from './useEditorSaveWithLinks'
 import { flushEditorContent } from '../utils/autoSave'
 import { extractH1TitleFromContent, filenameStemToTitle } from '../utils/noteTitle'
-import { isTauri } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { FilenameRenameOptions, VaultEntry } from '../types'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 
@@ -92,8 +91,7 @@ function shouldScheduleUntitledRename({
   content: string
   initialH1AutoRenameEnabled: boolean
 }): boolean {
-  return isTauri()
-    && initialH1AutoRenameEnabled
+  return initialH1AutoRenameEnabled
     && isUntitledRenameCandidate(path)
     && extractH1TitleFromContent(content) !== null
 }
@@ -178,9 +176,9 @@ async function reloadAutoRenamedNote(
     loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
   },
 ): Promise<void> {
-  const newEntry = await invoke<VaultEntry>('reload_vault_entry', { path: newPath })
+  const newEntry = await callWebBackend<VaultEntry>('reload_vault_entry', { path: newPath })
   const preservedContent = tabsRef.current.find((tab) => tab.entry.path === oldPath)?.content
-    ?? await invoke<string>('get_note_content', { path: newPath })
+    ?? await callWebBackend<string>('get_note_content', { path: newPath })
 
   const otherTabPaths = tabsRef.current
     .filter((tab) => tab.entry.path !== oldPath && tab.entry.path !== newPath)
@@ -197,7 +195,7 @@ async function reloadAutoRenamedNote(
   })
 
   void Promise.all(otherTabPaths.map(async (path) => {
-    const content = await invoke<string>('get_note_content', { path })
+    const content = await callWebBackend<string>('get_note_content', { path })
     startTransition(() => {
       setTabs((prev: TabState[]) => prev.map((tab) => (
         tab.entry.path === path ? { ...tab, content } : tab
@@ -274,7 +272,7 @@ function useUntitledRenameExecutor({
 
     const renamePromise = (async () => {
       try {
-        const result = await invoke<{ new_path: string; updated_files: number } | null>('auto_rename_untitled', {
+        const result = await callWebBackend<{ new_path: string; updated_files: number } | null>('auto_rename_untitled', {
           vaultPath: resolvedPath,
           notePath: path,
         })

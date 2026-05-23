@@ -2,7 +2,8 @@
 type: ADR
 id: "0030"
 title: "Rust commands/ module split by domain"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-03-30
 ---
 

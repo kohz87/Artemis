@@ -2,7 +2,8 @@
 type: ADR
 id: "0031"
 title: "Full App instance for secondary note windows"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-03-31
 ---
 

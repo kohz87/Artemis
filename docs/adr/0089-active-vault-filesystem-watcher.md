@@ -2,7 +2,8 @@
 type: ADR
 id: "0089"
 title: "Active vault filesystem watcher"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-27
 ---
 

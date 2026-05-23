@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { formatFolderPickerActionError, pickFolder } from '../utils/vault-dialog'
 import {
   buildGettingStartedVaultPath,
@@ -13,8 +12,8 @@ interface UseGettingStartedCloneOptions {
   onSuccess: (path: string, label: string) => void
 }
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 export function useGettingStartedClone({
@@ -35,7 +34,7 @@ export function useGettingStartedClone({
     const targetPath = buildGettingStartedVaultPath(parentPath)
 
     try {
-      const vaultPath = await tauriCall<string>('create_getting_started_vault', { targetPath })
+      const vaultPath = await webCommand<string>('create_getting_started_vault', { targetPath })
       onSuccess(vaultPath, labelFromPath(vaultPath))
     } catch (err) {
       onError(formatGettingStartedCloneError(err))

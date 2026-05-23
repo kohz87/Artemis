@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { GitRemoteStatus } from '../types'
 import { REQUEST_ADD_REMOTE_EVENT } from '../utils/addRemoteEvents'
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 async function readRemoteStatus(vaultPath: string): Promise<GitRemoteStatus | null> {
   try {
-    return await tauriCall<GitRemoteStatus>('git_remote_status', { vaultPath })
+    return await webCommand<GitRemoteStatus>('git_remote_status', { vaultPath })
   } catch {
     return null
   }

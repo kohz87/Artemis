@@ -2,7 +2,8 @@
 type: ADR
 id: "0079"
 title: "Linux window chrome and menu reuse"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-24
 ---
 

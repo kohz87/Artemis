@@ -1,49 +1,11 @@
 # Getting Started
 
-How to navigate the codebase, run the app, and find what you need.
+How to navigate the web codebase, run the app, and find what you need.
 
 ## Prerequisites
 
 - **Node.js** 20+ and **pnpm 8+**
-- **Rust** 1.77.2+ (for the Tauri backend)
-- **git** CLI (required by the git integration features)
-
-### Linux system dependencies
-
-If you run the desktop app on Linux, install Tauri's WebKit2GTK 4.1 dependencies first:
-
-- Arch / Manjaro:
-  ```bash
-  sudo pacman -S --needed webkit2gtk-4.1 base-devel curl wget file openssl \
-    appmenu-gtk-module libappindicator-gtk3 librsvg
-  ```
-- Debian / Ubuntu (22.04+):
-  ```bash
-  sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
-    libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
-    libsoup-3.0-dev patchelf
-  ```
-- Fedora 38+:
-  ```bash
-  sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
-    libappindicator-gtk3-devel librsvg2-devel
-  ```
-
-### Linux AppImage Wayland troubleshooting
-
-On some Wayland systems, the Linux AppImage may fail to launch with:
-
-```text
-Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...
-```
-
-Recent Artemis AppImages automatically disable unstable WebKitGTK AppImage rendering paths and retry startup with an architecture-matching system Wayland client library when they detect this class of AppImage + Wayland environment. If you are running an older build, use this workaround:
-
-```bash
-WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 LD_PRELOAD=/usr/lib64/libwayland-client.so.0 ./Artemis*.AppImage
-```
-
-If your distribution stores the 64-bit library elsewhere, use that path instead, for example `/usr/lib/x86_64-linux-gnu/libwayland-client.so.0`. On 64-bit Fedora, avoid `/usr/lib/libwayland-client.so.0`; that path can point at a 32-bit library and be ignored by the loader with a wrong ELF class warning.
+- **git** CLI (required by the local web vault git integration features)
 
 ## Quick Start
 
@@ -55,12 +17,8 @@ pnpm install
 pnpm dev:web
 # Open http://localhost:5202
 
-# Run with Tauri (full app, requires Rust)
-pnpm tauri dev
-
 # Run tests
 pnpm test          # Vitest unit tests
-cargo test         # Rust tests (from src-tauri/)
 pnpm playwright:smoke  # Curated Playwright core smoke lane (~5 min)
 pnpm playwright:regression  # Full Playwright regression suite
 ```
@@ -68,7 +26,7 @@ pnpm playwright:regression  # Full Playwright regression suite
 ## Optional Web Listening Configuration
 
 Vite reads `ARTEMIS_HOST` and `ARTEMIS_PORT` from `.env.local` or the shell when
-running `pnpm dev:web` / `pnpm dev:web`. The defaults are `localhost:5202` for Tauri
+running `pnpm dev:web`. The default is `localhost:5202` for Vite
 dev compatibility. Use `ARTEMIS_HOST=0.0.0.0` when another device on the network
 needs to reach the dev server:
 
@@ -102,7 +60,7 @@ artemis/
 │   ├── App.tsx                   # Root component — orchestrates layout + state
 │   ├── App.css                   # App shell layout styles
 │   ├── types.ts                  # Shared TS types (VaultEntry, Settings, etc.)
-│   ├── mock-tauri.ts             # Mock Tauri layer for browser testing
+│   ├── backend/                  # Web backend client, demo handlers, optional HTTP vault API
 │   ├── theme.json                # Editor typography theme configuration
 │   ├── index.css                 # Semantic app theme variables + Tailwind setup
 │   │
@@ -125,15 +83,12 @@ artemis/
 │   │   ├── CommandPalette.tsx    # Cmd+K command launcher
 │   │   ├── BreadcrumbBar.tsx     # Breadcrumb + word count + actions
 │   │   ├── WelcomeScreen.tsx     # Onboarding screen
-│   │   ├── LinuxTitlebar.tsx     # Linux-only custom window chrome + controls
-│   │   ├── LinuxMenuButton.tsx   # Linux titlebar menu mirroring app commands
 │   │   ├── CloneVaultModal.tsx   # Clone a vault from any git URL
 │   │   ├── AddRemoteModal.tsx    # Connect a local-only vault to a remote later
 │   │   ├── ConflictResolverModal.tsx # Git conflict resolution
 │   │   ├── CommitDialog.tsx      # Git commit modal
 │   │   ├── CreateNoteDialog.tsx  # New note modal
 │   │   ├── CreateTypeDialog.tsx  # New type modal
-│   │   ├── UpdateBanner.tsx      # In-app update notification
 │   │   ├── inspector/            # Inspector sub-panels
 │   │   │   ├── BacklinksPanel.tsx
 │   │   │   ├── RelationshipsPanel.tsx
@@ -164,14 +119,12 @@ artemis/
 │   │   ├── useGettingStartedClone.ts # Shared Getting Started clone action
 │   │   ├── useOnboarding.ts      # First-launch flow
 │   │   ├── useCodeMirror.ts      # CodeMirror raw editor
-│   │   ├── useUpdater.ts         # In-app updates
 │   │   └── ...
 │   │
 │   ├── utils/                    # Pure utility functions (~48 files)
 │   │   ├── wikilinks.ts          # Wikilink preprocessing pipeline
 │   │   ├── frontmatter.ts        # TypeScript YAML parser
 │   │   ├── plainTextPaste.ts     # Shared Paste without Formatting command target registry
-│   │   ├── platform.ts           # Runtime platform + Linux chrome gating helpers
 │   │   ├── noteListHelpers.ts    # Sorting, filtering, date formatting
 │   │   ├── wikilink.ts           # Wikilink resolution
 │   │   ├── configMigration.ts    # localStorage → vault config migration
@@ -182,7 +135,6 @@ artemis/
 │   │   └── ...
 │   │
 │   ├── lib/
-│   │   ├── appUpdater.ts         # Frontend wrapper around channel-aware updater commands
 │   │   ├── i18n.ts               # App-owned localization runtime and locale resolution
 │   │   ├── locales/              # JSON locale catalogs (English source + translated locales)
 │   │   ├── releaseChannel.ts     # Alpha/stable normalization helpers
@@ -191,32 +143,7 @@ artemis/
 │   └── test/
 │       └── setup.ts              # Vitest test environment setup
 │
-├── src-tauri/                    # Rust backend
-│   ├── Cargo.toml                # Rust dependencies
-│   ├── build.rs                  # Tauri build script
-│   ├── tauri.conf.json           # Tauri app configuration
-│   ├── capabilities/             # Tauri v2 security capabilities
-│   ├── src/
-│   │   ├── main.rs               # Entry point (calls lib::run())
-│   │   ├── lib.rs                # Tauri setup + command registration
-│   │   ├── commands/             # Tauri command handlers (split into modules)
-│   │   ├── vault/                # Vault module
-│   │   │   ├── mod.rs            # Core types, parse_md_file, scan_vault
-│   │   │   ├── cache.rs          # Git-based incremental caching
-│   │   │   ├── parsing.rs        # Text processing + title extraction
-│   │   │   ├── rename.rs         # Rename + cross-vault wikilink update
-│   │   │   ├── image.rs          # Image attachment saving
-│   │   │   ├── migration.rs      # Frontmatter migration
-│   │   │   └── getting_started.rs # Getting Started vault clone orchestration
-│   │   ├── frontmatter/          # Frontmatter module
-│   │   │   ├── mod.rs, yaml.rs, ops.rs
-│   │   ├── git/                  # Git module
-│   │   │   ├── mod.rs, commit.rs, status.rs, history.rs, clone.rs, connect.rs
-│   │   │   ├── conflict.rs, remote.rs, pulse.rs
-│   │   ├── telemetry.rs          # Sentry init + path scrubber
-│   │   ├── search.rs             # Keyword search (walkdir-based)
-│   │   ├── app_updater.rs        # Alpha/stable updater endpoint selection
-│   │   ├── settings.rs           # App settings persistence
+├── scripts/                      # Node/Vite helper scripts
 │   │   ├── vault_config.rs       # Per-vault UI config
 │   │   ├── vault_list.rs         # Vault list persistence
 │   │   └── menu.rs               # Native macOS menu bar
@@ -256,30 +183,27 @@ artemis/
 |------|---------------|
 | `src/App.tsx` | Root component. Shows the 4-panel layout, state flow, and how all features connect. |
 | `src/types.ts` | All shared TypeScript types. Read this first to understand the data model. |
-| `src-tauri/src/commands/` | Tauri command handlers (split into modules). This is the frontend-backend API surface. |
-| `src-tauri/src/lib.rs` | Tauri setup, command registration, startup tasks, WebSocket bridge lifecycle. |
+| `src/backend/client.ts` | Explicit web backend helper functions. This is the frontend-backend API surface. |
+| `src/backend/client.ts` | Typed web backend client helpers and command dispatch. |
 
 ### Data layer
 
 | File | Why it matters |
 |------|---------------|
-| `src/hooks/useVaultLoader.ts` | How vault data is loaded and managed. The Tauri/mock branching pattern. |
+| `src/hooks/useVaultLoader.ts` | How vault data is loaded and managed through the web backend client. |
 | `src/hooks/useNoteActions.ts` | Orchestrates note operations: composes `useNoteCreation`, `useNoteRename`, frontmatter CRUD, and wikilink navigation. |
 | `src/hooks/useVaultSwitcher.ts` | Multi-vault management, vault switching, and persisting cloned vaults in the switcher list. |
 | `src/hooks/useGettingStartedClone.ts` | Shared "Clone Getting Started Vault" action for the status bar and command palette. |
 | `src/components/AddRemoteModal.tsx` | Modal UI for connecting a local-only vault to a compatible remote. |
-| `src/mock-tauri.ts` | Mock data for browser testing. Shows the shape of all Tauri responses. |
+| `src/backend/web-command-handlers.ts` | Demo data and browser fallback handlers for web testing. |
 
-### Backend
+### Web Backend
 
 | File | Why it matters |
 |------|---------------|
-| `src-tauri/src/vault/mod.rs` | Vault scanning, frontmatter parsing, entity type inference, relationship extraction. |
-| `src-tauri/src/vault/cache.rs` | Git-based incremental caching — how large vaults load fast. |
-| `src-tauri/src/frontmatter/ops.rs` | YAML manipulation — how properties are updated/deleted in files. |
-| `src-tauri/src/git/` | All git operations (clone, commit, pull, push, conflicts, pulse, add-remote). |
-| `src-tauri/src/search.rs` | Keyword search — scans vault files with walkdir. |
-| `src-tauri/src/app_updater.rs` | Desktop updater bridge — selects alpha/stable manifests and streams install progress. |
+| `src/backend/client.ts` | Typed helper functions for each supported web backend command. |
+| `src/backend/vault-api.ts` | Optional `/api/vault` HTTP bridge used when a real web vault backend is available. |
+| `src/backend/web-command-handlers.ts` | Browser fallback handlers and demo vault state for local development and tests. |
 
 ### Editor
 
@@ -306,26 +230,14 @@ artemis/
 | File | Why it matters |
 |------|---------------|
 | `src/lib/releaseChannel.ts` | Normalizes persisted updater-channel values (`stable` default, optional `alpha`). |
-| `src/lib/appUpdater.ts` | Frontend wrapper for channel-aware updater commands. |
-| `src/hooks/useMainWindowSizeConstraints.ts` | Derives the main-window minimum width from the visible panes and asks Tauri to grow back to fit wider layouts. |
 | `src/hooks/useVaultConfig.ts` | Per-vault local UI preferences (zoom, view mode, colors, Inbox columns, explicit organization workflow). |
 | `src/hooks/useUpdater.ts` | In-app updates using the selected alpha/stable feed. |
 
 ## Architecture Patterns
 
-### Tauri/Mock Branching
+### Web backend client
 
-Every data-fetching operation checks `isTauri()` and branches:
-
-```typescript
-if (isTauri()) {
-  result = await invoke<T>('command', { args })
-} else {
-  result = await mockInvoke<T>('command', { args })
-}
-```
-
-This lives in `useVaultLoader.ts` and `useNoteActions.ts`. Components never call Tauri directly.
+Data-fetching code calls explicit helpers from `src/backend/client.ts`, for example `listVault(path)`, `saveNoteContent(path, content)`, and `gitCommit(vaultPath, message)`. The client first tries the optional `/api/vault` HTTP bridge and falls back to browser demo handlers for local development and tests. Components do not import platform APIs or generic invoke bridges directly.
 
 ### Props-Down, Callbacks-Up
 
@@ -344,18 +256,16 @@ type SidebarSelection =
 
 ### Command Registry
 
-`useCommandRegistry` + `useAppCommands` build a centralized command registry. Commands are registered with labels, shortcuts, and handlers. The `CommandPalette` (Cmd+K) fuzzy-searches this registry. Settings commands can update installation-local preferences directly when they reuse an existing settings path, such as the light/dark theme-mode actions writing `settings.theme_mode`. Shortcut combos live in `appCommandCatalog.ts`; real keypresses always flow through `useAppKeyboard`, native menu clicks emit the same command IDs through `useMenuEvents`, and `appCommandDispatcher.ts` suppresses the duplicate native/renderer echo from a single shortcut. Plain-text paste follows this same path: the command owns `Cmd+Shift+V`, the menu and palette expose the same action, and `plainTextPaste.ts` resolves the active rich/raw editor target or focused text control before reading clipboard text. On macOS, any browser-reserved chord that WKWebView swallows before that path must also be added to the narrow `tauri-plugin-prevent-default` registration in `src-tauri/src/lib.rs`. On Windows, native menu clicks arrive from the main `WebviewWindow`, so `src-tauri/src/menu.rs` must keep its window-scoped menu event handler in addition to the app-level handler. On Linux, `LinuxTitlebar.tsx` and `LinuxMenuButton.tsx` reuse the same command IDs through `trigger_menu_command` because the native GTK menu bar is intentionally not mounted. The same shortcut manifest also declares the deterministic QA mode for each shortcut-capable command.
+`useCommandRegistry` + `useAppCommands` build a centralized command registry. Commands are registered with labels, shortcuts, and handlers. The `CommandPalette` (Cmd+K) fuzzy-searches this registry. Settings commands can update installation-local preferences directly when they reuse an existing settings path, such as the light/dark theme-mode actions writing `settings.theme_mode`. Shortcut combos live in `appCommandCatalog.ts`; real keypresses always flow through `useAppKeyboard`, while command-palette actions use the same command IDs through `appCommandDispatcher.ts`. Plain-text paste follows this path: the command owns `Cmd+Shift+V`, the palette exposes the same action, and `plainTextPaste.ts` resolves the active rich/raw editor target or focused text control before reading clipboard text. The same shortcut manifest also declares deterministic QA metadata for each shortcut-capable command.
 
-Commands whose availability depends on the current note or Git state must also flow through `update_menu_state` so the native menu stays in sync with the command palette. The deleted-note restore action in Changes view is the reference example: the row opens a deleted diff preview, the command palette exposes "Restore Deleted Note", and the Note menu enables the same action only while that preview is active.
+Commands whose availability depends on the current note or Git state should derive from the same command registry state used by the command palette. The deleted-note restore action in Changes view is the reference example: the row opens a deleted diff preview and the command palette exposes "Restore Deleted Note" only while that preview is active.
 
-Current-note find/replace is a surface-aware command: editor focus enables "Find in Note" / "Replace in Note" and routes Cmd+F into raw CodeMirror mode; note-list focus enables existing note-list search instead. When adding another focus-dependent command, mirror this pattern with an availability event consumed by `useMenuEvents.ts` and `update_menu_state`.
+Current-note find/replace is a surface-aware command: editor focus enables "Find in Note" / "Replace in Note" and routes Cmd+F into raw CodeMirror mode; note-list focus enables existing note-list search instead. When adding another focus-dependent command, mirror this pattern through the registry availability state.
 
 For automated shortcut QA, use the explicit proof path from `appCommandCatalog.ts`:
 
 - `window.__laputaTest.triggerShortcutCommand()` for deterministic renderer shortcut-event coverage
-- `window.__laputaTest.triggerMenuCommand()` for deterministic native menu-command coverage
 
-That browser harness is a deterministic desktop command bridge, not real native accelerator QA. For macOS browser-reserved chords, still perform native QA in the real Tauri app because the webview-init prevent-default layer is only active there. Do not treat flaky synthesized macOS keystrokes as proof that a shortcut works unless you also confirm the visible app behavior.
 
 ## Running Tests
 
@@ -365,12 +275,6 @@ pnpm test
 
 # Unit tests with coverage (must pass ≥70%)
 pnpm test:coverage
-
-# Rust tests
-cargo test
-
-# Rust coverage (must pass ≥85% line coverage)
-cargo llvm-cov --manifest-path src-tauri/Cargo.toml --no-clean --fail-under-lines 85
 
 # Playwright core smoke lane (requires dev server)
 BASE_URL="http://localhost:5173" pnpm playwright:smoke
@@ -384,13 +288,13 @@ BASE_URL="http://localhost:5173" npx playwright test tests/smoke/<slug>.spec.ts
 
 ## Common Tasks
 
-### Add a new Tauri command
+### Add a new web backend command
 
 1. Write the Rust function in the appropriate module (`vault/`, `git/`, etc.)
 2. Add a command handler in `commands/`
 3. Register it in the `generate_handler![]` macro in `lib.rs`
-4. Call it from the frontend via `invoke()` in the appropriate hook or utility, keeping native-only permission work behind the Tauri command boundary
-5. Add a mock handler in `mock-tauri.ts`
+4. Add an explicit helper in `src/backend/client.ts` and call that helper from the appropriate hook or utility
+5. Add a browser fallback handler in `src/backend/web-command-handlers.ts`
 
 ### Add a new component
 

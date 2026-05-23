@@ -5,7 +5,6 @@ import type { SortOption, SortDirection } from '../../utils/noteListHelpers'
 import { translate, type AppLocale } from '../../lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useDragRegion } from '../../hooks/useDragRegion'
 import { SortDropdown } from '../SortDropdown'
 import { ListPropertiesPopover, type ListPropertiesPopoverProps } from './ListPropertiesPopover'
 
@@ -43,10 +42,9 @@ export function NoteListHeader({ title, typeDocument, isEntityView, listSort, li
   onSearchChange: (value: string) => void
   onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
 }) {
-  const { onMouseDown: onDragMouseDown } = useDragRegion()
   return (
     <>
-      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border px-4" onMouseDown={onDragMouseDown} style={{ cursor: 'default', paddingLeft: sidebarCollapsed ? 80 : undefined }}>
+      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border px-4" style={{ cursor: 'default', paddingLeft: sidebarCollapsed ? 80 : undefined }}>
         <h3
           className="m-0 min-w-0 flex-1 truncate text-[14px] font-semibold"
           style={typeDocument ? { cursor: 'pointer' } : undefined}

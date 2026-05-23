@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import { useNoteActions, type NoteActionsConfig } from './useNoteActions'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn(),
+  callWebBackend: vi.fn(),
 }))
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
@@ -62,11 +61,10 @@ function makeConfig(overrides: Partial<NoteActionsConfig> = {}): NoteActionsConf
 describe('useNoteActions missing-path recovery', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(isTauri).mockReturnValue(false)
   })
 
   it('reloads vault state and shows a toast when the selected note path is gone', async () => {
-    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('File does not exist: /test/vault/missing.md'))
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('File does not exist: /test/vault/missing.md'))
     const config = makeConfig()
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -86,7 +84,7 @@ describe('useNoteActions missing-path recovery', () => {
   })
 
   it('recovers from missing stale sidebar entries with incomplete string metadata', async () => {
-    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('File does not exist: /test/vault/reloaded.md'))
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('File does not exist: /test/vault/reloaded.md'))
     const staleEntry = {
       ...makeEntry({ path: '/test/vault/reloaded.md' }),
       filename: undefined,
@@ -111,7 +109,7 @@ describe('useNoteActions missing-path recovery', () => {
   })
 
   it('shows a toast without reloading the vault when note content is not valid UTF-8 text', async () => {
-    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('File is not valid UTF-8 text: /test/vault/bad.csv'))
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('File is not valid UTF-8 text: /test/vault/bad.csv'))
     const config = makeConfig({ entries: [makeEntry({ path: '/test/vault/bad.csv', filename: 'bad.csv', title: 'bad.csv', fileKind: 'text' })] })
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 

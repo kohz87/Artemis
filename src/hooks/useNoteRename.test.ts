@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import {
   needsRenameOnSave,
@@ -9,13 +9,11 @@ import {
   useNoteRename,
 } from './useNoteRename'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn().mockResolvedValue(''),
+  callWebBackend: vi.fn().mockResolvedValue(''),
 }))
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
@@ -105,7 +103,6 @@ describe('useNoteRename hook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(isTauri).mockReturnValue(false)
     activeTabPathRef.current = null
   })
 
@@ -113,7 +110,7 @@ describe('useNoteRename hook', () => {
     renameResult: RenameNoteResult,
     content = '# New\n',
   ) => {
-    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+    vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
       if (cmd === 'rename_note') return renameResult
       if (cmd === 'get_note_content') return content
       return ''
@@ -159,7 +156,7 @@ describe('useNoteRename hook', () => {
       onEntryRenamed,
     })
 
-    expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
+    expect(callWebBackend).toHaveBeenCalledWith('rename_note', expect.objectContaining({
       old_path: '/vault/old.md',
       new_title: 'New',
       old_title: 'Old',
@@ -171,11 +168,11 @@ describe('useNoteRename hook', () => {
   it('handleRenameNote passes null old_title when entry not found', async () => {
     await runHandleRenameNote()
 
-    expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({ old_title: null }))
+    expect(callWebBackend).toHaveBeenCalledWith('rename_note', expect.objectContaining({ old_title: null }))
   })
 
   it('handleRenameNote shows error toast on failure', async () => {
-    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('fail'))
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('fail'))
 
     const { result } = renderHook(() => useNoteRename(
       { entries: [], setToastMessage },
@@ -211,7 +208,7 @@ describe('useNoteRename hook', () => {
 
   it('handleRenameFilename renames the file while preserving the existing title', async () => {
     const entry = makeEntry({ path: '/vault/old-name.md', filename: 'old-name.md', title: 'Project Kickoff' })
-    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+    vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
       if (cmd === 'rename_note_filename') return { new_path: '/vault/manual-name.md', updated_files: 1, failed_updates: 0 }
       if (cmd === 'get_note_content') return '# Project Kickoff\n'
       return ''
@@ -227,7 +224,7 @@ describe('useNoteRename hook', () => {
       await result.current.handleRenameFilename('/vault/old-name.md', 'manual-name', '/vault', onEntryRenamed)
     })
 
-    expect(mockInvoke).toHaveBeenCalledWith('rename_note_filename', expect.objectContaining({
+    expect(callWebBackend).toHaveBeenCalledWith('rename_note_filename', expect.objectContaining({
       old_path: '/vault/old-name.md',
       new_filename_stem: 'manual-name',
     }))
@@ -249,7 +246,7 @@ describe('useNoteRename hook', () => {
     const setTabs = vi.fn((update: typeof tabs | ((prev: typeof tabs) => typeof tabs)) => {
       tabs = typeof update === 'function' ? update(tabs) : update
     })
-    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+    vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
       if (cmd === 'rename_note_filename') return { new_path: '/vault/fresh-title.md', updated_files: 0, failed_updates: 0 }
       if (cmd === 'get_note_content') return '# Fresh Title\n'
       return ''
@@ -291,7 +288,7 @@ describe('useNoteRename hook', () => {
   })
 
   it('handleRenameFilename surfaces backend conflict errors', async () => {
-    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('A note with that name already exists'))
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('A note with that name already exists'))
 
     const { result } = renderHook(() => useNoteRename(
       { entries: [makeEntry({ path: '/vault/old-name.md', filename: 'old-name.md' })], setToastMessage },
@@ -307,7 +304,7 @@ describe('useNoteRename hook', () => {
 
   it('handleMoveNoteToFolder moves the note and keeps its title intact', async () => {
     const entry = makeEntry({ path: '/vault/notes/project-kickoff.md', filename: 'project-kickoff.md', title: 'Project Kickoff' })
-    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+    vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
       if (cmd === 'move_note_to_folder') {
         return {
           new_path: '/vault/projects/project-kickoff.md',
@@ -329,7 +326,7 @@ describe('useNoteRename hook', () => {
       await result.current.handleMoveNoteToFolder('/vault/notes/project-kickoff.md', 'projects', '/vault', onEntryRenamed)
     })
 
-    expect(mockInvoke).toHaveBeenCalledWith('move_note_to_folder', expect.objectContaining({
+    expect(callWebBackend).toHaveBeenCalledWith('move_note_to_folder', expect.objectContaining({
       old_path: '/vault/notes/project-kickoff.md',
       folder_path: 'projects',
     }))
@@ -347,7 +344,7 @@ describe('useNoteRename hook', () => {
 
   it('normalizes folder move targets before sending them to the backend', async () => {
     const entry = makeEntry({ path: '/vault/notes/project-kickoff.md', filename: 'project-kickoff.md', title: 'Project Kickoff' })
-    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+    vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
       if (cmd === 'move_note_to_folder') {
         return {
           new_path: '/vault/projects/active/project-kickoff.md',
@@ -368,7 +365,7 @@ describe('useNoteRename hook', () => {
       await result.current.handleMoveNoteToFolder('/vault/notes/project-kickoff.md', String.raw`/projects\active/`, '/vault', vi.fn())
     })
 
-    expect(mockInvoke).toHaveBeenCalledWith('move_note_to_folder', expect.objectContaining({
+    expect(callWebBackend).toHaveBeenCalledWith('move_note_to_folder', expect.objectContaining({
       folder_path: 'projects/active',
     }))
     expect(setToastMessage).toHaveBeenCalledWith('Moved to "active"')

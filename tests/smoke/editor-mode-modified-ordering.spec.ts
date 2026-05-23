@@ -84,7 +84,7 @@ async function installSaveTracker(page: Page) {
   await page.evaluate(() => {
     const internals = window.__TAURI_INTERNALS__
     if (!internals || typeof internals.invoke !== 'function') {
-      throw new Error('Tauri invoke bridge is missing')
+      throw new Error('web backend bridge is missing')
     }
 
     if (window.__laputaTest?.getTrackedSaveCount) {

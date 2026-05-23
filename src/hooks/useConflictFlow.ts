@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 
-function tauriCall<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(cmd, args) : mockInvoke<T>(cmd, args)
+function webCommand<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(cmd, args)
 }
 
 interface ConflictFlowDeps {
@@ -24,19 +23,19 @@ interface ConflictFlowDeps {
 }
 
 async function fetchConflictFiles(vaultPath: string): Promise<string[]> {
-  return tauriCall<string[]>('get_conflict_files', { vaultPath })
+  return webCommand<string[]>('get_conflict_files', { vaultPath })
 }
 
 async function resolveAndCheck(
   vaultPath: string, filePath: string, strategy: 'ours' | 'theirs',
 ): Promise<string[]> {
   const relativePath = filePath.replace(vaultPath + '/', '')
-  await tauriCall('git_resolve_conflict', { vaultPath, file: relativePath, strategy })
+  await webCommand('git_resolve_conflict', { vaultPath, file: relativePath, strategy })
   return fetchConflictFiles(vaultPath)
 }
 
 async function commitMergeResolution(vaultPath: string): Promise<void> {
-  await tauriCall('git_commit_conflict_resolution', { vaultPath })
+  await webCommand('git_commit_conflict_resolution', { vaultPath })
 }
 
 export function useConflictFlow({

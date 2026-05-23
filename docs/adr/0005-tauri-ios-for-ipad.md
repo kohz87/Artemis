@@ -2,7 +2,8 @@
 type: ADR
 id: "0005"
 title: "Tauri v2 iOS for iPad support (vs SwiftUI rewrite)"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-03-27
 ---
 

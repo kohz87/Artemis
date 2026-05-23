@@ -56,18 +56,18 @@ proposed → active → superseded
 
 | ID | Title | Status |
 |----|-------|--------|
-| [0001](0001-tauri-react-stack.md) | Tauri v2 + React as application stack | active |
+| [0001](0001-tauri-react-stack.md) | Tauri v2 + React as application stack | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0002](0002-filesystem-source-of-truth.md) | Filesystem as the single source of truth | active |
 | [0003](0003-single-note-model.md) | Single note open at a time (no tabs) | active |
 | [0004](0004-vault-vs-app-settings-storage.md) | Vault vs app settings for state storage | active |
-| [0005](0005-tauri-ios-for-ipad.md) | Tauri v2 iOS for iPad support (vs SwiftUI rewrite) | active |
+| [0005](0005-tauri-ios-for-ipad.md) | Tauri v2 iOS for iPad support (vs SwiftUI rewrite) | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0006](0006-flat-vault-structure.md) | Flat vault structure (no type-based folders) | active |
 | [0007](0007-title-filename-sync.md) | Title equals filename (slug sync) | active |
 | [0008](0008-underscore-system-properties.md) | Underscore convention for system properties | active |
 | [0009](0009-keyword-only-search.md) | Keyword-only search (remove semantic indexing) | active |
 | [0010](0010-dynamic-wikilink-relationship-detection.md) | Dynamic wikilink relationship detection | active |
 | [0013](0013-remove-theming-system.md) | Remove vault-based theming system | superseded -> [0081](0081-internal-light-dark-theme-runtime.md) |
-| [0014](0014-git-based-vault-cache.md) | Git-based incremental vault cache | active |
+| [0014](0014-git-based-vault-cache.md) | Git-based incremental vault cache | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0015](0015-auto-save-with-debounce.md) | Auto-save with 500ms debounce | superseded → [0102](0102-low-end-safe-autosave-idle-window.md) |
 | [0016](0016-sentry-posthog-telemetry.md) | Sentry + PostHog telemetry with consent | active |
 | [0017](canary-release-channel-and-local-feature-flags.md) | Canary release channel and feature flags | superseded → [0057](0057-alpha-stable-release-channels-and-beta-cohorts.md) |
@@ -77,12 +77,12 @@ proposed → active → superseded
 | [0021](0021-push-to-main-workflow.md) | Push directly to main (no PRs) | active |
 | [0022](0022-blocknote-rich-text-editor.md) | BlockNote as the rich text editor | active |
 | [0023](0023-repair-vault-auto-bootstrap.md) | Repair Vault auto-bootstrap pattern | active |
-| [0024](0024-cache-outside-vault.md) | Vault cache stored outside vault directory | active |
+| [0024](0024-cache-outside-vault.md) | Vault cache stored outside vault directory | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0025](0025-type-field-canonical.md) | type: as canonical field (replacing Is A:) | active |
 | [0026](0026-props-down-no-global-state.md) | Props-down callbacks-up (no global state) | active |
 | [0029](0029-domain-command-builder-pattern.md) | Domain command builder pattern for useCommandRegistry | active |
-| [0030](0030-rust-commands-module-split.md) | Rust commands/ module split by domain | active |
-| [0031](0031-full-app-for-note-windows.md) | Full App instance for secondary note windows | active |
+| [0030](0030-rust-commands-module-split.md) | Rust commands/ module split by domain | superseded → [0111](0111-web-only-vite-vault-backend.md) |
+| [0031](0031-full-app-for-note-windows.md) | Full App instance for secondary note windows | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0032](0032-status-bar-for-git-actions.md) | Git actions (Changes, Pulse, Commit) in status bar, not sidebar | active |
 | [0033](0033-subfolder-scanning-and-folder-tree.md) | Subfolder scanning and folder tree navigation | active |
 | [0034](0034-git-repo-required-for-vault.md) | Git repo required — blocking modal enforces vault prerequisite | superseded → [0085](0085-non-git-vault-support.md) |
@@ -103,9 +103,9 @@ proposed → active → superseded
 | [0049](0049-per-note-icon-property.md) | Per-note icon property (_icon on individual notes) | active |
 | [0050](0050-deterministic-shortcut-command-routing.md) | Deterministic shortcut command routing | superseded → [0051](0051-shared-shortcut-manifest-for-testable-routing.md) |
 | [0051](0051-shared-shortcut-manifest-for-testable-routing.md) | Shared shortcut manifest for testable routing | superseded → [0052](0052-renderer-first-shortcut-execution-with-native-menu-dedupe.md) |
-| [0052](0052-renderer-first-shortcut-execution-with-native-menu-dedupe.md) | Renderer-first shortcut execution with native-menu dedupe | active |
-| [0053](0053-webview-init-prevention-for-browser-reserved-shortcuts.md) | Webview-init prevention for browser-reserved shortcuts | active |
-| [0054](0054-deterministic-shortcut-qa-matrix.md) | Deterministic shortcut QA matrix | active |
+| [0052](0052-renderer-first-shortcut-execution-with-native-menu-dedupe.md) | Renderer-first shortcut execution with native-menu dedupe | superseded → [0111](0111-web-only-vite-vault-backend.md) |
+| [0053](0053-webview-init-prevention-for-browser-reserved-shortcuts.md) | Webview-init prevention for browser-reserved shortcuts | superseded → [0111](0111-web-only-vite-vault-backend.md) |
+| [0054](0054-deterministic-shortcut-qa-matrix.md) | Deterministic shortcut QA matrix | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0055](0055-h1-is-the-only-editor-title-surface.md) | H1 is the only editor title surface | superseded → [0068](0068-h1-only-title-surface-with-optional-untitled-auto-rename.md) |
 | [0056](0056-system-git-cli-auth-no-provider-oauth.md) | System git auth only — no provider-specific OAuth or repo APIs | active |
 | [0057](0057-alpha-stable-release-channels-and-beta-cohorts.md) | Alpha/stable release channels with PostHog beta cohorts | superseded → [0066](0066-calendar-semver-versioning-for-alpha-and-stable-releases.md) |
@@ -125,27 +125,28 @@ proposed → active → superseded
 | [0076](0076-note-retargeting-separates-type-and-folder-moves.md) | Note retargeting separates type changes from folder moves | active |
 | [0077](0077-concurrent-safe-vault-cache-replacement.md) | Concurrent-safe vault cache replacement | active |
 | [0078](0078-scoped-unsigned-fallback-for-app-managed-git-commits.md) | Scoped unsigned fallback for app-managed git commits | active |
-| [0079](0079-linux-window-chrome-and-menu-reuse.md) | Linux window chrome and menu reuse | active |
+| [0079](0079-linux-window-chrome-and-menu-reuse.md) | Linux window chrome and menu reuse | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0080](0080-cross-platform-desktop-release-artifacts-and-portable-vault-names.md) | Cross-platform desktop release artifacts and portable vault names | superseded → [0083](0083-dual-architecture-macos-release-artifacts.md) |
 | [0081](0081-internal-light-dark-theme-runtime.md) | Internal light and dark theme runtime | active |
 | [0082](0082-markdown-durable-math-notes.md) | Markdown-durable math in notes | active |
-| [0083](0083-dual-architecture-macos-release-artifacts.md) | Dual-architecture macOS release artifacts | active |
+| [0083](0083-dual-architecture-macos-release-artifacts.md) | Dual-architecture macOS release artifacts | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0085](0085-non-git-vault-support.md) | Non-git vaults open with explicit later Git initialization | active |
 | [0088](0088-markdown-durable-mermaid-diagrams.md) | Markdown-durable Mermaid diagrams in notes | active |
-| [0089](0089-active-vault-filesystem-watcher.md) | Active vault filesystem watcher | active |
-| [0094](0094-gitignored-content-visibility-boundary-filter.md) | Gitignored content visibility as a command-boundary filter | active |
+| [0089](0089-active-vault-filesystem-watcher.md) | Active vault filesystem watcher | superseded → [0111](0111-web-only-vite-vault-backend.md) |
+| [0094](0094-gitignored-content-visibility-boundary-filter.md) | Gitignored content visibility as a command-boundary filter | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0095](0095-saved-view-order-field.md) | Saved views use an explicit YAML order field | active |
 | [0096](0096-root-created-type-documents.md) | Root-created type documents | active |
 | [0098](0098-in-app-image-and-pdf-file-previews.md) | In-app image and PDF previews for binary vault files | active |
-| [0099](0099-cumulative-vault-asset-scope.md) | Cumulative vault asset scope for previews | active |
+| [0099](0099-cumulative-vault-asset-scope.md) | Cumulative vault asset scope for previews | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0100](0100-synthetic-vault-root-folder-row.md) | Synthetic vault-root row in folder navigation | active |
 | [0101](0101-categorical-product-analytics-events.md) | Categorical product analytics events | active |
 | [0102](0102-low-end-safe-autosave-idle-window.md) | Low-end-safe autosave idle window | active |
-| [0104](0104-tauri-frontend-readiness-watchdog.md) | Tauri frontend readiness watchdog | active |
+| [0104](0104-tauri-frontend-readiness-watchdog.md) | Tauri frontend readiness watchdog | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0105](0105-editor-correctness-and-responsiveness-contract.md) | Editor correctness and responsiveness contract | active |
-| [0106](0106-shared-app-command-manifest.md) | Shared app command manifest | active |
+| [0106](0106-shared-app-command-manifest.md) | Shared app command manifest | superseded → [0111](0111-web-only-vite-vault-backend.md) |
 | [0107](0107-markdown-durable-tldraw-whiteboards.md) | Markdown-durable tldraw whiteboards in notes | active |
 | [0107](0107-pointer-owned-editor-block-reordering.md) | Pointer-owned editor block reordering | active |
 | [0108](0108-sanitized-rendered-markup-and-safe-regex.md) | Sanitized rendered markup and safe user regex | active |
 | [0109](0109-debounced-worker-derived-editor-indexes.md) | Debounced worker-derived editor indexes | active |
 | [0110](0110-persisted-pdf-preview-settings.md) | Persisted PDF preview settings | active |
+| [0111](0111-web-only-vite-vault-backend.md) | Web-only Vite vault backend replaces Tauri desktop runtime | active |

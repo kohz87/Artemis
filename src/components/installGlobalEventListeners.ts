@@ -17,10 +17,6 @@ function preventFileDropNavigation(event: DragEvent): void {
   event.preventDefault()
 }
 
-function preventContextMenu(event: MouseEvent): void {
-  event.preventDefault()
-}
-
 let installed = false
 
 export function installGlobalEventListeners(): () => void {
@@ -30,20 +26,9 @@ export function installGlobalEventListeners(): () => void {
   document.addEventListener('dragover', preventFileDropNavigation, true)
   document.addEventListener('drop', preventFileDropNavigation, true)
 
-  // Disable the embedded native context menu in Tauri before React handles
-  // the event. Capture phase fires first, while React bubble phase still
-  // reaches custom menus.
-  const isTauri = '__TAURI__' in window || '__TAURI_INTERNALS__' in window
-  if (isTauri) {
-    document.addEventListener('contextmenu', preventContextMenu, true)
-  }
-
   return () => {
     document.removeEventListener('dragover', preventFileDropNavigation, true)
     document.removeEventListener('drop', preventFileDropNavigation, true)
-    if (isTauri) {
-      document.removeEventListener('contextmenu', preventContextMenu, true)
-    }
     installed = false
   }
 }

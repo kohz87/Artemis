@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import {
   slugify,
@@ -20,13 +19,11 @@ import {
 } from './useNoteCreation'
 import type { NoteCreationConfig } from './useNoteCreation'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn().mockResolvedValue(''),
+  callWebBackend: vi.fn().mockResolvedValue(''),
 }))
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
@@ -299,7 +296,6 @@ describe('useNoteCreation hook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(isTauri).mockReturnValue(false)
     vi.useRealTimers()
   })
 
@@ -413,16 +409,15 @@ describe('useNoteCreation hook', () => {
 
   it('waits for slow immediate note persistence before starting the queued create', async () => {
     vi.useFakeTimers()
-    vi.mocked(isTauri).mockReturnValue(true)
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
     let resolveFirstWrite: () => void
     const firstWrite = new Promise<void>((resolve) => {
       resolveFirstWrite = resolve
     })
-    vi.mocked(invoke)
+    vi.mocked(callWebBackend)
       .mockImplementationOnce(() => firstWrite)
       .mockResolvedValue(undefined)
-    const createCalls = () => vi.mocked(invoke).mock.calls.filter(([command]) => command === 'create_note_content')
+    const createCalls = () => vi.mocked(callWebBackend).mock.calls.filter(([command]) => command === 'create_note_content')
     const { result } = renderHook(() => useNoteCreation(makeConfig(), tabDeps))
 
     await act(async () => {
@@ -466,8 +461,7 @@ describe('useNoteCreation hook', () => {
   })
 
   it('handleCreateNoteImmediate persists typed notes under Windows verbatim vault roots', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    vi.mocked(callWebBackend).mockResolvedValueOnce(undefined)
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
     const windowsVaultPath = String.raw`\\?\C:\Users\alex\Documents\Tolaria`
     const createdPath = String.raw`\\?\C:\Users\alex\Documents\Tolaria/untitled-project-1700000000.md`
@@ -481,7 +475,7 @@ describe('useNoteCreation hook', () => {
       await flushImmediateCreate()
     })
 
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
       content: expect.stringContaining('type: Project'),
       vaultPath: windowsVaultPath,
@@ -509,8 +503,7 @@ describe('useNoteCreation hook', () => {
   })
 
   it('handleCreateNoteImmediate creates the backing file before opening the note', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    vi.mocked(callWebBackend).mockResolvedValueOnce(undefined)
     const addPendingSave = vi.fn()
     const removePendingSave = vi.fn()
     const onNewNotePersisted = vi.fn()
@@ -528,7 +521,7 @@ describe('useNoteCreation hook', () => {
     })
 
     const createdPath = expect.stringMatching(/untitled-note-\d+\.md$/)
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
       content: expect.stringContaining('type: Note'),
       vaultPath: '/test/vault',
@@ -539,14 +532,13 @@ describe('useNoteCreation hook', () => {
     expect(onNewNotePersisted).toHaveBeenCalledWith(createdPath)
     expect(addEntry).toHaveBeenCalledTimes(1)
     expect(openTabWithContent).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(invoke).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(callWebBackend).mock.invocationCallOrder[0]).toBeLessThan(
       openTabWithContent.mock.invocationCallOrder[0],
     )
   })
 
   it('handleCreateNoteImmediate persists under the selected target folder with vault context', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    vi.mocked(callWebBackend).mockResolvedValueOnce(undefined)
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
     const { result } = renderHook(() => useNoteCreation({
       ...makeConfig(),
@@ -559,7 +551,7 @@ describe('useNoteCreation hook', () => {
       await flushImmediateCreate()
     })
 
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('create_note_content', {
       path: '/test/vault/projects/test/untitled-note-1700000000.md',
       content: expect.stringContaining('type: Note'),
       vaultPath: '/test/vault',
@@ -572,8 +564,7 @@ describe('useNoteCreation hook', () => {
   })
 
   it('handleCreateNoteImmediate does not open an optimistic note when disk creation fails', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockRejectedValueOnce(new Error('disk full'))
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('disk full'))
     const { result } = renderHook(() => useNoteCreation(makeConfig(), tabDeps))
 
     await act(async () => {
@@ -617,8 +608,7 @@ describe('useNoteCreation hook', () => {
   })
 
   it('handleCreateType persists type files under Windows verbatim vault roots', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke)
+    vi.mocked(callWebBackend)
       .mockRejectedValueOnce(new Error('not found'))
       .mockResolvedValueOnce(undefined)
     const onTypeStateChanged = vi.fn()
@@ -636,11 +626,11 @@ describe('useNoteCreation hook', () => {
     })
 
     expect(created).toBe(true)
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('get_note_content', {
       path: createdPath,
       vaultPath: windowsVaultPath,
     })
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
       content: '---\ntype: Type\n---\n\n# Recipe\n',
       vaultPath: windowsVaultPath,
@@ -656,8 +646,7 @@ describe('useNoteCreation hook', () => {
   })
 
   it('handleCreateType blocks when the target type file already exists', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockResolvedValueOnce('---\ntype: Note\n---\n# Existing Briefing\n')
+    vi.mocked(callWebBackend).mockResolvedValueOnce('---\ntype: Note\n---\n# Existing Briefing\n')
     const { result } = renderHook(() => useNoteCreation(makeConfig(), tabDeps))
 
     let created = true
@@ -666,11 +655,11 @@ describe('useNoteCreation hook', () => {
     })
 
     expect(created).toBe(false)
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('get_note_content', {
       path: '/test/vault/briefing.md',
       vaultPath: '/test/vault',
     })
-    expect(vi.mocked(invoke).mock.calls.some(([command]) => command === 'create_note_content')).toBe(false)
+    expect(vi.mocked(callWebBackend).mock.calls.some(([command]) => command === 'create_note_content')).toBe(false)
     expect(addEntry).not.toHaveBeenCalled()
     expect(openTabWithContent).not.toHaveBeenCalled()
     expect(removeEntry).not.toHaveBeenCalled()
@@ -678,8 +667,7 @@ describe('useNoteCreation hook', () => {
   })
 
   it('handleCreateType blocks the built-in Note type when stale entries omit existing note.md', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockResolvedValueOnce('---\ntype: Type\n---\n# Note\n')
+    vi.mocked(callWebBackend).mockResolvedValueOnce('---\ntype: Type\n---\n# Note\n')
     const { result } = renderHook(() => useNoteCreation(makeConfig(), tabDeps))
 
     let created = true
@@ -688,18 +676,17 @@ describe('useNoteCreation hook', () => {
     })
 
     expect(created).toBe(false)
-    expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
+    expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('get_note_content', {
       path: '/test/vault/note.md',
       vaultPath: '/test/vault',
     })
-    expect(vi.mocked(invoke).mock.calls.some(([command]) => command === 'create_note_content')).toBe(false)
+    expect(vi.mocked(callWebBackend).mock.calls.some(([command]) => command === 'create_note_content')).toBe(false)
     expect(addEntry).not.toHaveBeenCalled()
     expect(openTabWithContent).not.toHaveBeenCalled()
     expect(setToastMessage).toHaveBeenCalledWith('Cannot create type "Note" because note.md already exists')
   })
 
   it('handleCreateType blocks when a loaded non-Type entry collides with the target type path', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
     const staleEntry = makeEntry({
       path: '/test/vault/pttep.md',
       filename: 'pttep.md',
@@ -714,7 +701,7 @@ describe('useNoteCreation hook', () => {
     })
 
     expect(created).toBe(false)
-    expect(vi.mocked(invoke)).not.toHaveBeenCalled()
+    expect(vi.mocked(callWebBackend)).not.toHaveBeenCalled()
     expect(addEntry).not.toHaveBeenCalled()
     expect(openTabWithContent).not.toHaveBeenCalled()
     expect(setToastMessage).toHaveBeenCalledWith('Cannot create type "PTTEP" because pttep.md already exists')
@@ -795,9 +782,8 @@ describe('useNoteCreation hook', () => {
     expect(setToastMessage).toHaveBeenCalledWith('Cannot create note "Briefing" because briefing.md already exists')
   })
 
-  it('reverts optimistic creation when disk write fails (Tauri)', async () => {
-    vi.mocked(isTauri).mockReturnValue(true)
-    vi.mocked(invoke).mockRejectedValueOnce(new Error('disk full'))
+  it('reverts optimistic creation when disk write fails (desktop)', async () => {
+    vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('disk full'))
     const { result } = renderHook(() => useNoteCreation(makeConfig(), tabDeps))
     await act(async () => {
       result.current.handleCreateNote('Failing Note', 'Note')

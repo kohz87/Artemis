@@ -1,4 +1,4 @@
-import { isTauri } from '../mock-tauri'
+
 
 const URL_PATTERN = /^https?:\/\//i
 const BARE_DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z]{2,})+([/?#]|$)/i
@@ -36,17 +36,12 @@ export function normalizeUrl(url: string): string {
   return `https://${url}`
 }
 
-/** Open a URL in the system browser. Uses Tauri opener plugin in native mode, window.open in browser. */
+/** Open a URL in the system browser. Uses desktop opener plugin in native mode, window.open in browser. */
 export async function openExternalUrl(url: string): Promise<void> {
   const normalized = normalizeExternalUrl(url)
   if (!normalized) return
 
-  if (isTauri()) {
-    const { openUrl } = await import('@tauri-apps/plugin-opener')
-    await openUrl(normalized)
-  } else {
-    window.open(normalized, '_blank')
-  }
+  window.open(normalized, '_blank')
 }
 
 /** Copy a local file or folder path to the system clipboard. */

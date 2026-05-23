@@ -2,7 +2,8 @@
 type: ADR
 id: "0083"
 title: "Dual-architecture macOS release artifacts"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-26
 supersedes: "0080"
 ---

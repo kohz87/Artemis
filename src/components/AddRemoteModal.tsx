@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useReducer, useRef, type ChangeEvent, type FormEvent } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { GitAddRemoteResult, GitRemoteStatus } from '../types'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
 type ConnectState = 'idle' | 'connecting'
 
@@ -60,8 +59,8 @@ interface AddRemoteModalProps {
   onRemoteConnected: (message: string) => void | Promise<void>
 }
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 function shouldCloseAfterResult(result: GitAddRemoteResult): boolean {
@@ -72,7 +71,7 @@ async function submitRemoteConnection(
   vaultPath: string,
   remoteUrl: string,
 ): Promise<GitAddRemoteResult> {
-  return tauriCall<GitAddRemoteResult>('git_add_remote', {
+  return webCommand<GitAddRemoteResult>('git_add_remote', {
     request: {
       vaultPath,
       remoteUrl,

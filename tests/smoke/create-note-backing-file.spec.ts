@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { test, expect, type Page } from '@playwright/test'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { createFixtureVaultCopy, openFixtureVaultWebHarness, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 import { triggerMenuCommand } from './testBridge'
 
 interface CreateNoteProbe {
@@ -126,7 +126,7 @@ async function dispatchMenuCommandBurst(page: Page, commandId: string, count: nu
 test.beforeEach(async ({ page }, testInfo) => {
   testInfo.setTimeout(60_000)
   tempVaultDir = createFixtureVaultCopy()
-  await openFixtureVaultTauri(page, tempVaultDir)
+  await openFixtureVaultWebHarness(page, tempVaultDir)
   await installCreateNoteBackingFileProbe(page)
 })
 

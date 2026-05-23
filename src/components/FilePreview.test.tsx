@@ -7,9 +7,6 @@ const { trackEventMock } = vi.hoisted(() => ({
   trackEventMock: vi.fn(),
 }))
 
-vi.mock('@tauri-apps/api/core', () => ({
-  convertFileSrc: (path: string) => `asset://${path}`,
-}))
 
 vi.mock('../lib/telemetry', () => ({
   trackEvent: trackEventMock,

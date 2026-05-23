@@ -92,7 +92,6 @@ function FilePreviewHeader({
   return (
     <div
       className="flex h-[52px] shrink-0 items-center justify-between border-b border-border px-4"
-      data-tauri-drag-region
     >
       <div className="flex min-w-0 items-center gap-2">
         <FilePreviewHeaderIcon previewKind={previewKind} />

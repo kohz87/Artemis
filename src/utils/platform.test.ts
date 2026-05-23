@@ -1,10 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isTauri } from '../mock-tauri'
-import { isLinux, isMac, shouldUseLinuxWindowChrome } from './platform'
+import { afterEach, describe, expect, it } from 'vitest'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(),
-}))
+import { isLinux, isMac, shouldUseLinuxWindowChrome } from './platform'
 
 const originalUserAgent = navigator.userAgent
 
@@ -18,7 +14,6 @@ function setUserAgent(userAgent: string) {
 describe('platform helpers', () => {
   afterEach(() => {
     setUserAgent(originalUserAgent)
-    vi.mocked(isTauri).mockReturnValue(false)
   })
 
   it('detects Linux user agents but ignores Android', () => {
@@ -34,13 +29,8 @@ describe('platform helpers', () => {
     expect(isMac()).toBe(true)
   })
 
-  it('only enables Linux window chrome inside Tauri', () => {
+  it('never enables custom Linux window chrome in the web build', () => {
     setUserAgent('Mozilla/5.0 (X11; Linux x86_64)')
-    vi.mocked(isTauri).mockReturnValue(false)
     expect(shouldUseLinuxWindowChrome()).toBe(false)
-
-    vi.mocked(isTauri).mockReturnValue(true)
-    expect(shouldUseLinuxWindowChrome()).toBe(true)
   })
 })
-

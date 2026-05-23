@@ -8,8 +8,8 @@ import {
   rememberNoteWindowParams,
 } from './windowMode'
 
-type WindowWithTauriInternals = Window & {
-  __TAURI_INTERNALS__?: { metadata?: { currentWindow?: { label?: string } } }
+type WindowWithdesktopInternals = Window & {
+  __WEB_INTERNALS__?: { metadata?: { currentWindow?: { label?: string } } }
 }
 
 const localStorageMock = (() => {
@@ -66,7 +66,7 @@ describe('windowMode', () => {
   beforeEach(() => {
     originalSearch = window.location.search
     localStorage.clear()
-    delete (window as WindowWithTauriInternals).__TAURI_INTERNALS__
+    delete (window as WindowWithdesktopInternals).__WEB_INTERNALS__
   })
 
   afterEach(() => {
@@ -74,7 +74,7 @@ describe('windowMode', () => {
       writable: true,
       value: { ...window.location, search: originalSearch },
     })
-    delete (window as WindowWithTauriInternals).__TAURI_INTERNALS__
+    delete (window as WindowWithdesktopInternals).__WEB_INTERNALS__
   })
 
   function setSearch(search: string) {
@@ -85,7 +85,7 @@ describe('windowMode', () => {
   }
 
   function setCurrentWindowLabel(label: string) {
-    (window as WindowWithTauriInternals).__TAURI_INTERNALS__ = {
+    (window as WindowWithdesktopInternals).__WEB_INTERNALS__ = {
       metadata: { currentWindow: { label } },
     }
   }
@@ -106,7 +106,7 @@ describe('windowMode', () => {
       expect(isNoteWindow()).toBe(false)
     })
 
-    it('returns true when params are stored for the current Tauri window', () => {
+    it('returns true when params are stored for the current desktop window', () => {
       setSearch('')
       setCurrentWindowLabel('note-1')
       rememberNoteWindowParams('note-1', {
@@ -150,7 +150,7 @@ describe('windowMode', () => {
       expect(params?.noteTitle).toBe('Untitled')
     })
 
-    it('recovers params from storage when a Tauri note window loses its query params', () => {
+    it('recovers params from storage when a desktop note window loses its query params', () => {
       setSearch('')
       setCurrentWindowLabel('note-2')
       rememberNoteWindowParams('note-2', {

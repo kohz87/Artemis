@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { createFixtureVaultCopy, openFixtureVaultWebHarness, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 import { seedBlockNoteTable, triggerMenuCommand } from './testBridge'
 
 let tempVaultDir: string
@@ -54,7 +54,7 @@ test.describe('table resize crash fix', () => {
   test('switching to raw mode and back after a seeded resized table does not lose the table', async ({ page }) => {
     const errors = trackUnexpectedErrors(page)
 
-    await openFixtureVaultTauri(page, tempVaultDir)
+    await openFixtureVaultWebHarness(page, tempVaultDir)
     await createUntitledNote(page)
     await seedResizedTable(page)
 
@@ -66,7 +66,7 @@ test.describe('table resize crash fix', () => {
   test('clicking a seeded table before the raw-mode roundtrip does not crash', async ({ page }) => {
     const errors = trackUnexpectedErrors(page)
 
-    await openFixtureVaultTauri(page, tempVaultDir)
+    await openFixtureVaultWebHarness(page, tempVaultDir)
     await createUntitledNote(page)
     await seedResizedTable(page)
     await page.locator('table td').first().click()

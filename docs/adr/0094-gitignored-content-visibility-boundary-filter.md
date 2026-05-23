@@ -2,7 +2,8 @@
 type: ADR
 id: "0094"
 title: "Gitignored content visibility as a command-boundary filter"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-29
 ---
 

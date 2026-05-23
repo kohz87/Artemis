@@ -1,7 +1,4 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { isTauri } from '../mock-tauri'
 
 export const VAULT_CHANGED_EVENT = 'vault-changed'
 export const VAULT_WATCHER_DEBOUNCE_MS = 350
@@ -10,11 +7,6 @@ export const WEB_VAULT_POLL_MS = 2000
 
 type WatchPath = string
 type TimestampProvider = () => number
-
-interface VaultChangedPayload {
-  vaultPath: WatchPath
-  paths: WatchPath[]
-}
 
 interface UseVaultWatcherOptions {
   vaultPath: WatchPath
@@ -194,26 +186,6 @@ function filteredRefreshPaths({
   return fullRefresh ? queuedPaths : filterChangedPaths?.(queuedPaths) ?? queuedPaths
 }
 
-function handleWatcherEvent({
-  event,
-  root,
-  enqueueChangedPaths,
-}: {
-  event: { payload: VaultChangedPayload }
-  root: WatchPath
-  enqueueChangedPaths: (paths: WatchPath[]) => void
-}) {
-  if (normalizeWatchPath(event.payload.vaultPath) === root) {
-    enqueueChangedPaths(event.payload.paths ?? [])
-  }
-}
-
-function cleanupNativeWatcherListener(unlisten: UnlistenFn): void {
-  void Promise.resolve()
-    .then(unlisten)
-    .catch(() => {})
-}
-
 function usePendingVaultRefresh({
   vaultPathRef,
   onVaultChanged,
@@ -278,36 +250,12 @@ function useNativeVaultWatcher({
   clearPendingRefresh: () => void
 }) {
   useEffect(() => {
-    const root = normalizeWatchPath(vaultPath)
-    if (!root || !isTauri()) return
-
-    let cancelled = false
-    let unlisten: UnlistenFn | null = null
-
-    void listen<VaultChangedPayload>(VAULT_CHANGED_EVENT, (event) => {
-      handleWatcherEvent({ event, root, enqueueChangedPaths })
-    }).then((nextUnlisten) => {
-      if (cancelled) {
-        cleanupNativeWatcherListener(nextUnlisten)
-      } else {
-        unlisten = nextUnlisten
-      }
-    }).catch((err) => {
-      console.warn('Failed to subscribe to vault watcher events:', err)
-    })
-
-    void invoke('start_vault_watcher', { path: vaultPath }).catch((err) => {
-      console.warn('Failed to start vault watcher:', err)
-    })
-
-    return () => {
-      cancelled = true
-      clearPendingRefresh()
-      if (unlisten) cleanupNativeWatcherListener(unlisten)
-      void invoke('stop_vault_watcher').catch(() => {})
-    }
+    void vaultPath
+    void enqueueChangedPaths
+    return () => clearPendingRefresh()
   }, [vaultPath, enqueueChangedPaths, clearPendingRefresh])
 }
+
 
 function webVaultListUrl(vaultPath: WatchPath): string {
   return `/api/vault/list?path=${encodeURIComponent(vaultPath)}&watch=1`
@@ -354,7 +302,7 @@ function useWebVaultWatcher({
 }) {
   useEffect(() => {
     const root = normalizeWatchPath(vaultPath)
-    if (!root || isTauri()) return
+    if (!root || false) return
 
     let cancelled = false
     let previousSnapshot: WebVaultSnapshotEntry[] | null = null

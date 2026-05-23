@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { isTauri } from '../mock-tauri'
+
 import {
   APP_COMMAND_EVENT_NAME,
   executeAppCommand,
@@ -18,7 +18,6 @@ import {
 
 const NOTE_LIST_SEARCH_MENU_ID = 'edit-toggle-note-list-search'
 
-type NativeUnlisten = () => void | Promise<void>
 
 export interface MenuEventHandlers extends AppCommandHandlers {
   activeTabPath: string | null
@@ -57,47 +56,13 @@ function createWindowCommandListener(
 }
 
 function syncNativeMenuState(state: MenuStatePayload): void {
-  if (!isTauri()) return
-
-  import('@tauri-apps/api/core')
-    .then(({ invoke }) => invoke('update_menu_state', { state }))
-    .catch((err) => console.warn('[menu] Failed to sync native menu state:', err))
-}
-
-function cleanupNativeMenuListener(unlisten: NativeUnlisten): void {
-  void Promise.resolve()
-    .then(unlisten)
-    .catch(() => {})
+  void state
 }
 
 function useNativeMenuEventListener(handlersRef: { current: MenuEventHandlers }) {
   useEffect(() => {
-    if (!isTauri()) return
-
-    let disposed = false
-    let unlisten: NativeUnlisten | null = null
-
-    import('@tauri-apps/api/event')
-      .then(async ({ listen }) => {
-        const teardown = await listen<string>('menu-event', (event) => {
-          dispatchMenuEvent(event.payload, handlersRef.current)
-        })
-
-        if (disposed) {
-          cleanupNativeMenuListener(teardown)
-          return
-        }
-
-        unlisten = teardown
-      })
-      .catch(() => {
-        /* not in Tauri */
-      })
-
-    return () => {
-      disposed = true
-      if (unlisten) cleanupNativeMenuListener(unlisten)
-    }
+    void handlersRef
+    return undefined
   }, [handlersRef])
 }
 
@@ -158,7 +123,7 @@ function useAvailabilityMenuState(
   return enabled
 }
 
-/** Dispatch a Tauri menu event ID to the matching handler. Exported for testing. */
+/** Dispatch a desktop menu event ID to the matching handler. Exported for testing. */
 export function dispatchMenuEvent(id: string, h: MenuEventHandlers): void {
   if (id === NOTE_LIST_SEARCH_MENU_ID) {
     dispatchNoteListSearchToggle()

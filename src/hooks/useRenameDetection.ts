@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { DetectedRename } from '../components/RenameDetectedBanner'
 
 /**
@@ -21,9 +20,9 @@ export function useRenameDetection({
   const [detectedRenames, setDetectedRenames] = useState<DetectedRename[]>([])
 
   useEffect(() => {
-    if (!isTauri() || !vaultPath) return
+    if (isNoteWindow || !vaultPath) return
     const handleFocus = () => {
-      invoke<DetectedRename[]>('detect_renames', { vaultPath })
+      callWebBackend<DetectedRename[]>('detect_renames', { vaultPath })
         .then((renames) => {
           if (renames.length > 0) setDetectedRenames(renames)
         })
@@ -34,9 +33,9 @@ export function useRenameDetection({
   }, [isNoteWindow, vaultPath])
 
   const handleUpdateWikilinks = useCallback(async () => {
-    if (!isTauri()) return
+    if (!vaultPath) return
     try {
-      const count = await invoke<number>('update_wikilinks_for_renames', {
+      const count = await callWebBackend<number>('update_wikilinks_for_renames', {
         vaultPath,
         renames: detectedRenames,
       })

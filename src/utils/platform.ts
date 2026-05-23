@@ -1,4 +1,4 @@
-import { isTauri } from '../mock-tauri'
+
 
 function getUserAgent(): string {
   if (typeof navigator === 'undefined') return ''
@@ -16,5 +16,5 @@ export function isMac(): boolean {
 }
 
 export function shouldUseLinuxWindowChrome(): boolean {
-  return isTauri() && isLinux()
+  return false
 }

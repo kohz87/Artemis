@@ -2,7 +2,8 @@
 type: ADR
 id: "0053"
 title: "Webview-init prevention for browser-reserved shortcuts"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-11
 ---
 

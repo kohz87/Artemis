@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState, type MutableRefObject } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import type { GitPushResult, GitRemoteStatus, ModifiedFile } from '../types'
 import { trackEvent } from '../lib/telemetry'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { generateAutomaticCommitMessage } from '../utils/automaticCommitMessage'
 
 export type CommitMode = 'push' | 'local'
@@ -59,28 +58,15 @@ function commitModeFromRemoteStatus(remoteStatus: GitRemoteStatus | null): Commi
 }
 
 async function commitLocally({ vaultPath, message }: CommitArgs): Promise<void> {
-  if (!isTauri()) {
-    await mockInvoke<string>('git_commit', { vaultPath, message })
-    return
-  }
-
-  await invoke<string>('git_commit', { vaultPath, message })
+  await callWebBackend<string>('git_commit', { vaultPath, message })
 }
 
 async function pushCommittedChanges({ vaultPath }: VaultPathArgs): Promise<GitPushResult> {
-  if (!isTauri()) {
-    return mockInvoke<GitPushResult>('git_push', { vaultPath })
-  }
-
-  return invoke<GitPushResult>('git_push', { vaultPath })
+  return callWebBackend<GitPushResult>('git_push', { vaultPath })
 }
 
 async function readModifiedFiles({ vaultPath }: VaultPathArgs): Promise<ModifiedFile[]> {
-  if (!isTauri()) {
-    return mockInvoke<ModifiedFile[]>('get_modified_files', { vaultPath })
-  }
-
-  return invoke<ModifiedFile[]>('get_modified_files', { vaultPath })
+  return callWebBackend<ModifiedFile[]>('get_modified_files', { vaultPath })
 }
 
 async function executeCommitAction({

@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
-function tauriCall<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(cmd, args) : mockInvoke<T>(cmd, args)
+function webCommand<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(cmd, args)
 }
 
 export type FileResolution = 'ours' | 'theirs' | 'manual' | null
@@ -44,7 +43,7 @@ export function useConflictResolver({
     setError(null)
 
     try {
-      await tauriCall<void>('git_resolve_conflict', { vaultPath, file, strategy })
+      await webCommand<void>('git_resolve_conflict', { vaultPath, file, strategy })
       setFileStates(prev => prev.map(f =>
         f.file === file ? { ...f, resolution: strategy, resolving: false } : f
       ))
@@ -72,7 +71,7 @@ export function useConflictResolver({
     setError(null)
 
     try {
-      await tauriCall<string>('git_commit_conflict_resolution', { vaultPath })
+      await webCommand<string>('git_commit_conflict_resolution', { vaultPath })
       onResolved()
       onToast('Conflicts resolved — sync resumed')
     } catch (err) {

@@ -1,7 +1,6 @@
 import { SlidersHorizontal, X, Sparkle, WarningCircle, PencilSimple } from '@phosphor-icons/react'
 import { ActionTooltip } from '@/components/ui/action-tooltip'
 import { Button } from '@/components/ui/button'
-import { useDragRegion } from '../../hooks/useDragRegion'
 import { translate, type AppLocale } from '../../lib/i18n'
 import { hasFrontmatterWarnings, type FrontmatterWarnings } from '../../utils/frontmatter'
 
@@ -32,7 +31,6 @@ export function InspectorHeader({ collapsed, frontmatterWarnings, locale = 'en',
   onToggle: () => void
   onOpenRawEditor?: () => void
 }) {
-  const { onMouseDown } = useDragRegion()
   const propertiesTitle = translate(locale, 'inspector.title.properties')
   const showWarnings = Boolean(frontmatterWarnings && hasFrontmatterWarnings(frontmatterWarnings) && onOpenRawEditor)
 
@@ -40,7 +38,6 @@ export function InspectorHeader({ collapsed, frontmatterWarnings, locale = 'en',
     <div
       className="flex shrink-0 items-center border-b border-border"
       style={{ height: 52, padding: '6px 12px', gap: 8, cursor: 'default' }}
-      onMouseDown={onMouseDown}
     >
       {collapsed ? (
         <button

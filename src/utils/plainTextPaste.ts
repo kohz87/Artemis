@@ -1,6 +1,5 @@
-import { invoke } from '@tauri-apps/api/core'
 import { trackEvent } from '../lib/telemetry'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
 export type PlainTextPasteSurface =
   | 'focused_contenteditable'
@@ -178,15 +177,11 @@ export function insertPlainTextFromClipboardText(text: string): boolean {
 }
 
 async function readClipboardText(): Promise<string> {
-  if (isTauri()) {
-    return invoke<string>('read_text_from_clipboard')
-  }
-
   if (navigator.clipboard?.readText) {
     return navigator.clipboard.readText()
   }
 
-  return mockInvoke<string>('read_text_from_clipboard')
+  return callWebBackend<string>('read_text_from_clipboard')
 }
 
 export async function requestPlainTextPaste(): Promise<boolean> {

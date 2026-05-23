@@ -4,13 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SidebarSelection, VaultEntry } from '../types'
 import { useFolderActions } from './useFolderActions'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: vi.fn(),
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn(),
 }))
 
-const { mockInvoke } = await import('../mock-tauri')
-const mockInvokeFn = mockInvoke as ReturnType<typeof vi.fn>
+const { callWebBackend } = await import('../backend/client')
+const callWebBackendFn = callWebBackend as ReturnType<typeof vi.fn>
 
 const folderEntry: VaultEntry = {
   path: '/vault/projects/note.md',
@@ -94,7 +93,7 @@ describe('useFolderActions', () => {
   let setToastMessage: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
-    mockInvokeFn.mockReset()
+    callWebBackendFn.mockReset()
     reloadVault = vi.fn()
     reloadFolders = vi.fn().mockResolvedValue([])
     setToastMessage = vi.fn()
@@ -103,7 +102,7 @@ describe('useFolderActions', () => {
   it('renames a selected folder and updates selection plus active tab path', async () => {
     const renamedEntry = { ...folderEntry, path: '/vault/work/note.md' }
     reloadVault.mockResolvedValue([renamedEntry])
-    mockInvokeFn.mockResolvedValue({ old_path: 'projects', new_path: 'work' })
+    callWebBackendFn.mockResolvedValue({ old_path: 'projects', new_path: 'work' })
 
     const { result } = renderFolderActions({
       initialSelection: { kind: 'folder', path: 'projects' },
@@ -124,7 +123,7 @@ describe('useFolderActions', () => {
 
   it('deletes a selected folder and clears the active note gracefully', async () => {
     reloadVault.mockResolvedValue([])
-    mockInvokeFn.mockResolvedValue('projects')
+    callWebBackendFn.mockResolvedValue('projects')
 
     const { result } = renderFolderActions({
       initialSelection: { kind: 'folder', path: 'projects' },

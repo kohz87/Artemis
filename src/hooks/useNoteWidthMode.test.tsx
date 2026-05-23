@@ -3,13 +3,9 @@ import { renderHook, act } from '@testing-library/react'
 import type { NoteWidthMode, Settings, VaultEntry } from '../types'
 import { useNoteWidthMode } from './useNoteWidthMode'
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: vi.fn(() => Promise.reject(new Error('not available'))),
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn(() => Promise.reject(new Error('not available'))),
 }))
 
 vi.mock('../lib/telemetry', () => ({

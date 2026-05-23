@@ -21,11 +21,10 @@ const localStorageMock = (() => {
 })()
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true })
 
-const mockInvokeFn = vi.fn()
+const callWebBackendFn = vi.fn()
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 vi.mock('./useVaultSwitcher', () => ({}))
@@ -46,7 +45,7 @@ import {
 import { useOnboarding } from './useOnboarding'
 
 function mockCommands(overrides: Record<string, MockOverride> = {}) {
-  mockInvokeFn.mockImplementation(async (cmd: string, args?: MockArgs) => {
+  callWebBackendFn.mockImplementation(async (cmd: string, args?: MockArgs) => {
     const override = Reflect.get(overrides, cmd) as MockOverride | undefined
     if (typeof override === 'function') {
       return override(args)
@@ -209,7 +208,7 @@ describe('useOnboarding', () => {
     const { result } = await renderOnboarding('/vault/deleted')
 
     await expectStatus(result, 'vault-missing')
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_vault_list', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_vault_list', {
       list: {
         vaults: [{ label: 'Old Vault', path: '/vault/deleted' }],
         active_vault: null,
@@ -234,7 +233,7 @@ describe('useOnboarding', () => {
     })
 
     expect(result.current.state).toEqual({ status: 'ready', vaultPath: DEFAULT_GETTING_STARTED_PATH })
-    expect(mockInvokeFn).toHaveBeenCalledWith('create_getting_started_vault', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('create_getting_started_vault', {
       targetPath: DEFAULT_GETTING_STARTED_PATH,
     })
     expect(registerVault).toHaveBeenCalledWith(
@@ -250,7 +249,7 @@ describe('useOnboarding', () => {
     await expectCancelledPickerLeavesWelcome(async (onboarding) => {
       await onboarding.handleCreateVault()
     })
-    expect(mockInvokeFn).not.toHaveBeenCalledWith('create_getting_started_vault', expect.anything())
+    expect(callWebBackendFn).not.toHaveBeenCalledWith('create_getting_started_vault', expect.anything())
   })
 
   it('sets a friendly template error on clone failure', async () => {
@@ -296,7 +295,7 @@ describe('useOnboarding', () => {
     })
 
     expect(result.current.state).toEqual({ status: 'ready', vaultPath: DEFAULT_GETTING_STARTED_PATH })
-    expect(mockInvokeFn).toHaveBeenLastCalledWith('create_getting_started_vault', {
+    expect(callWebBackendFn).toHaveBeenLastCalledWith('create_getting_started_vault', {
       targetPath: DEFAULT_GETTING_STARTED_PATH,
     })
   })
@@ -393,7 +392,7 @@ describe('useOnboarding', () => {
   })
 
   it('falls back to ready if onboarding commands fail', async () => {
-    mockInvokeFn.mockRejectedValue(new Error('command not found'))
+    callWebBackendFn.mockRejectedValue(new Error('command not found'))
 
     const { result } = await renderOnboarding('/vault/path')
 

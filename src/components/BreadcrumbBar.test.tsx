@@ -4,11 +4,6 @@ import { BreadcrumbBar } from './BreadcrumbBar'
 import { formatShortcutDisplay } from '../hooks/appCommandCatalog'
 import type { VaultEntry } from '../types'
 
-const dragRegionMouseDown = vi.fn()
-
-vi.mock('../hooks/useDragRegion', () => ({
-  useDragRegion: () => ({ onMouseDown: dragRegionMouseDown }),
-}))
 
 const baseEntry: VaultEntry = {
   path: '/vault/note/test.md',
@@ -69,26 +64,10 @@ async function expectTooltip(trigger: HTMLElement, ...parts: string[]) {
   })
 }
 
-describe('BreadcrumbBar — drag region', () => {
-  it('forwards mousedown events to the shared drag-region hook', () => {
-    const { container } = render(<BreadcrumbBar entry={baseEntry} {...defaultProps} />)
-    const bar = container.querySelector('.breadcrumb-bar') as HTMLElement
-
-    fireEvent.mouseDown(bar, { button: 0 })
-
-    expect(dragRegionMouseDown).toHaveBeenCalledOnce()
-  })
-
-  it('has data-tauri-drag-region on the container', () => {
-    const { container } = render(<BreadcrumbBar entry={baseEntry} {...defaultProps} />)
-    const bar = container.firstElementChild as HTMLElement
-    expect(bar.dataset.tauriDragRegion).toBeDefined()
-  })
-
-  it('marks the center spacer as a drag region', () => {
+describe('BreadcrumbBar — layout', () => {
+  it('keeps the center spacer hidden from assistive technology', () => {
     const { container } = render(<BreadcrumbBar entry={baseEntry} {...defaultProps} />)
     const spacer = container.querySelector('.breadcrumb-bar__drag-spacer')
-    expect(spacer).toHaveAttribute('data-tauri-drag-region')
     expect(spacer).toHaveAttribute('aria-hidden', 'true')
   })
 })

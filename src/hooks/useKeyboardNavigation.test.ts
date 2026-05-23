@@ -3,8 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import type { VaultEntry } from '../types'
 import { useKeyboardNavigation } from './useKeyboardNavigation'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
+vi.mock('../backend/client', () => ({
 }))
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({

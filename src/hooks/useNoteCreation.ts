@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, addMockEntry, mockInvoke } from '../mock-tauri'
+import { addMockEntry, callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import { slugifyNoteStem as slugify } from '../utils/noteSlug'
 import { resolveEntry } from '../utils/wikilink'
@@ -373,32 +372,19 @@ function createPersistFailureMessage(entry: VaultEntry, error: unknown): string 
     : 'Failed to create note — disk write error'
 }
 
-/** Persist a newly created note to disk. Returns a Promise for error handling. */
-export function persistNewNote(path: string, content: string, vaultPath?: string): Promise<void> {
-  const args = vaultPath ? { path, content, vaultPath } : { path, content }
-  if (!isTauri()) return mockInvoke<void>('save_note_content', args).then(() => {})
-  return invoke<void>('create_note_content', args).then(() => {})
-}
-
-async function typeTargetExistsOnDisk(path: string, vaultPath?: string): Promise<boolean> {
-  if (!isTauri()) return false
-
+async function pathExistsOnDisk(path: string, vaultPath: string): Promise<boolean> {
   try {
-    const args = vaultPath ? { path, vaultPath } : { path }
-    await invoke<string>('get_note_content', args)
-    return true
+    const content = await callWebBackend<unknown>('get_note_content', { path, vaultPath })
+    return content !== '' && content !== null && content !== undefined
   } catch {
     return false
   }
 }
 
-async function findTypeTargetCollision(resolved: ResolvedEntry, vaultPath?: string): Promise<string | null> {
-  if (!await typeTargetExistsOnDisk(resolved.entry.path, vaultPath)) return null
-  return buildCreationCollisionMessage({
-    noun: 'type',
-    title: resolved.entry.title,
-    path: resolved.entry.path,
-  })
+/** Persist a newly created note to disk. Returns a Promise for error handling. */
+export function persistNewNote(path: string, content: string, vaultPath?: string): Promise<void> {
+  const args = vaultPath ? { path, content, vaultPath } : { path, content }
+  return callWebBackend<void>('create_note_content', args).then(() => {})
 }
 
 // Rapid Cmd+N bursts can outpace the note-list render path on desktop. Keep
@@ -407,7 +393,7 @@ async function findTypeTargetCollision(resolved: ResolvedEntry, vaultPath?: stri
 export const RAPID_CREATE_NOTE_SETTLE_MS = 200
 
 function addEntryWithMock(entry: VaultEntry, content: string, addEntry: (e: VaultEntry) => void) {
-  if (!isTauri()) addMockEntry(entry, content)
+  addMockEntry(entry, content)
   addEntry(entry)
 }
 
@@ -509,9 +495,8 @@ async function createTypeFromName({
     return false
   }
 
-  const collisionMessage = await findTypeTargetCollision(plan.resolved, vaultPath)
-  if (collisionMessage) {
-    setToastMessage(collisionMessage)
+  if (await pathExistsOnDisk(plan.resolved.entry.path, vaultPath)) {
+    setToastMessage(buildCreationCollisionMessage({ noun: 'type', title: typeName, path: plan.resolved.entry.path }))
     return false
   }
 
@@ -537,12 +522,6 @@ async function createTypeSilently({
   if (plan.status === 'blocked') {
     setToastMessage(plan.message)
     throw new Error(plan.message)
-  }
-
-  const collisionMessage = await findTypeTargetCollision(plan.resolved, vaultPath)
-  if (collisionMessage) {
-    setToastMessage(collisionMessage)
-    throw new Error(collisionMessage)
   }
 
   try {

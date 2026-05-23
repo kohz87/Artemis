@@ -13,14 +13,14 @@ export interface NoteWindowParams {
 
 type NoteWindowPathContext = Pick<NoteWindowParams, 'notePath' | 'vaultPath'>
 
-interface TauriWindowInternals {
+interface desktopWindowInternals {
   metadata?: { currentWindow?: { label?: string } }
 }
 
 const NOTE_WINDOW_STORAGE_PREFIX = 'tolaria:note-window:'
 
 function getCurrentWindowLabel(): string | null {
-  const internals = (window as Window & { __TAURI_INTERNALS__?: TauriWindowInternals }).__TAURI_INTERNALS__
+  const internals = (window as Window & { __WEB_INTERNALS__?: desktopWindowInternals }).__WEB_INTERNALS__
   const label = internals?.metadata?.currentWindow?.label
   return typeof label === 'string' && label.length > 0 ? label : null
 }
@@ -72,7 +72,7 @@ export function rememberNoteWindowParams(label: string, params: NoteWindowParams
   try {
     localStorage.setItem(noteWindowStorageKey(label), JSON.stringify(params))
   } catch {
-    // Best-effort fallback for Tauri windows that lose their initial URL params.
+    // Best-effort fallback for desktop windows that lose their initial URL params.
   }
 }
 

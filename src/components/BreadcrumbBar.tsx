@@ -31,7 +31,6 @@ import {
   DotsThree,
 } from '@phosphor-icons/react'
 import { slugify } from '../hooks/useNoteCreation'
-import { useDragRegion } from '../hooks/useDragRegion'
 
 interface BreadcrumbBarProps {
   entry: VaultEntry
@@ -993,7 +992,6 @@ export const BreadcrumbBar = memo(function BreadcrumbBar({
   onRenameFilename,
   ...actionProps
 }: BreadcrumbBarProps) {
-  const { onMouseDown } = useDragRegion()
   const actionsRef = useRef<HTMLDivElement | null>(null)
   const titleRef = useRef<HTMLDivElement | null>(null)
   const overflowCollapsed = useBreadcrumbOverflow(titleRef, actionsRef)
@@ -1002,9 +1000,7 @@ export const BreadcrumbBar = memo(function BreadcrumbBar({
     <TooltipProvider>
       <div
         ref={barRef}
-        data-tauri-drag-region
         data-title-hidden=""
-        onMouseDown={onMouseDown}
         className="breadcrumb-bar flex shrink-0 items-center border-b border-transparent"
         style={{
           height: 52,
@@ -1023,8 +1019,7 @@ export const BreadcrumbBar = memo(function BreadcrumbBar({
         </div>
         <div
           aria-hidden="true"
-          data-tauri-drag-region
-          className="breadcrumb-bar__drag-spacer w-6 shrink-0"
+            className="breadcrumb-bar__drag-spacer w-6 shrink-0"
         />
         <BreadcrumbActions
           actionsRef={actionsRef}

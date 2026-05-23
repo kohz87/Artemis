@@ -49,11 +49,6 @@ import { useOnboarding } from './hooks/useOnboarding'
 import { useGettingStartedClone } from './hooks/useGettingStartedClone'
 import { useNetworkStatus } from './hooks/useNetworkStatus'
 import { useAppNavigation } from './hooks/useAppNavigation'
-import {
-  applyMainWindowSizeConstraints,
-  getMainWindowMinWidth,
-  useMainWindowSizeConstraints,
-} from './hooks/useMainWindowSizeConstraints'
 import { useBulkActions } from './hooks/useBulkActions'
 import { useDeleteActions } from './hooks/useDeleteActions'
 import { useGitSetupGate } from './hooks/useGitSetupGate'
@@ -73,7 +68,7 @@ import type { CommitDiffRequest } from './hooks/useDiffMode'
 import { ConflictResolverModal } from './components/ConflictResolverModal'
 import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog'
 import { DeleteProgressNotice } from './components/DeleteProgressNotice'
-import { invoke } from '@tauri-apps/api/core'
+
 import {
   GitBranch,
   GitCommit,
@@ -89,12 +84,12 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { isTauri, mockInvoke } from './mock-tauri'
+import { callWebBackend, getNoteContent, reloadVaultEntry } from './backend/client'
 import type { SidebarSelection, InboxPeriod, VaultEntry, ViewDefinition } from './types'
 import { initializeNoteProperties } from './utils/initializeNoteProperties'
 import { filterInboxEntries, type NoteListFilter } from './utils/noteListHelpers'
 import { resolveAllNotesFileVisibility } from './utils/allNotesFileVisibility'
-import { openNoteInNewWindow } from './utils/openNoteWindow'
+
 import { refreshPulledVaultState } from './utils/pulledVaultRefresh'
 import { isNoteWindow, getNoteWindowParams, getNoteWindowPathCandidates, type NoteWindowParams } from './utils/windowMode'
 import { GitSetupDialog } from './components/GitRequiredModal'
@@ -128,8 +123,7 @@ import './App.css'
 declare global {
   interface Window {
     __mockContent?: Record<string, string>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock handler map for Playwright test overrides
-    __mockHandlers?: Record<string, (args: any) => any>
+    __mockHandlers?: Record<string, (args?: Record<string, unknown>) => unknown>
   }
 }
 
@@ -159,10 +153,7 @@ function shouldPreferOnboardingVaultPath(
 async function resolveNoteWindowEntry(noteWindowParams: NoteWindowParams): Promise<VaultEntry | undefined> {
   for (const path of getNoteWindowPathCandidates(noteWindowParams)) {
     try {
-      const request = { path, vaultPath: noteWindowParams.vaultPath }
-      const entry = isTauri()
-        ? await invoke<VaultEntry | null>('reload_vault_entry', request)
-        : await mockInvoke<VaultEntry | null>('reload_vault_entry', request)
+      const entry = await reloadVaultEntry(path)
       if (entry) return entry
     } catch {
       // Try the next normalized candidate before reporting the note as unavailable.
@@ -171,11 +162,8 @@ async function resolveNoteWindowEntry(noteWindowParams: NoteWindowParams): Promi
 }
 
 async function loadNoteWindowContent(path: string, vaultPath: string): Promise<string> {
-  const request = { path, vaultPath }
-  if (!isTauri()) return mockInvoke<string>('get_note_content', request)
-
-  await invoke('sync_vault_asset_scope_for_window', { vaultPath })
-  return invoke<string>('get_note_content', request)
+  void vaultPath
+  return getNoteContent(path)
 }
 
 function createPulseDeletedNoteEntry(fullPath: string, relativePath: string): DeletedNoteEntry {
@@ -247,24 +235,7 @@ function App() {
   const layout = useLayoutPanels(noteWindowParams ? { initialInspectorCollapsed: true } : undefined)
   const { setInspectorCollapsed } = layout
   const { viewMode, setViewMode, sidebarVisible, noteListVisible } = useViewMode(noteWindowParams ? 'editor-only' : undefined)
-  const updateMainWindowConstraints = useCallback((
-    nextSidebarVisible: boolean,
-    nextNoteListVisible: boolean,
-    nextInspectorCollapsed: boolean = layout.inspectorCollapsed,
-  ) => {
-    if (noteWindowParams || !isTauri()) return
-
-    const minWidth = getMainWindowMinWidth({
-      sidebarVisible: nextSidebarVisible,
-      noteListVisible: nextNoteListVisible,
-      inspectorCollapsed: nextInspectorCollapsed,
-      sidebarWidth: layout.sidebarWidth,
-      noteListWidth: layout.noteListWidth,
-      inspectorWidth: layout.inspectorWidth,
-    })
-
-    void applyMainWindowSizeConstraints(minWidth).catch((err) => console.warn('[window] Size constraints failed:', err))
-  }, [layout.inspectorCollapsed, layout.inspectorWidth, layout.noteListWidth, layout.sidebarWidth, noteWindowParams])
+  const updateMainWindowConstraints = useCallback(() => {}, [])
 
   const handleSetViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode)
@@ -361,15 +332,6 @@ function App() {
     selectionRef.current = effectiveSelection
   }, [effectiveSelection])
 
-  useEffect(() => {
-    if (effectiveSelection !== selection) {
-      if (effectiveSelection.kind !== 'entity') {
-        neighborhoodHistoryRef.current = []
-      }
-      setSelection(effectiveSelection)
-      setNoteListFilter('open')
-    }
-  }, [effectiveSelection, selection])
 
   const handleNeighborhoodHistoryBack = useCallback(() => {
     const { previousSelection, nextHistory } = popNeighborhoodHistory(neighborhoodHistoryRef.current)
@@ -501,6 +463,8 @@ function App() {
     handleReplaceActiveTab,
     closeAllTabs,
     openTabWithContent,
+    activeTabPath,
+    activeTabPathRef,
   } = notes
   const handleMobileSelectNote = useCallback((entry: VaultEntry) => {
     handleSelectNote(entry)
@@ -524,9 +488,9 @@ function App() {
   }, [handleSelectNote, openTabWithContent])
   const handlePulledVaultUpdate = useCallback(async (updatedFiles: string[]) => {
     await refreshPulledVaultState({
-      activeTabPath: notes.activeTabPath,
+      activeTabPath,
       closeAllTabs,
-      getActiveTabPath: () => notes.activeTabPathRef.current,
+      getActiveTabPath: () => activeTabPathRef.current,
       hasUnsavedChanges: (path) => vault.unsavedPaths.has(path),
       reloadFolders: vault.reloadFolders,
       reloadVault: vault.reloadVault,
@@ -538,8 +502,8 @@ function App() {
   }, [
       closeAllTabs,
       handleReplaceActiveTab,
-      notes.activeTabPath,
-      notes.activeTabPathRef,
+      activeTabPath,
+      activeTabPathRef,
       resolvedPath,
       vault.reloadFolders,
       vault.reloadVault,
@@ -599,10 +563,7 @@ function App() {
     if (!noteWindowParams) return
     const activeEntry = notes.tabs.find(t => t.entry.path === notes.activeTabPath)?.entry
     const title = activeEntry?.title ?? noteWindowParams.noteTitle
-    if (!isTauri()) { document.title = title; return }
-    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      getCurrentWindow().setTitle(title)
-    }).catch((err) => console.warn('[window] Failed to update note window title:', err))
+    document.title = title
   }, [noteWindowParams, notes.tabs, notes.activeTabPath])
 
   // Keep note entry in sync with vault entries so banners (trash/archive)
@@ -750,11 +711,7 @@ function App() {
 
   const handleCreateFolder = useCallback(async (name: string) => {
     try {
-      if (isTauri()) {
-        await invoke('create_vault_folder', { vaultPath: resolvedPath, folderName: name })
-      } else {
-        await mockInvoke('create_vault_folder', { vaultPath: resolvedPath, folderName: name })
-      }
+      await callWebBackend('create_vault_folder', { vaultPath: resolvedPath, folderName: name })
       await vault.reloadFolders()
       setToastMessage(`Created folder "${name}"`)
       return true
@@ -786,24 +743,11 @@ function App() {
     if (notes.activeTabPath) handleRemoveNoteIcon(notes.activeTabPath)
   }, [notes.activeTabPath, handleRemoveNoteIcon])
 
-  const handleOpenInNewWindow = useCallback(() => {
-    const activeTab = notes.tabs.find(t => t.entry.path === notes.activeTabPath)
-    if (activeTab) openNoteInNewWindow(activeTab.entry.path, resolvedPath, activeTab.entry.title)
-  }, [notes.tabs, notes.activeTabPath, resolvedPath])
-
-  const handleOpenEntryInNewWindow = useCallback((entry: { path: string; title: string }) => {
-    openNoteInNewWindow(entry.path, resolvedPath, entry.title)
-  }, [resolvedPath])
-
   const handleDiscardFile = useCallback(async (relativePath: string) => {
     const targetFile = vault.modifiedFiles.find((file) => file.relativePath === relativePath)
     const activePathBefore = notes.activeTabPath
     try {
-      if (isTauri()) {
-        await invoke('git_discard_file', { vaultPath: resolvedPath, relativePath })
-      } else {
-        await mockInvoke('git_discard_file', { vaultPath: resolvedPath, relativePath })
-      }
+      await callWebBackend('git_discard_file', { vaultPath: resolvedPath, relativePath })
       const reloadedEntries = await vault.reloadVault()
       const affectedActiveTab = !!activePathBefore
         && (activePathBefore === targetFile?.path || activePathBefore.endsWith('/' + relativePath))
@@ -907,11 +851,7 @@ function App() {
   }, [handleAppSave, notes.activeTabPath, recordAutoGitActivity])
 
   const seedAutoGitSavedChange = useCallback(async () => {
-    if (isTauri()) {
-      throw new Error('seedAutoGitSavedChange is only available in browser smoke tests')
-    }
-
-    const activePath = notes.activeTabPath
+    const activePath = activeTabPath
     const activeTab = activePath
       ? notes.tabs.find((tab) => tab.entry.path === activePath)
       : null
@@ -924,17 +864,17 @@ function App() {
     if (typeof saveNoteContent === 'function') {
       await Promise.resolve(saveNoteContent({ path: activePath, content: activeTab.content }))
     } else {
-      await mockInvoke('save_note_content', { path: activePath, content: activeTab.content })
+      await callWebBackend('save_note_content', { path: activePath, content: activeTab.content })
     }
 
     await loadModifiedFiles()
     recordAutoGitActivity()
-  }, [loadModifiedFiles, notes.activeTabPath, notes.tabs, recordAutoGitActivity])
+  }, [activeTabPath, loadModifiedFiles, notes.tabs, recordAutoGitActivity])
 
   useEffect(() => {
     window.__laputaTest = {
       ...window.__laputaTest,
-      activeTabPath: notes.activeTabPath,
+      activeTabPath,
       seedAutoGitSavedChange,
     }
 
@@ -943,7 +883,7 @@ function App() {
         delete window.__laputaTest.seedAutoGitSavedChange
       }
     }
-  }, [notes.activeTabPath, seedAutoGitSavedChange])
+  }, [activeTabPath, seedAutoGitSavedChange])
 
   const entryActions = useEntryActions({
     entries: vault.entries, updateEntry: vault.updateEntry,
@@ -1016,9 +956,8 @@ function App() {
     const nextDefinition = editing
       ? { ...editing.definition, ...definition }
       : { ...definition, order: nextViewOrder(vault.views) }
-    const target = isTauri() ? invoke : mockInvoke
     try {
-      await target('save_view_cmd', { vaultPath: resolvedPath, filename, definition: nextDefinition })
+      await callWebBackend('save_view_cmd', { vaultPath: resolvedPath, filename, definition: nextDefinition })
       trackEvent(editing ? 'view_updated' : 'view_created')
       await vault.reloadViews()
       await vault.reloadVault()
@@ -1037,8 +976,7 @@ function App() {
     const existing = vault.views.find((view) => view.filename === filename)
     if (!existing) return
 
-    const target = isTauri() ? invoke : mockInvoke
-    await target('save_view_cmd', {
+    await callWebBackend('save_view_cmd', {
       vaultPath: resolvedPath,
       filename,
       definition: { ...existing.definition, ...patch },
@@ -1064,9 +1002,8 @@ function App() {
   }, [vault.views, dialogs])
 
   const handleDeleteView = useCallback(async (filename: string) => {
-    const target = isTauri() ? invoke : mockInvoke
     try {
-      await target('delete_view_cmd', { vaultPath: resolvedPath, filename })
+      await callWebBackend('delete_view_cmd', { vaultPath: resolvedPath, filename })
     } catch (err) {
       if (isActiveVaultUnavailableError(err)) {
         vault.markVaultUnavailable(resolvedPath)
@@ -1135,21 +1072,10 @@ function App() {
     updateMainWindowConstraints,
   ])
 
-  useMainWindowSizeConstraints({
-    enabled: !noteWindowParams,
-    sidebarVisible,
-    noteListVisible,
-    inspectorCollapsed: layout.inspectorCollapsed,
-    sidebarWidth: layout.sidebarWidth,
-    noteListWidth: layout.noteListWidth,
-    inspectorWidth: layout.inspectorWidth,
-  })
-
   const handleRepairVault = useCallback(async () => {
     if (!resolvedPath) return
     try {
-      const tauriInvoke = isTauri() ? invoke : mockInvoke
-      const msg = await tauriInvoke<string>('repair_vault', { vaultPath: resolvedPath })
+      const msg = await callWebBackend<string>('repair_vault', { vaultPath: resolvedPath })
       await vault.reloadVault()
       setToastMessage(msg)
     } catch (err) {
@@ -1411,7 +1337,7 @@ function App() {
     activeNoteHasIcon,
     noteListFilter,
     onSetNoteListFilter: setNoteListFilter,
-    onOpenInNewWindow: isTauri() ? handleOpenInNewWindow : undefined,
+    onOpenInNewWindow: undefined,
     onCopyActiveFilePath: fileActions.copyFilePath,
     onToggleFavorite: entryActions.handleToggleFavorite,
     onToggleOrganized: toggleOrganizedCommand,
@@ -1550,7 +1476,7 @@ function App() {
                 {effectiveSelection.kind === 'filter' && effectiveSelection.filter === 'pulse' ? (
                   <PulseView vaultPath={resolvedPath} onOpenNote={handleMobilePulseOpenNote} sidebarCollapsed={!renderedSidebarVisible} onExpandSidebar={() => handleSetViewMode('all')} locale={appLocale} />
                 ) : (
-                  <NoteList entries={vault.entries} selection={effectiveSelection} selectedNote={activeTab?.entry ?? null} loading={isVaultContentLoading} noteListFilter={noteListFilter} onNoteListFilterChange={setNoteListFilter} inboxPeriod={inboxPeriod} modifiedFiles={vault.modifiedFiles} modifiedFilesError={vault.modifiedFilesError} getNoteStatus={vault.getNoteStatus} sidebarCollapsed={!renderedSidebarVisible} onSelectNote={handleMobileSelectNote} onReplaceActiveTab={handleMobileReplaceActiveTab} onEnterNeighborhood={handleEnterNeighborhood} onCreateNote={notes.handleCreateNoteImmediate} onBulkOrganize={explicitOrganizationEnabled ? bulkActions.handleBulkOrganize : undefined} onBulkArchive={bulkActions.handleBulkArchive} onBulkDeletePermanently={deleteActions.handleBulkDeletePermanently} onUpdateTypeSort={notes.handleUpdateFrontmatter} onUpdateViewDefinition={handleUpdateViewDefinition} updateEntry={vault.updateEntry} onOpenInNewWindow={isTauri() ? handleOpenEntryInNewWindow : undefined} onDiscardFile={handleDiscardFile} onOpenDeletedNote={handleOpenDeletedNote} allNotesNoteListProperties={vaultConfig.allNotes?.noteListProperties ?? null} onUpdateAllNotesNoteListProperties={handleUpdateAllNotesNoteListProperties} inboxNoteListProperties={vaultConfig.inbox?.noteListProperties ?? null} onUpdateInboxNoteListProperties={handleUpdateInboxNoteListProperties} views={vault.views} visibleNotesRef={visibleNotesRef} allNotesFileVisibility={allNotesFileVisibility} multiSelectionCommandRef={multiSelectionCommandRef} locale={appLocale} />
+                  <NoteList entries={vault.entries} selection={effectiveSelection} selectedNote={activeTab?.entry ?? null} loading={isVaultContentLoading} noteListFilter={noteListFilter} onNoteListFilterChange={setNoteListFilter} inboxPeriod={inboxPeriod} modifiedFiles={vault.modifiedFiles} modifiedFilesError={vault.modifiedFilesError} getNoteStatus={vault.getNoteStatus} sidebarCollapsed={!renderedSidebarVisible} onSelectNote={handleMobileSelectNote} onReplaceActiveTab={handleMobileReplaceActiveTab} onEnterNeighborhood={handleEnterNeighborhood} onCreateNote={notes.handleCreateNoteImmediate} onBulkOrganize={explicitOrganizationEnabled ? bulkActions.handleBulkOrganize : undefined} onBulkArchive={bulkActions.handleBulkArchive} onBulkDeletePermanently={deleteActions.handleBulkDeletePermanently} onUpdateTypeSort={notes.handleUpdateFrontmatter} onUpdateViewDefinition={handleUpdateViewDefinition} updateEntry={vault.updateEntry} onOpenInNewWindow={undefined} onDiscardFile={handleDiscardFile} onOpenDeletedNote={handleOpenDeletedNote} allNotesNoteListProperties={vaultConfig.allNotes?.noteListProperties ?? null} onUpdateAllNotesNoteListProperties={handleUpdateAllNotesNoteListProperties} inboxNoteListProperties={vaultConfig.inbox?.noteListProperties ?? null} onUpdateInboxNoteListProperties={handleUpdateInboxNoteListProperties} views={vault.views} visibleNotesRef={visibleNotesRef} allNotesFileVisibility={allNotesFileVisibility} multiSelectionCommandRef={multiSelectionCommandRef} locale={appLocale} />
                 )}
               </div>
               <ResizeHandle onResize={layout.handleNoteListResize} />

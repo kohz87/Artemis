@@ -1,41 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { CommandPalette } from './CommandPalette'
 import type { CommandAction } from '../hooks/useCommandRegistry'
-
-type NativeDropPayload = {
-  type: string
-  paths: string[]
-  position: { x: number; y: number }
-}
-type NativeDropHandler = (event: { payload: NativeDropPayload }) => void
-const nativeDropState = vi.hoisted(() => ({
-  tauriMode: false,
-  handlers: {} as Record<string, NativeDropHandler[] | undefined>,
-}))
 
 // jsdom doesn't implement scrollIntoView
 Element.prototype.scrollIntoView = vi.fn()
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => nativeDropState.tauriMode,
+vi.mock('../backend/client', () => ({
 }))
 
-vi.mock('@tauri-apps/api/window', () => ({
-  getCurrentWindow: () => ({
-    onDragDropEvent: vi.fn((handler: NativeDropHandler) => {
-      nativeDropState.handlers['native-drag-drop'] = [
-        ...(nativeDropState.handlers['native-drag-drop'] ?? []),
-        handler,
-      ]
-      return Promise.resolve(() => {
-        const handlers = nativeDropState.handlers['native-drag-drop']?.filter((candidate) => candidate !== handler) ?? []
-        if (handlers.length > 0) nativeDropState.handlers['native-drag-drop'] = handlers
-        else delete nativeDropState.handlers['native-drag-drop']
-      })
-    }),
-  }),
-}))
 
 const makeCommand = (overrides: Partial<CommandAction> = {}): CommandAction => ({
   id: 'test-cmd',
@@ -56,61 +29,12 @@ const commands: CommandAction[] = [
   makeCommand({ id: 'disabled-cmd', label: 'Disabled Command', group: 'Note', enabled: false }),
 ]
 
-
-
-function resetNativeDropState() {
-  nativeDropState.tauriMode = false
-  for (const eventName of Object.keys(nativeDropState.handlers)) {
-    delete nativeDropState.handlers[eventName]
-  }
-}
-
-function mockElementRect(element: HTMLElement) {
-  Object.defineProperty(element, 'getBoundingClientRect', {
-    configurable: true,
-    value: () => ({
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: 400,
-      bottom: 48,
-      width: 400,
-      height: 48,
-      toJSON: () => ({}),
-    }),
-  })
-}
-
-function emitNativePathDrop(paths: string[]) {
-  const handlers = nativeDropState.handlers['native-drag-drop']
-  if (!handlers || handlers.length === 0) throw new Error('No native drop handler registered')
-  for (const handler of handlers) {
-    handler({
-      payload: {
-        type: 'drop',
-        paths,
-        position: { x: 20, y: 20 },
-      },
-    })
-  }
-}
-
-async function waitForNativePathDropListener() {
-  await waitFor(() => {
-    expect(nativeDropState.handlers['native-drag-drop']?.length).toBeGreaterThan(0)
-  })
-}
-
 describe('CommandPalette', () => {
   const onClose = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    resetNativeDropState()
   })
-
-  afterEach(resetNativeDropState)
 
   it('renders nothing when closed', () => {
     const { container } = render(
@@ -292,24 +216,6 @@ describe('CommandPalette', () => {
     expect(screen.getByText('Up/Down navigate')).toBeInTheDocument()
     expect(screen.getByText('Enter select')).toBeInTheDocument()
     expect(screen.getByText('esc close')).toBeInTheDocument()
-  })
-
-  it('inserts Tauri native folder drops into the command query input', async () => {
-    nativeDropState.tauriMode = true
-    render(<CommandPalette open={true} commands={commands} onClose={onClose} />)
-
-    const input = screen.getByPlaceholderText('Type a command...') as HTMLInputElement
-    mockElementRect(input)
-    input.focus()
-    await waitForNativePathDropListener()
-
-    act(() => {
-      emitNativePathDrop(['/Users/test/Projects'])
-    })
-
-    await waitFor(() => {
-      expect(input).toHaveValue('/Users/test/Projects')
-    })
   })
 
   describe('relevance ranking', () => {

@@ -23,7 +23,6 @@ import {
   type SectionGroup, isSelectionActive, SectionContent, VisibilityPopover,
 } from '../SidebarParts'
 import { TypeCustomizePopover } from '../TypeCustomizePopover'
-import { useDragRegion } from '../../hooks/useDragRegion'
 import { SidebarGroupHeader } from './SidebarGroupHeader'
 import { SidebarViewItem } from './SidebarViewItem'
 import { computeReorder } from './sidebarHooks'
@@ -383,7 +382,6 @@ export function SidebarTitleBar({
   canGoBack?: boolean
   canGoForward?: boolean
 }) {
-  const { onMouseDown } = useDragRegion()
   const collapseLabel = translate(locale, 'sidebar.action.collapse')
   const backLabel = translate(locale, 'command.navigation.goBack')
   const forwardLabel = translate(locale, 'command.navigation.goForward')
@@ -393,8 +391,7 @@ export function SidebarTitleBar({
       <div
         className="shrink-0 flex items-center border-b border-border"
         style={{ height: 52, padding: '0 8px', paddingLeft: 90, cursor: 'default', justifyContent: 'flex-start' }}
-        onMouseDown={onMouseDown}
-      >
+        >
         <div className="flex items-center gap-5" style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}>
           {onCollapse && (
             <SidebarTitleBarAction label={collapseLabel} shortcut={SIDEBAR_COLLAPSE_SHORTCUT} onClick={onCollapse}>

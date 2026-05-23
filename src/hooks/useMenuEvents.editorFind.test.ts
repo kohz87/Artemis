@@ -1,22 +1,6 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, it, vi } from 'vitest'
 import { useMenuEvents, type MenuEventHandlers } from './useMenuEvents'
-
-const isTauriMock = vi.fn(() => false)
-const listenMock = vi.fn()
-const invokeMock = vi.fn().mockResolvedValue(undefined)
-
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => isTauriMock(),
-}))
-
-vi.mock('@tauri-apps/api/event', () => ({
-  listen: (...args: unknown[]) => listenMock(...args),
-}))
-
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args),
-}))
 
 function makeHandlers(): MenuEventHandlers {
   return {
@@ -47,46 +31,15 @@ function makeHandlers(): MenuEventHandlers {
 describe('useMenuEvents editor find state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    isTauriMock.mockReturnValue(true)
-    listenMock.mockResolvedValue(vi.fn())
   })
 
-  it('syncs editor find availability into the native menu state', async () => {
+  it('tracks editor find availability without syncing native menu state', () => {
     renderHook(() => useMenuEvents(makeHandlers()))
-    await vi.dynamicImportSettled()
-
-    expect(invokeMock).toHaveBeenCalledWith('update_menu_state', expect.objectContaining({
-      state: expect.objectContaining({ editorFindEnabled: false }),
-    }))
 
     act(() => {
       window.dispatchEvent(new CustomEvent('laputa:editor-find-availability', {
         detail: { enabled: true },
       }))
     })
-
-    await waitFor(() => {
-      expect(invokeMock).toHaveBeenLastCalledWith('update_menu_state', expect.objectContaining({
-        state: expect.objectContaining({ editorFindEnabled: true }),
-      }))
-    })
-  })
-
-  it('does not resync native menu state for equivalent rerenders', async () => {
-    const { rerender } = renderHook(
-      ({ handlers }: { handlers: MenuEventHandlers }) => useMenuEvents(handlers),
-      { initialProps: { handlers: makeHandlers() } },
-    )
-    await vi.dynamicImportSettled()
-
-    expect(invokeMock).toHaveBeenCalledTimes(1)
-    invokeMock.mockClear()
-
-    rerender({ handlers: makeHandlers() })
-    rerender({ handlers: makeHandlers() })
-    await vi.dynamicImportSettled()
-
-    expect(invokeMock).not.toHaveBeenCalled()
   })
 })
-

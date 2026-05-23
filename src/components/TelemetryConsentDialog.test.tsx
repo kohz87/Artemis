@@ -2,11 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 
-const dragRegionMouseDown = vi.fn()
-
-vi.mock('../hooks/useDragRegion', () => ({
-  useDragRegion: () => ({ onMouseDown: dragRegionMouseDown }),
-}))
 
 describe('TelemetryConsentDialog', () => {
   it('renders the consent dialog', () => {
@@ -39,13 +34,10 @@ describe('TelemetryConsentDialog', () => {
     expect(screen.getByTestId('telemetry-decline')).toHaveFocus()
   })
 
-  it('uses the surrounding surface as a drag region and excludes the dialog card', () => {
+  it('marks the dialog card as non-interactive shell content', () => {
     render(<TelemetryConsentDialog onAccept={vi.fn()} onDecline={vi.fn()} />)
 
     const shell = screen.getByTestId('telemetry-consent-shell')
-    fireEvent.mouseDown(shell)
-
-    expect(dragRegionMouseDown).toHaveBeenCalledOnce()
     expect(shell.querySelector('[data-no-drag]')).not.toBeNull()
   })
 })

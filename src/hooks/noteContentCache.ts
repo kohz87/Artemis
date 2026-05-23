@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import { markNoteOpenTrace } from '../utils/noteOpenPerformance'
 import { errorMessage, isActiveVaultUnavailableError } from '../utils/vaultErrors'
@@ -158,10 +157,7 @@ function requestNoteContent(target: string | VaultEntry): NoteContentCacheEntry 
     identity,
   }
   const commandPayload = getNoteContentCommandPayload(path)
-  const promise = (isTauri()
-    ? invoke<string>('get_note_content', commandPayload)
-    : mockInvoke<string>('get_note_content', commandPayload)
-  )
+  const promise = callWebBackend<string>('get_note_content', commandPayload)
     .then((content) => {
       retainResolvedNoteContent(cacheEntry, content, sourceEntry)
       return content
@@ -219,9 +215,7 @@ export function getCachedNoteContentEntry(path: string): NoteContentCacheEntry |
 async function validateCachedNoteContent(entry: NoteContentCacheEntry): Promise<boolean> {
   if (entry.value === null) return false
   const payload = getValidateNoteContentCommandPayload(entry.path, entry.value)
-  return isTauri()
-    ? invoke<boolean>('validate_note_content', payload)
-    : mockInvoke<boolean>('validate_note_content', payload)
+  return callWebBackend<boolean>('validate_note_content', payload)
 }
 
 function canTrustCachedContentIdentity(entry: VaultEntry, cachedEntry: NoteContentCacheEntry): boolean {

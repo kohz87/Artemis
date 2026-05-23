@@ -2,16 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useCommitFlow } from './useCommitFlow'
 
-const mockInvokeFn = vi.fn()
+const callWebBackendFn = vi.fn()
 const mockTrackEvent = vi.fn()
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (command: string, args: Record<string, unknown>) => mockInvokeFn(command, args),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (command: string, args: Record<string, unknown>) => mockInvokeFn(command, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (command: string, args: Record<string, unknown>) => callWebBackendFn(command, args),
 }))
 
 vi.mock('../lib/telemetry', () => ({
@@ -32,8 +28,8 @@ describe('useCommitFlow', () => {
     setToastMessage = vi.fn()
     onPushRejected = vi.fn()
     mockTrackEvent.mockReset()
-    mockInvokeFn.mockReset()
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockReset()
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'git_commit') return Promise.resolve('[main abc1234] test commit')
       if (command === 'git_push') return Promise.resolve({ status: 'ok', message: 'Pushed to remote' })
       if (command === 'get_modified_files') return Promise.resolve([{ path: '/vault/a.md', relativePath: 'a.md', status: 'modified' }])
@@ -75,8 +71,8 @@ describe('useCommitFlow', () => {
     })
 
     expect(savePending).toHaveBeenCalled()
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(1, 'git_commit', { vaultPath: '/vault', message: 'test message' })
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(2, 'git_push', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(1, 'git_commit', { vaultPath: '/vault', message: 'test message' })
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(2, 'git_push', { vaultPath: '/vault' })
     expect(setToastMessage).toHaveBeenCalledWith('Committed and pushed')
     expect(loadModifiedFiles).toHaveBeenCalled()
     expect(resolveRemoteStatus).toHaveBeenCalledTimes(2)
@@ -92,15 +88,15 @@ describe('useCommitFlow', () => {
     })
 
     expect(savePending).toHaveBeenCalledTimes(1)
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(1, 'get_modified_files', { vaultPath: '/vault' })
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(2, 'git_commit', { vaultPath: '/vault', message: 'Updated 1 note' })
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(3, 'git_push', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(1, 'get_modified_files', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(2, 'git_commit', { vaultPath: '/vault', message: 'Updated 1 note' })
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(3, 'git_push', { vaultPath: '/vault' })
     expect(setToastMessage).toHaveBeenCalledWith('Committed and pushed')
   })
 
   it('runAutomaticCheckpoint retries push-only when local commits are already ahead', async () => {
     resolveRemoteStatus.mockResolvedValue({ branch: 'main', ahead: 2, behind: 0, hasRemote: true })
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'get_modified_files') return Promise.resolve([])
       if (command === 'git_push') return Promise.resolve({ status: 'ok', message: 'Pushed to remote' })
       throw new Error(`Unexpected command: ${command}`)
@@ -112,15 +108,15 @@ describe('useCommitFlow', () => {
       await result.current.runAutomaticCheckpoint()
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledTimes(2)
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(1, 'get_modified_files', { vaultPath: '/vault' })
-    expect(mockInvokeFn).toHaveBeenNthCalledWith(2, 'git_push', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenCalledTimes(2)
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(1, 'get_modified_files', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenNthCalledWith(2, 'git_push', { vaultPath: '/vault' })
     expect(setToastMessage).toHaveBeenCalledWith('Pushed committed changes')
     expect(mockTrackEvent).not.toHaveBeenCalled()
   })
 
   it('runAutomaticCheckpoint reports when there is nothing to commit or push', async () => {
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'get_modified_files') return Promise.resolve([])
       throw new Error(`Unexpected command: ${command}`)
     })
@@ -137,7 +133,7 @@ describe('useCommitFlow', () => {
 
   it('handleCommitPush commits locally and skips push when no remote is configured', async () => {
     resolveRemoteStatus.mockResolvedValue({ branch: 'main', ahead: 0, behind: 0, hasRemote: false })
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'git_commit') return Promise.resolve('[main abc1234] test message')
       throw new Error(`Unexpected command: ${command}`)
     })
@@ -147,14 +143,14 @@ describe('useCommitFlow', () => {
       await result.current.handleCommitPush('test message')
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledTimes(1)
-    expect(mockInvokeFn).toHaveBeenCalledWith('git_commit', { vaultPath: '/vault', message: 'test message' })
+    expect(callWebBackendFn).toHaveBeenCalledTimes(1)
+    expect(callWebBackendFn).toHaveBeenCalledWith('git_commit', { vaultPath: '/vault', message: 'test message' })
     expect(setToastMessage).toHaveBeenCalledWith('Committed locally (no remote configured)')
     expect(onPushRejected).not.toHaveBeenCalled()
   })
 
   it('handleCommitPush calls onPushRejected when push is rejected', async () => {
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'git_commit') return Promise.resolve('[main abc1234] test message')
       if (command === 'git_push') return Promise.resolve({ status: 'rejected', message: 'Push rejected' })
       throw new Error(`Unexpected command: ${command}`)
@@ -170,7 +166,7 @@ describe('useCommitFlow', () => {
   })
 
   it('handleCommitPush shows error toast on failure', async () => {
-    mockInvokeFn.mockImplementation(() => Promise.reject(new Error('push failed')))
+    callWebBackendFn.mockImplementation(() => Promise.reject(new Error('push failed')))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { result } = renderCommitFlow()
 

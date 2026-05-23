@@ -83,7 +83,7 @@ describe('detectPropertyType', () => {
 
   it('detects tags from tag-like key names with array values', () => {
     expect(detectPropertyType('tags', ['a', 'b'])).toBe('tags')
-    expect(detectPropertyType('keywords', ['react', 'tauri'])).toBe('tags')
+    expect(detectPropertyType('keywords', ['react', 'web'])).toBe('tags')
     expect(detectPropertyType('categories', ['frontend'])).toBe('tags')
     expect(detectPropertyType('labels', ['bug', 'fix'])).toBe('tags')
   })

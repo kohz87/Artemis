@@ -1,18 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { resolveImageUrls, portableImageUrls } from './vaultImages'
 
-let tauriMode = false
-
-vi.mock('@tauri-apps/api/core', () => ({
-  convertFileSrc: vi.fn((path: string) => `asset://localhost/${encodeURIComponent(path)}`),
-}))
-
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => tauriMode,
-}))
 
 function assetUrl(path: string): string {
-  return `asset://localhost/${encodeURIComponent(path)}`
+  return webAssetUrl(path)
 }
 
 function httpAssetUrl(path: string): string {
@@ -24,8 +15,7 @@ function webAssetUrl(path: string): string {
 }
 
 describe('resolveImageUrls', () => {
-  it('converts relative attachment paths to web asset URLs outside Tauri', () => {
-    tauriMode = false
+  it('converts relative attachment paths to web asset URLs outside desktop', () => {
     const markdown = '![alt](attachments/file.png)'
 
     expect(resolveImageUrls(markdown, '/vault')).toBe(
@@ -34,14 +24,12 @@ describe('resolveImageUrls', () => {
   })
 
   it('is a no-op when vaultPath is empty', () => {
-    tauriMode = true
     const markdown = '![alt](attachments/file.png)'
 
     expect(resolveImageUrls(markdown, '')).toBe(markdown)
   })
 
   it('converts relative attachment paths to asset URLs', () => {
-    tauriMode = true
     const markdown = '![screenshot](attachments/1776369786040-CleanShot_2026-04-16.png)'
 
     expect(resolveImageUrls(markdown, '/vault')).toBe(
@@ -50,7 +38,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('converts Windows relative attachment paths without mixed separators', () => {
-    tauriMode = true
     const vaultPath = 'C:\\Users\\lnq12\\Documents\\tolaria-test\\Getting Started'
     const markdown = '![BlockNote image](attachments/1776508281809-CleanShot.png)'
 
@@ -60,7 +47,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('leaves already-correct asset URLs unchanged', () => {
-    tauriMode = true
     const url = assetUrl('/vault/attachments/file.png')
     const markdown = `![alt](${url})`
 
@@ -68,7 +54,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('rewrites legacy asset URLs from a different vault', () => {
-    tauriMode = true
     const legacyUrl = assetUrl('/Users/luca/Workspace/tolaria-getting-started/attachments/CleanShot.png')
     const markdown = `![CleanShot](${legacyUrl})`
 
@@ -78,7 +63,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('rewrites Windows legacy asset URLs from a different vault', () => {
-    tauriMode = true
     const legacyUrl = httpAssetUrl('C:\\Users\\old\\Workspace\\tolaria-getting-started\\attachments\\CleanShot.png')
     const markdown = `![CleanShot](${legacyUrl})`
 
@@ -88,7 +72,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('leaves already-correct http asset URLs unchanged', () => {
-    tauriMode = true
     const url = httpAssetUrl('/vault/attachments/file.png')
     const markdown = `![alt](${url})`
 
@@ -96,7 +79,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('leaves external URLs unchanged', () => {
-    tauriMode = true
     const httpImage = '![logo](https://example.com/logo.png)'
     const dataImage = '![icon](data:image/png;base64,abc123)'
 
@@ -105,7 +87,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('handles multiple images in one document', () => {
-    tauriMode = true
     const markdown = `![a](${assetUrl('/old/attachments/a.png')})\n\n![b](attachments/b.png)`
 
     const result = resolveImageUrls(markdown, '/vault')
@@ -115,7 +96,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('preserves alt text and title attributes', () => {
-    tauriMode = true
     const markdown = '![my screenshot](attachments/file.png "starter vault")'
 
     expect(resolveImageUrls(markdown, '/vault')).toBe(
@@ -124,7 +104,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('skips unknown asset URLs without an attachments segment', () => {
-    tauriMode = true
     const url = httpAssetUrl('/some/other/path/file.png')
     const markdown = `![alt](${url})`
 
@@ -132,7 +111,6 @@ describe('resolveImageUrls', () => {
   })
 
   it('rewrites web asset URLs from a different vault', () => {
-    tauriMode = false
     const legacyUrl = webAssetUrl('/Users/luca/Workspace/tolaria-getting-started/attachments/CleanShot.png')
     const markdown = `![CleanShot](${legacyUrl})`
 
@@ -219,7 +197,6 @@ describe('portableImageUrls', () => {
 
 describe('resolveImageUrls / portableImageUrls round-trip', () => {
   it('keeps relative attachment markdown stable', () => {
-    tauriMode = true
     const markdown = '![shot](attachments/file.png)'
 
     expect(portableImageUrls(resolveImageUrls(markdown, '/vault'), '/vault')).toBe(markdown)

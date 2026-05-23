@@ -5,15 +5,17 @@ import type { ModifiedFile, VaultEntry, ViewFile } from '../types'
 
 const clearPrefetchCache = vi.fn()
 const backendInvokeFn = vi.fn()
-let mockIsTauri = false
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => backendInvokeFn(...args),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => mockIsTauri,
-  mockInvoke: (command: string, args?: Record<string, unknown>) => backendInvokeFn(command, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (command: string, args?: Record<string, unknown>) => backendInvokeFn(command, args),
+  listVault: (path: string) => backendInvokeFn('list_vault', { path }),
+  reloadVault: (path: string) => backendInvokeFn('reload_vault', { path }),
+  getModifiedFiles: (vaultPath: string) => backendInvokeFn('get_modified_files', { vaultPath }),
+  listVaultFolders: (path: string) => backendInvokeFn('list_vault_folders', { path }),
+  listViews: (vaultPath: string) => backendInvokeFn('list_views', { vaultPath }),
+  gitCommit: (vaultPath: string, message: string) => backendInvokeFn('git_commit', { vaultPath, message }),
+  gitPush: (vaultPath: string) => backendInvokeFn('git_push', { vaultPath }),
 }))
 
 vi.mock('./useTabManagement', () => ({
@@ -109,12 +111,10 @@ async function waitForEntries(
 describe('useVaultLoader extra', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockIsTauri = false
     configureBackend()
   })
 
-  it('uses native commit and push commands when Tauri mode is active', async () => {
-    mockIsTauri = true
+  it('uses native commit and push commands when desktop mode is active', async () => {
     configureBackend({
       reload_vault: [makeEntry()],
       get_modified_files: [],

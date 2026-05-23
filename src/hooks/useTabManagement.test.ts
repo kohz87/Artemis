@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import {
   useTabManagement,
@@ -12,10 +11,8 @@ import {
   NOTE_CONTENT_ENTRY_MAX_BYTES,
 } from './useTabManagement'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
-  mockInvoke: vi.fn().mockResolvedValue('# Mock content'),
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn().mockResolvedValue('# Mock content'),
 }))
 
 const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
@@ -59,12 +56,12 @@ async function replaceActiveNote(result: HookState, overrides: Partial<VaultEntr
 async function prefetchResolvedContent(path: string, content: string, entry?: VaultEntry) {
   mockNoteContent({ [path]: content })
   prefetchNoteContent(entry ?? path)
-  await vi.waitFor(() => expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(1))
-  return mockInvoke
+  await vi.waitFor(() => expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(1))
+  return callWebBackend
 }
 
 function mockNoteContent(contentByPath: Record<string, string>) {
-  vi.mocked(mockInvoke).mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+  vi.mocked(callWebBackend).mockImplementation((cmd: string, args?: Record<string, unknown>) => {
     const path = typeof args?.path === 'string' ? args.path : ''
     const content = contentByPath[path] ?? '# Mock content'
     if (cmd === 'validate_note_content') {
@@ -114,8 +111,7 @@ describe('useTabManagement (single-note model)', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     clearPrefetchCache()
-    vi.mocked(isTauri).mockReturnValue(false)
-    vi.mocked(mockInvoke).mockResolvedValue('# Mock content')
+    vi.mocked(callWebBackend).mockResolvedValue('# Mock content')
     window.history.replaceState({}, '', '/')
   })
 
@@ -134,7 +130,7 @@ describe('useTabManagement (single-note model)', () => {
 
     it('switches the active path immediately while the next note is still loading', async () => {
       let resolveContent: (value: string) => void
-      vi.mocked(mockInvoke).mockImplementationOnce(
+      vi.mocked(callWebBackend).mockImplementationOnce(
         () => new Promise<string>((resolve) => { resolveContent = resolve }),
       )
 
@@ -182,7 +178,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('handles load content failure gracefully', async () => {
-      vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('fail'))
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('fail'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const { result } = renderHook(() => useTabManagement())
@@ -194,7 +190,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('clears the active note when the file is missing on disk', async () => {
-      vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('File does not exist: /vault/note/missing.md'))
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('File does not exist: /vault/note/missing.md'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const onMissingNotePath = vi.fn()
 
@@ -211,7 +207,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('returns to the empty state when note content is not valid UTF-8 text', async () => {
-      vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('File is not valid UTF-8 text: /vault/note/bad.csv'))
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('File is not valid UTF-8 text: /vault/note/bad.csv'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const onUnreadableNoteContent = vi.fn()
 
@@ -243,11 +239,11 @@ describe('useTabManagement (single-note model)', () => {
 
       expectSingleActiveTab(result, '/vault/assets/photo.png')
       expect(result.current.tabs[0].content).toBe('')
-      expect(vi.mocked(mockInvoke)).not.toHaveBeenCalled()
+      expect(vi.mocked(callWebBackend)).not.toHaveBeenCalled()
     })
 
     it('returns to the empty state when no active vault is selected', async () => {
-      vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('No active vault selected'))
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('No active vault selected'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const { result } = renderHook(() => useTabManagement())
@@ -259,7 +255,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('reports an unavailable active vault instead of opening a blank stale tab', async () => {
-      vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('Active vault is not available'))
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('Active vault is not available'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const onMissingActiveVault = vi.fn()
 
@@ -275,9 +271,8 @@ describe('useTabManagement (single-note model)', () => {
       warnSpy.mockRestore()
     })
 
-    it('uses the note-window vault path when Tauri reloads the selected note', async () => {
-      vi.mocked(isTauri).mockReturnValue(true)
-      vi.mocked(invoke).mockResolvedValue('# Window content')
+    it('uses the note-window vault path when desktop reloads the selected note', async () => {
+      vi.mocked(callWebBackend).mockResolvedValue('# Window content')
       window.history.replaceState(
         {},
         '',
@@ -287,7 +282,7 @@ describe('useTabManagement (single-note model)', () => {
       const { result } = renderHook(() => useTabManagement())
       await selectNote(result, { path: '/vault/note/test.md', title: 'Test Note' })
 
-      expect(vi.mocked(invoke)).toHaveBeenCalledWith('get_note_content', {
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('get_note_content', {
         path: '/vault/note/test.md',
         vaultPath: '/vault',
       })
@@ -304,7 +299,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('treats /tmp and /private/tmp aliases as the same active note', async () => {
-      vi.mocked(mockInvoke)
+      vi.mocked(callWebBackend)
         .mockResolvedValueOnce('# Stale before pull')
         .mockResolvedValueOnce('# Fresh after pull')
       const beforeNavigate = vi.fn().mockResolvedValue(undefined)
@@ -325,7 +320,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('reloads content when replacing with the same entry', async () => {
-      vi.mocked(mockInvoke)
+      vi.mocked(callWebBackend)
         .mockResolvedValueOnce('# Stale before pull')
         .mockResolvedValueOnce('# Fresh after pull')
 
@@ -339,11 +334,11 @@ describe('useTabManagement (single-note model)', () => {
 
       expect(result.current.tabs).toHaveLength(1)
       expect(result.current.tabs[0].content).toBe('# Fresh after pull')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
     })
 
     it('clears the active note when a forced reload hits a missing file path', async () => {
-      vi.mocked(mockInvoke)
+      vi.mocked(callWebBackend)
         .mockResolvedValueOnce('# Existing content')
         .mockRejectedValueOnce(new Error('File does not exist: /vault/a.md'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -374,7 +369,7 @@ describe('useTabManagement (single-note model)', () => {
 
     it('validates cached content before replacing with a different active note', async () => {
       cacheNoteContent('/vault/b.md', '# Stale cached B')
-      vi.mocked(mockInvoke).mockImplementation((cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation((cmd: string) => {
         if (cmd === 'validate_note_content') return Promise.resolve(false)
         return Promise.resolve('# Fresh disk B')
       })
@@ -384,7 +379,7 @@ describe('useTabManagement (single-note model)', () => {
       await replaceActiveNote(result, { path: '/vault/b.md', title: 'B' })
 
       expect(result.current.tabs[0].content).toBe('# Fresh disk B')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledWith('validate_note_content', {
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('validate_note_content', {
         path: '/vault/b.md',
         content: '# Stale cached B',
       })
@@ -442,14 +437,14 @@ describe('useTabManagement (single-note model)', () => {
 
   describe('content prefetch cache', () => {
     it('prefetch validates cached content against disk before reuse', async () => {
-      const mockInvoke = await prefetchResolvedContent('/vault/note/pre.md', '# Prefetched content')
+      const callWebBackend = await prefetchResolvedContent('/vault/note/pre.md', '# Prefetched content')
 
       const { result } = renderHook(() => useTabManagement())
       await selectNote(result, { path: '/vault/note/pre.md', title: 'Pre' })
 
       expect(result.current.tabs[0].content).toBe('# Prefetched content')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
-      expect(vi.mocked(mockInvoke)).toHaveBeenLastCalledWith('validate_note_content', {
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenLastCalledWith('validate_note_content', {
         path: '/vault/note/pre.md',
         content: '# Prefetched content',
       })
@@ -461,19 +456,19 @@ describe('useTabManagement (single-note model)', () => {
         modifiedAt: 1700000001,
         fileSize: 19,
       })
-      const mockInvoke = await prefetchResolvedContent(entry.path, '# Prefetched content', entry)
+      const callWebBackend = await prefetchResolvedContent(entry.path, '# Prefetched content', entry)
 
       const { result } = renderHook(() => useTabManagement())
       await selectNote(result, entry)
 
       expect(result.current.tabs[0].content).toBe('# Prefetched content')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(1)
     })
 
     it('does not paint cached content until freshness validation passes', async () => {
       const freshness = createDeferred<boolean>()
       cacheNoteContent('/vault/note/stale.md', '# Stale cached content')
-      vi.mocked(mockInvoke).mockImplementation((cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation((cmd: string) => {
         if (cmd === 'validate_note_content') return freshness.promise
         return Promise.resolve('# Fresh disk content')
       })
@@ -497,7 +492,7 @@ describe('useTabManagement (single-note model)', () => {
     })
 
     it('clearPrefetchCache prevents stale content from being served', async () => {
-      const mockInvoke = await prefetchResolvedContent('/vault/note/stale.md', '# Stale')
+      const callWebBackend = await prefetchResolvedContent('/vault/note/stale.md', '# Stale')
 
       clearPrefetchCache()
       mockNoteContent({ '/vault/note/stale.md': '# Fresh' })
@@ -506,26 +501,26 @@ describe('useTabManagement (single-note model)', () => {
       await selectNote(result, { path: '/vault/note/stale.md', title: 'Stale' })
 
       expect(result.current.tabs[0].content).toBe('# Fresh')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
     })
 
     it('deduplicates concurrent prefetch requests for same path', async () => {
-      vi.mocked(mockInvoke).mockResolvedValue('# Content')
+      vi.mocked(callWebBackend).mockResolvedValue('# Content')
 
       prefetchNoteContent('/vault/note/dup.md')
       prefetchNoteContent('/vault/note/dup.md')
       prefetchNoteContent('/vault/note/dup.md')
 
-      await vi.waitFor(() => expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() => expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(1))
     })
 
     it('swallows no-active-vault prefetch failures and lets a later open recover', async () => {
-      vi.mocked(mockInvoke)
+      vi.mocked(callWebBackend)
         .mockRejectedValueOnce(new Error('No active vault selected'))
         .mockResolvedValueOnce('# Recovered content')
 
       prefetchNoteContent('/vault/note/recovered.md')
-      await vi.waitFor(() => expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(1))
+      await vi.waitFor(() => expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(1))
       await Promise.resolve()
       await Promise.resolve()
 
@@ -533,11 +528,11 @@ describe('useTabManagement (single-note model)', () => {
       await selectNote(result, { path: '/vault/note/recovered.md', title: 'Recovered' })
 
       expect(result.current.tabs[0].content).toBe('# Recovered content')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
     })
 
     it('serves refreshed cached content after a save replaces stale prefetched data', async () => {
-      const mockInvoke = await prefetchResolvedContent('/vault/note/saved.md', '# Stale prefetched content')
+      const callWebBackend = await prefetchResolvedContent('/vault/note/saved.md', '# Stale prefetched content')
       mockNoteContent({ '/vault/note/saved.md': '# Persisted content' })
 
       cacheNoteContent('/vault/note/saved.md', '# Persisted content')
@@ -546,12 +541,12 @@ describe('useTabManagement (single-note model)', () => {
       await selectNote(result, { path: '/vault/note/saved.md', title: 'Saved' })
 
       expect(result.current.tabs[0].content).toBe('# Persisted content')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
     })
 
     it('activates a warmed note after validating cached content', async () => {
       const deferred = createDeferred<boolean>()
-      vi.mocked(mockInvoke).mockImplementation((cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation((cmd: string) => {
         if (cmd === 'validate_note_content') return deferred.promise
         return Promise.resolve('# Warm content')
       })
@@ -565,7 +560,7 @@ describe('useTabManagement (single-note model)', () => {
 
       expect(result.current.activeTabPath).toBe('/vault/note/warm.md')
       expect(result.current.tabs).toEqual([])
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(1)
 
       await act(async () => {
         deferred.resolve(true)
@@ -578,9 +573,9 @@ describe('useTabManagement (single-note model)', () => {
 
     it('does not retain oversized notes in the prefetch cache', async () => {
       const largeContent = makeAsciiContent(NOTE_CONTENT_ENTRY_MAX_BYTES + 1)
-      const mockInvoke = await prefetchResolvedContent('/vault/note/oversized.md', largeContent)
+      const callWebBackend = await prefetchResolvedContent('/vault/note/oversized.md', largeContent)
       const deferred = createDeferred<string>()
-      vi.mocked(mockInvoke).mockImplementationOnce(() => deferred.promise)
+      vi.mocked(callWebBackend).mockImplementationOnce(() => deferred.promise)
 
       const { result } = renderHook(() => useTabManagement())
 
@@ -590,7 +585,7 @@ describe('useTabManagement (single-note model)', () => {
 
       expect(result.current.activeTabPath).toBe('/vault/note/oversized.md')
       expect(result.current.tabs).toEqual([])
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
 
       await act(async () => {
         deferred.resolve(largeContent)
@@ -603,7 +598,7 @@ describe('useTabManagement (single-note model)', () => {
     it('evicts the oldest cached notes when retained bytes exceed the cache budget', async () => {
       const { cachedContent, oldestPath } = seedCacheBeyondByteLimit()
       const deferred = createDeferred<string>()
-      vi.mocked(mockInvoke).mockImplementationOnce(() => deferred.promise)
+      vi.mocked(callWebBackend).mockImplementationOnce(() => deferred.promise)
 
       const { result } = renderHook(() => useTabManagement())
 
@@ -625,7 +620,7 @@ describe('useTabManagement (single-note model)', () => {
     it('keeps the newest cached notes warm when trimming to the byte budget', async () => {
       const { cachedContent, newestPath } = seedCacheBeyondByteLimit()
       const deferred = createDeferred<boolean>()
-      vi.mocked(mockInvoke).mockImplementation((cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation((cmd: string) => {
         if (cmd === 'validate_note_content') return deferred.promise
         return Promise.resolve(cachedContent)
       })
@@ -661,7 +656,7 @@ describe('useTabManagement (single-note model)', () => {
 
       expect(result.current.tabs[0].entry.path).toBe('/vault/a.md')
       expect(result.current.tabs[0].content).toBe('# A content')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(2)
     })
 
     it('refreshes an already-open clean note when cached content is stale on disk', async () => {
@@ -680,15 +675,15 @@ describe('useTabManagement (single-note model)', () => {
 
       expect(result.current.tabs[0].entry.path).toBe('/vault/a.md')
       expect(result.current.tabs[0].content).toBe('# External edit')
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(3)
-      expect(vi.mocked(mockInvoke)).toHaveBeenNthCalledWith(2, 'validate_note_content', {
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(3)
+      expect(vi.mocked(callWebBackend)).toHaveBeenNthCalledWith(2, 'validate_note_content', {
         path: '/vault/a.md',
         content: '# Original content',
       })
     })
 
     it('falls back instead of reopening cached content when the note file disappeared', async () => {
-      vi.mocked(mockInvoke)
+      vi.mocked(callWebBackend)
         .mockResolvedValueOnce('# Other note')
         .mockRejectedValueOnce(new Error('File does not exist: /vault/note/missing-cached.md'))
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -710,7 +705,7 @@ describe('useTabManagement (single-note model)', () => {
 
     it('deduplicates a late prefetch after note opening already started', async () => {
       let resolveContent!: (value: string) => void
-      vi.mocked(mockInvoke).mockImplementationOnce(
+      vi.mocked(callWebBackend).mockImplementationOnce(
         () => new Promise<string>((resolve) => { resolveContent = resolve }),
       )
 
@@ -722,7 +717,7 @@ describe('useTabManagement (single-note model)', () => {
         await Promise.resolve()
       })
 
-      expect(vi.mocked(mockInvoke)).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(1)
 
       await act(async () => {
         resolveContent('# Rapid content')
@@ -737,7 +732,7 @@ describe('useTabManagement (single-note model)', () => {
     it('only activates the last note when switching rapidly', async () => {
       let resolveA: (v: string) => void
       let resolveB: (v: string) => void
-      vi.mocked(mockInvoke)
+      vi.mocked(callWebBackend)
         .mockImplementationOnce(() => new Promise<string>((r) => { resolveA = r as (v: string) => void }))
         .mockImplementationOnce(() => new Promise<string>((r) => { resolveB = r as (v: string) => void }))
 

@@ -69,7 +69,7 @@ describe('tagStyles — color overrides', () => {
     // Should NOT be the old default (all-blue) — should vary by tag name
     const styleA = getTagStyle('React')
     const styleB = getTagStyle('TypeScript')
-    const styleC = getTagStyle('Tauri')
+    const styleC = getTagStyle('desktop')
     // At least two of three should differ (hash distribution)
     const colors = [styleA.color, styleB.color, styleC.color]
     const unique = new Set(colors)
@@ -85,9 +85,9 @@ describe('tagStyles — color overrides', () => {
 
   it('persists multiple overrides to vault config', () => {
     setTagColor('React', 'blue')
-    setTagColor('Tauri', 'orange')
+    setTagColor('desktop', 'orange')
     const stored = getVaultConfig().tag_colors as Record<string, string>
-    expect(stored).toEqual({ React: 'blue', Tauri: 'orange' })
+    expect(stored).toEqual({ React: 'blue', desktop: 'orange' })
   })
 })
 

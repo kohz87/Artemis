@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { SidebarSelection, ViewFile } from '../types'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import {
@@ -61,7 +60,7 @@ export function useSavedViewOrdering({
   const t = useMemo(() => createTranslator(locale), [locale])
 
   const persistViewOrder = useCallback(async (orderedViews: ViewFile[]) => {
-    const target = isTauri() ? invoke : mockInvoke
+    const target = callWebBackend
     await Promise.all(buildViewOrderUpdates(orderedViews).map(({ filename, definition }) => (
       target('save_view_cmd', { vaultPath, filename, definition })
     )))

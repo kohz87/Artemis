@@ -2,15 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 import { renderHook, act } from '@testing-library/react'
 import { AUTO_SAVE_DEBOUNCE_MS, useEditorSave } from './useEditorSave'
 
-const mockInvokeFn = vi.fn<(cmd: string, args?: Record<string, unknown>) => Promise<null>>(() => Promise.resolve(null))
+const callWebBackendFn = vi.fn<(cmd: string, args?: Record<string, unknown>) => Promise<null>>(() => Promise.resolve(null))
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (cmd: string, args?: Record<string, unknown>) => mockInvokeFn(cmd, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (cmd: string, args?: Record<string, unknown>) => callWebBackendFn(cmd, args),
   updateMockContent: vi.fn(),
 }))
 
@@ -23,7 +19,7 @@ describe('useEditorSave', () => {
     updateVaultContent = vi.fn()
     setTabs = vi.fn()
     setToastMessage = vi.fn()
-    mockInvokeFn.mockClear()
+    callWebBackendFn.mockClear()
   })
 
   function renderSaveHook() {
@@ -38,7 +34,7 @@ describe('useEditorSave', () => {
     })
 
     expect(setToastMessage).toHaveBeenCalledWith('Nothing to save')
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
   })
 
   it('handleSave persists pending content and shows "Saved"', async () => {
@@ -54,7 +50,7 @@ describe('useEditorSave', () => {
       await result.current.handleSave()
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/test/note.md',
       content: '---\ntitle: Test\n---\n\n# Test\n\nEdited',
     })
@@ -83,7 +79,7 @@ describe('useEditorSave', () => {
       await result.current.handleSave()
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/test/vault/projects/test/note.md',
       content: '# Edited',
       vaultPath: '/test/vault',
@@ -91,7 +87,7 @@ describe('useEditorSave', () => {
   })
 
   it('handleSave shows error toast on failure', async () => {
-    mockInvokeFn.mockRejectedValueOnce(new Error('Disk full'))
+    callWebBackendFn.mockRejectedValueOnce(new Error('Disk full'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { result } = renderSaveHook()
 
@@ -109,7 +105,7 @@ describe('useEditorSave', () => {
 
   it('keeps failed Windows path saves pending with a recoverable error toast', async () => {
     const path = 'C:\\Users\\@raflymln\\notes\\untitled-note-1777236475.md'
-    mockInvokeFn.mockRejectedValueOnce(
+    callWebBackendFn.mockRejectedValueOnce(
       new Error(`Failed to save ${path}: The filename, directory name, or volume label syntax is incorrect. (os error 123)`),
     )
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -135,7 +131,7 @@ describe('useEditorSave', () => {
     })
 
     expect(saved).toBe(true)
-    expect(mockInvokeFn).toHaveBeenLastCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenLastCalledWith('save_note_content', {
       path,
       content: '# Draft\n\nUnsaved body',
     })
@@ -154,13 +150,13 @@ describe('useEditorSave', () => {
     await act(async () => {
       await result.current.savePendingForPath('/test/note-b.md')
     })
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
 
     // Save for the correct path
     await act(async () => {
       await result.current.savePendingForPath('/test/note-a.md')
     })
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/test/note-a.md',
       content: 'content A',
     })
@@ -199,7 +195,7 @@ describe('useEditorSave', () => {
   })
 
   it('does not call onAfterSave when save fails', async () => {
-    mockInvokeFn.mockRejectedValueOnce(new Error('Disk full'))
+    callWebBackendFn.mockRejectedValueOnce(new Error('Disk full'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const cb = vi.fn()
     const { result } = renderHook(() =>
@@ -262,7 +258,7 @@ describe('useEditorSave', () => {
     })
 
     // The save must persist the EDITED content, not the original
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/vault/note.md',
       content: edited,
     })
@@ -327,17 +323,17 @@ describe('useEditorSave', () => {
 
       act(() => { result.current.handleContentChange('/test/note.md', 'draft 1') })
       await act(async () => { vi.advanceTimersByTime(lowEndTypingIntervalMs) })
-      expect(mockInvokeFn).not.toHaveBeenCalled()
+      expect(callWebBackendFn).not.toHaveBeenCalled()
 
       act(() => { result.current.handleContentChange('/test/note.md', 'draft 2') })
       await act(async () => { vi.advanceTimersByTime(lowEndTypingIntervalMs) })
-      expect(mockInvokeFn).not.toHaveBeenCalled()
+      expect(callWebBackendFn).not.toHaveBeenCalled()
 
       await act(async () => {
         vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS - lowEndTypingIntervalMs)
       })
 
-      expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+      expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
         path: '/test/note.md',
         content: 'draft 2',
       })
@@ -346,7 +342,7 @@ describe('useEditorSave', () => {
     it('keeps newer pending content when an earlier slow auto-save resolves during typing', async () => {
       let resolveFirstSave!: () => void
       const firstSave = new Promise<void>((resolve) => { resolveFirstSave = resolve })
-      mockInvokeFn
+      callWebBackendFn
         .mockImplementationOnce(() => firstSave)
         .mockResolvedValue(undefined)
       const { result } = renderHook(() =>
@@ -358,7 +354,7 @@ describe('useEditorSave', () => {
         vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS)
         await Promise.resolve()
       })
-      expect(mockInvokeFn).toHaveBeenCalledTimes(1)
+      expect(callWebBackendFn).toHaveBeenCalledTimes(1)
 
       act(() => { result.current.handleContentChange('/test/note.md', 'draft 2') })
       await act(async () => {
@@ -371,8 +367,8 @@ describe('useEditorSave', () => {
 
       await act(async () => { vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS) })
 
-      expect(mockInvokeFn).toHaveBeenCalledTimes(2)
-      expect(mockInvokeFn).toHaveBeenLastCalledWith('save_note_content', {
+      expect(callWebBackendFn).toHaveBeenCalledTimes(2)
+      expect(callWebBackendFn).toHaveBeenLastCalledWith('save_note_content', {
         path: '/test/note.md',
         content: 'draft 2',
       })
@@ -389,11 +385,11 @@ describe('useEditorSave', () => {
       })
 
       // Not saved yet
-      expect(mockInvokeFn).not.toHaveBeenCalled()
+      expect(callWebBackendFn).not.toHaveBeenCalled()
 
       await act(async () => { vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS) })
 
-      expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+      expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
         path: '/test/note.md',
         content: 'auto-saved content',
       })
@@ -409,16 +405,16 @@ describe('useEditorSave', () => {
 
       const almostIdleMs = AUTO_SAVE_DEBOUNCE_MS - 100
       await act(async () => { vi.advanceTimersByTime(almostIdleMs) })
-      expect(mockInvokeFn).not.toHaveBeenCalled()
+      expect(callWebBackendFn).not.toHaveBeenCalled()
 
       // New edit resets timer
       act(() => { result.current.handleContentChange('/test/note.md', 'v2') })
 
       await act(async () => { vi.advanceTimersByTime(almostIdleMs) })
-      expect(mockInvokeFn).not.toHaveBeenCalled()
+      expect(callWebBackendFn).not.toHaveBeenCalled()
 
       await act(async () => { vi.advanceTimersByTime(100) })
-      expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+      expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
         path: '/test/note.md',
         content: 'v2',
       })
@@ -437,7 +433,7 @@ describe('useEditorSave', () => {
 
     it('auto-save reports invalid path failures and leaves content retryable', async () => {
       const path = 'C:\\Users\\@raflymln\\notes\\untitled-note-1777236475.md'
-      mockInvokeFn.mockRejectedValueOnce(new Error('The filename, directory name, or volume label syntax is incorrect. (os error 123)'))
+      callWebBackendFn.mockRejectedValueOnce(new Error('The filename, directory name, or volume label syntax is incorrect. (os error 123)'))
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const { result } = renderHook(() =>
         useEditorSave({ updateVaultContent, setTabs, setToastMessage })
@@ -453,7 +449,7 @@ describe('useEditorSave', () => {
 
       await act(async () => { await result.current.handleSave() })
 
-      expect(mockInvokeFn).toHaveBeenLastCalledWith('save_note_content', {
+      expect(callWebBackendFn).toHaveBeenLastCalledWith('save_note_content', {
         path,
         content: 'draft from auto-save',
       })
@@ -471,11 +467,11 @@ describe('useEditorSave', () => {
       // Cmd+S before debounce fires
       await act(async () => { await result.current.handleSave() })
 
-      expect(mockInvokeFn).toHaveBeenCalledTimes(1)
+      expect(callWebBackendFn).toHaveBeenCalledTimes(1)
       expect(setToastMessage).toHaveBeenCalledWith('Saved')
 
       await act(async () => { vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS) })
-      expect(mockInvokeFn).toHaveBeenCalledTimes(1)
+      expect(callWebBackendFn).toHaveBeenCalledTimes(1)
     })
 
     it('auto-save calls onAfterSave', async () => {
@@ -500,7 +496,7 @@ describe('useEditorSave', () => {
 
       await act(async () => { vi.advanceTimersByTime(AUTO_SAVE_DEBOUNCE_MS) })
       // Should not save after unmount
-      expect(mockInvokeFn).not.toHaveBeenCalled()
+      expect(callWebBackendFn).not.toHaveBeenCalled()
     })
   })
 
@@ -514,7 +510,7 @@ describe('useEditorSave', () => {
     await act(async () => {
       await result.current.handleSave()
     })
-    expect(mockInvokeFn).toHaveBeenLastCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenLastCalledWith('save_note_content', {
       path: '/vault/note.md',
       content: 'version 1',
     })
@@ -526,7 +522,7 @@ describe('useEditorSave', () => {
     await act(async () => {
       await result.current.handleSave()
     })
-    expect(mockInvokeFn).toHaveBeenLastCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenLastCalledWith('save_note_content', {
       path: '/vault/note.md',
       content: 'version 2',
     })

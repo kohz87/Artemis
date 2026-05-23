@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { shouldHideGitignoredFiles } from '../lib/gitignoredVisibility'
 import {
   notifyGitignoredVisibilityChanged,
@@ -10,24 +9,6 @@ import { normalizeReleaseChannel, serializeReleaseChannel } from '../lib/release
 import { normalizeThemeMode } from '../lib/themeMode'
 import type { Settings } from '../types'
 import { normalizeNoteWidthMode } from '../utils/noteWidth'
-
-async function invokeNativeIfAvailable<T>(command: string, tauriArgs: Record<string, unknown>): Promise<T | undefined> {
-  try {
-    return await invoke<T>(command, tauriArgs)
-  } catch (err) {
-    if (isTauri()) throw err
-    return undefined
-  }
-}
-
-async function tauriCall<T>(command: string, tauriArgs: Record<string, unknown>, mockArgs?: Record<string, unknown>): Promise<T> {
-  if (isTauri()) return invoke<T>(command, tauriArgs)
-
-  const nativeResult = await invokeNativeIfAvailable<T>(command, tauriArgs)
-  if (nativeResult !== undefined) return nativeResult
-
-  return mockInvoke<T>(command, mockArgs ?? tauriArgs)
-}
 
 const EMPTY_SETTINGS: Settings = {
   auto_pull_interval_minutes: null,
@@ -93,7 +74,7 @@ export function useSettings() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const s = await tauriCall<Settings>('get_settings', {})
+      const s = await callWebBackend<Settings>('get_settings', {})
       setSettings(normalizeSettings(s))
     } catch (err) {
       console.warn('Failed to load settings:', err)
@@ -110,7 +91,7 @@ export function useSettings() {
     const previousHideGitignored = shouldHideGitignoredFiles(settings)
     const normalizedSettings = normalizeSettings(newSettings)
     try {
-      await tauriCall<null>('save_settings', { settings: normalizedSettings })
+      await callWebBackend<null>('save_settings', { settings: normalizedSettings })
       setSettings(normalizedSettings)
       const nextHideGitignored = shouldHideGitignoredFiles(normalizedSettings)
       if (previousHideGitignored !== nextHideGitignored) {

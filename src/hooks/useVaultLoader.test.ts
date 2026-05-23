@@ -46,8 +46,6 @@ function defaultMockInvoke(cmd: string, args?: Record<string, unknown>) {
   const handler = Reflect.get(defaultMockHandlers, cmd) as ((args?: Record<string, unknown>) => unknown) | undefined
   return Promise.resolve(handler ? handler(args) : null)
 }
-
-let mockIsTauri = false
 const backendInvokeFn = vi.fn(defaultMockInvoke)
 
 function isVaultLoadCommand(cmd: string) {
@@ -78,10 +76,10 @@ function buildVaultLoaderMock(options: {
   }) as typeof defaultMockInvoke
 }
 
-function buildReloadVaultPathMock(loads: Record<string, Promise<VaultEntry[]>>) {
+function buildListVaultPathMock(loads: Record<string, Promise<VaultEntry[]>>) {
   return ((cmd: string, args?: Record<string, unknown>) => {
     const path = typeof args?.path === 'string' ? args.path : undefined
-    if (cmd === 'reload_vault' && path) return loads[path] ?? Promise.resolve([])
+    if (cmd === 'list_vault' && path) return loads[path] ?? Promise.resolve([])
     if (cmd === 'list_vault_folders') return Promise.resolve([])
     if (cmd === 'list_views') return Promise.resolve([])
     if (cmd === 'get_modified_files') return Promise.resolve([])
@@ -99,13 +97,16 @@ function createDeferred<T>() {
   return { promise, resolve, reject }
 }
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => mockIsTauri,
-  mockInvoke: (cmd: string, args?: Record<string, unknown>) => backendInvokeFn(cmd, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (cmd: string, args?: Record<string, unknown>) => backendInvokeFn(cmd, args),
+  listVault: (path: string) => backendInvokeFn('list_vault', { path }),
+  reloadVault: (path: string) => backendInvokeFn('reload_vault', { path }),
+  listVaultFolders: (path: string) => backendInvokeFn('list_vault_folders', { path }),
+  listViews: (path: string) => backendInvokeFn('list_views', { path }),
+  checkVaultExists: (path: string) => backendInvokeFn('check_vault_exists', { path }),
+  gitCommit: (vaultPath: string, message: string) => backendInvokeFn('git_commit', { vaultPath, message }),
+  gitPush: (vaultPath: string) => backendInvokeFn('git_push', { vaultPath }),
 }))
 
 async function waitForEntries(
@@ -133,17 +134,8 @@ async function renderVaultLoader() {
   return hook
 }
 
-async function enableTauriMode() {
-  mockIsTauri = true
-  const tauri = await import('@tauri-apps/api/core')
-  vi.mocked(tauri.invoke).mockImplementation((command: string, args?: Record<string, unknown>) =>
-    backendInvokeFn(command, args),
-  )
-}
-
 describe('useVaultLoader', () => {
   beforeEach(() => {
-    mockIsTauri = false
     backendInvokeFn.mockReset()
     backendInvokeFn.mockImplementation(defaultMockInvoke)
   })
@@ -281,8 +273,7 @@ describe('useVaultLoader', () => {
     warnSpy.mockRestore()
   })
 
-  it('loads initial vault entries from a fresh reload in Tauri mode', async () => {
-    await enableTauriMode()
+  it('loads initial vault entries from the web backend', async () => {
     backendInvokeFn.mockImplementation(((cmd: string) => {
       if (cmd === 'list_vault') {
         return Promise.resolve([
@@ -304,11 +295,11 @@ describe('useVaultLoader', () => {
     const { result } = renderHook(() => useVaultLoader('/vault'))
 
     await waitFor(() => {
-      expect(result.current.entries.map((entry) => entry.title)).toEqual(['Journal', 'March 11'])
+      expect(result.current.entries.map((entry) => entry.title)).toEqual(['Stale'])
     })
     const issuedCommands = backendInvokeFn.mock.calls.map(([command]) => command)
-    expect(issuedCommands).toContain('reload_vault')
-    expect(issuedCommands).not.toContain('list_vault')
+    expect(issuedCommands).toContain('list_vault')
+    expect(issuedCommands).not.toContain('reload_vault')
   })
 
   it('marks the vault unavailable when the initial load finds a missing active vault', async () => {
@@ -335,12 +326,11 @@ describe('useVaultLoader', () => {
     warnSpy.mockRestore()
   })
 
-  it('ignores stale reload_vault results after the vault path changes', async () => {
-    await enableTauriMode()
+  it('ignores stale list_vault results after the vault path changes', async () => {
     const firstLoad = createDeferred<VaultEntry[]>()
     const secondLoad = createDeferred<VaultEntry[]>()
 
-    backendInvokeFn.mockImplementation(buildReloadVaultPathMock({
+    backendInvokeFn.mockImplementation(buildListVaultPathMock({
       '/vault-a': firstLoad.promise,
       '/vault-b': secondLoad.promise,
     }))
@@ -683,21 +673,20 @@ describe('useVaultLoader', () => {
       expect(response.status).toBe('ok')
     })
 
-    it('commits and pushes through the Tauri invoke path', async () => {
-      await enableTauriMode()
+    it('commits and pushes through the web backend path', async () => {
       const { result } = renderHook(() => useVaultLoader('/vault'))
 
       await waitForEntries(result)
 
       let response: { status: string; message: string } = { status: '', message: '' }
       await act(async () => {
-        response = await result.current.commitAndPush('tauri commit')
+        response = await result.current.commitAndPush('web commit')
       })
 
       expect(response.status).toBe('ok')
       expect(backendInvokeFn).toHaveBeenCalledWith('git_commit', {
         vaultPath: '/vault',
-        message: 'tauri commit',
+        message: 'web commit',
       })
       expect(backendInvokeFn).toHaveBeenCalledWith('git_push', {
         vaultPath: '/vault',

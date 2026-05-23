@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { invoke } from '@tauri-apps/api/core'
 import type { Settings } from '../types'
 import {
   GITIGNORED_VISIBILITY_CHANGED_EVENT,
@@ -54,7 +53,7 @@ const savedSettings: Settings = {
 
 let mockSettingsStore: Settings = { ...defaultSettings }
 
-const mockInvokeFn = vi.fn((cmd: string, args?: Record<string, unknown>): Promise<unknown> => {
+const callWebBackendFn = vi.fn((cmd: string, args?: Record<string, unknown>): Promise<unknown> => {
   if (cmd === 'get_settings') return Promise.resolve({ ...mockSettingsStore })
   if (cmd === 'save_settings') {
     mockSettingsStore = { ...(args as { settings: Settings }).settings }
@@ -63,15 +62,8 @@ const mockInvokeFn = vi.fn((cmd: string, args?: Record<string, unknown>): Promis
   return Promise.resolve(null)
 })
 
-const nativeInvoke = vi.mocked(invoke)
-
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
-
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (cmd: string, args?: Record<string, unknown>) => mockInvokeFn(cmd, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (cmd: string, args?: Record<string, unknown>) => callWebBackendFn(cmd, args),
 }))
 
 async function renderLoadedSettings(): Promise<Settings> {
@@ -111,11 +103,10 @@ describe('useSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSettingsStore = { ...defaultSettings }
-    nativeInvoke.mockResolvedValue(undefined)
   })
 
   it('returns empty settings initially', () => {
-    mockInvokeFn.mockImplementationOnce(() => new Promise(() => {}))
+    callWebBackendFn.mockImplementationOnce(() => new Promise(() => {}))
 
     const { result, unmount } = renderHook(() => useSettings())
     expect(result.current.settings).toEqual(defaultSettings)
@@ -132,17 +123,9 @@ describe('useSettings', () => {
     })
 
     expect(result.current.settings.auto_pull_interval_minutes).toBe(15)
-    expect(mockInvokeFn).toHaveBeenCalledWith('get_settings', {})
+    expect(callWebBackendFn).toHaveBeenCalledWith('get_settings', {})
   })
 
-  it('loads settings from native invoke when Tauri globals are not detectable', async () => {
-    nativeInvoke.mockResolvedValueOnce({ ...savedSettings, ui_language: 'zh-Hans' })
-
-    const settings = await renderLoadedSettings()
-
-    expect(settings.ui_language).toBeNull()
-    expect(mockInvokeFn).not.toHaveBeenCalledWith('get_settings', {})
-  })
 
   it('normalizes a legacy beta release channel back to stable on load', async () => {
     mockSettingsStore = {
@@ -187,7 +170,7 @@ describe('useSettings', () => {
       await result.current.saveSettings(newSettings)
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_settings', { settings: newSettings })
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_settings', { settings: newSettings })
     expect(result.current.settings).toEqual(newSettings)
   })
 
@@ -250,30 +233,10 @@ describe('useSettings', () => {
     window.removeEventListener(GITIGNORED_VISIBILITY_CHANGED_EVENT, listener)
   })
 
-  it('saves settings through native invoke when Tauri globals are not detectable', async () => {
-    const { result } = renderHook(() => useSettings())
-
-    await waitFor(() => {
-      expect(result.current.loaded).toBe(true)
-    })
-
-    const newSettings = changedSettings()
-
-    vi.clearAllMocks()
-    nativeInvoke.mockResolvedValueOnce(null)
-
-    await act(async () => {
-      await result.current.saveSettings(newSettings)
-    })
-
-    expect(nativeInvoke).toHaveBeenCalledWith('save_settings', { settings: newSettings })
-    expect(mockInvokeFn).not.toHaveBeenCalled()
-    expect(result.current.settings).toEqual(newSettings)
-  })
 
   it('handles load error gracefully', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mockInvokeFn.mockImplementationOnce(() => Promise.reject(new Error('no config')))
+    callWebBackendFn.mockImplementationOnce(() => Promise.reject(new Error('no config')))
 
     const { result } = renderHook(() => useSettings())
 
@@ -294,7 +257,7 @@ describe('useSettings', () => {
       expect(result.current.loaded).toBe(true)
     })
 
-    mockInvokeFn.mockImplementationOnce(() => Promise.reject(new Error('write failed')))
+    callWebBackendFn.mockImplementationOnce(() => Promise.reject(new Error('write failed')))
 
     await act(async () => {
       await result.current.saveSettings(savedSettings)

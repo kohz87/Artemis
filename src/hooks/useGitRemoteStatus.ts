@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { GitRemoteStatus } from '../types'
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 export interface GitRemoteState {
@@ -13,7 +12,7 @@ export interface GitRemoteState {
 }
 
 async function readRemoteStatus(vaultPath: string): Promise<GitRemoteStatus> {
-  return tauriCall<GitRemoteStatus>('git_remote_status', { vaultPath })
+  return webCommand<GitRemoteStatus>('git_remote_status', { vaultPath })
 }
 
 export function useGitRemoteStatus(vaultPath: string): GitRemoteState {

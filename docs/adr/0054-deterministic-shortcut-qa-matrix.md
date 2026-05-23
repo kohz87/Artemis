@@ -2,7 +2,8 @@
 type: ADR
 id: "0054"
 title: "Deterministic shortcut QA matrix"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-11
 ---
 

@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import type {
   ProbeResult,
@@ -61,20 +60,16 @@ export function resolveMountCounts(targetCount: number, batchSize: number): numb
 }
 
 export async function readMemorySnapshot(): Promise<ProcessMemorySnapshot | null> {
-  if (!isTauri()) return null
-  return invoke<ProcessMemorySnapshot>('get_process_memory_snapshot')
+  return null
 }
 
 export async function loadProbeTarget(entry: VaultEntry): Promise<ProbeTarget> {
-  const content = await invoke<string>('get_note_content', { path: entry.path })
+  const content = await callWebBackend<string>('get_note_content', { path: entry.path })
   return { entry, content }
 }
 
 export async function copyProbeResult(result: ProbeResult): Promise<void> {
-  if (!isTauri()) return
-  await invoke('copy_text_to_clipboard', {
-    text: JSON.stringify(result, null, 2),
-  })
+  await navigator.clipboard?.writeText(JSON.stringify(result, null, 2))
 }
 
 export function settleAfterMount(settleMs: number): Promise<void> {

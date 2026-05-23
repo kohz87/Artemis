@@ -17,10 +17,6 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-vi.mock('@tauri-apps/api/core', () => ({
-  convertFileSrc: vi.fn((path: string) => `asset://localhost/${encodeURIComponent(path)}`),
-  invoke: vi.fn(),
-}))
 
 // Hoisted mock editor — available before vi.mock factory runs.
 // Tests can reconfigure spies (e.g. mockTryParse.mockResolvedValue) before rendering.
@@ -244,14 +240,6 @@ describe('Editor', () => {
     renderEditor()
     expect(screen.getByText('Select a note to start editing')).toBeInTheDocument()
     expect(screen.queryByText(/to search/)).not.toBeInTheDocument()
-  })
-
-  it('renders an invisible drag region in the empty state', () => {
-    const { container } = renderEditor()
-    const dragRegion = container.querySelector('[data-testid="editor-empty-state-drag-region"]')
-
-    expect(dragRegion).toHaveAttribute('data-tauri-drag-region')
-    expect(dragRegion).toHaveAttribute('aria-hidden', 'true')
   })
 
   it.each([

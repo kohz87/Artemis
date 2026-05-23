@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { createFixtureVaultCopy, openFixtureVaultWebHarness, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 import { seedBlockNoteTable, triggerMenuCommand } from './testBridge'
 
 let tempVaultDir: string
@@ -49,7 +49,7 @@ test.describe('table cell paste regression', () => {
     const errors = trackUnexpectedErrors(page)
 
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-    await openFixtureVaultTauri(page, tempVaultDir)
+    await openFixtureVaultWebHarness(page, tempVaultDir)
     await createUntitledNote(page)
     await seedBlockNoteTable(page, [180, 120, 120])
 

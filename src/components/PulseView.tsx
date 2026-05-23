@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo, type KeyboardEvent } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { cn } from '@/lib/utils'
-import { isTauri, mockInvoke } from '../mock-tauri'
-import { useDragRegion } from '../hooks/useDragRegion'
+import { callWebBackend } from '../backend/client'
 import type { PulseCommit, PulseFile } from '../types'
 import { relativeDate } from '../utils/noteListHelpers'
 import { openExternalUrl } from '../utils/url'
@@ -12,8 +10,8 @@ import {
   FileText, CaretDown, CaretRight, Pulse,
 } from '@phosphor-icons/react'
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 interface PulseViewProps {
@@ -262,13 +260,11 @@ function PulseHeader({
   onExpandSidebar,
   locale = 'en',
 }: Pick<PulseViewProps, 'sidebarCollapsed' | 'onExpandSidebar' | 'locale'>) {
-  const { onMouseDown } = useDragRegion()
 
   return (
     <div
       className="flex shrink-0 items-center justify-between border-b border-border"
       style={{ height: 52, padding: '0 16px', cursor: 'default' }}
-      onMouseDown={onMouseDown}
       data-testid="pulse-header"
     >
       <div className="flex items-center" style={{ gap: 8 }}>
@@ -393,7 +389,7 @@ export const PulseView = memo(function PulseView({ vaultPath, onOpenNote, sideba
     setSkip(0)
     setHasMore(true)
     try {
-      const result = await tauriCall<PulseCommit[]>('get_vault_pulse', { vaultPath, limit: PAGE_SIZE, skip: 0 })
+      const result = await webCommand<PulseCommit[]>('get_vault_pulse', { vaultPath, limit: PAGE_SIZE, skip: 0 })
       setCommits(result)
       setHasMore(result.length >= PAGE_SIZE)
       setSkip(result.length)
@@ -410,7 +406,7 @@ export const PulseView = memo(function PulseView({ vaultPath, onOpenNote, sideba
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
     try {
-      const result = await tauriCall<PulseCommit[]>('get_vault_pulse', { vaultPath, limit: PAGE_SIZE, skip })
+      const result = await webCommand<PulseCommit[]>('get_vault_pulse', { vaultPath, limit: PAGE_SIZE, skip })
       setCommits((prev) => [...prev, ...result])
       setHasMore(result.length >= PAGE_SIZE)
       setSkip((s) => s + result.length)

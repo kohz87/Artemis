@@ -3,8 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { useViewMode } from './useViewMode'
 import { bindVaultConfigStore, getVaultConfig, resetVaultConfigStore } from '../utils/vaultConfigStore'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
+vi.mock('../backend/client', () => ({
 }))
 
 describe('useViewMode', () => {

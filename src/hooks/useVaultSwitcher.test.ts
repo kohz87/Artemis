@@ -8,7 +8,7 @@ const expectedDefaultVaultPath = DEFAULT_VAULTS[0].path || mockDefaultVaultPath
 
 let mockVaultListStore: PersistedVaultList = { vaults: [], active_vault: null, hidden_defaults: [] }
 
-const mockInvokeFn = vi.fn((cmd: string, args?: Record<string, unknown>): Promise<unknown> => {
+const callWebBackendFn = vi.fn((cmd: string, args?: Record<string, unknown>): Promise<unknown> => {
   if (cmd === 'load_vault_list') return Promise.resolve({ ...mockVaultListStore })
   if (cmd === 'save_vault_list') {
     mockVaultListStore = { ...(args as { list: PersistedVaultList }).list }
@@ -19,13 +19,9 @@ const mockInvokeFn = vi.fn((cmd: string, args?: Record<string, unknown>): Promis
   return Promise.resolve(null)
 })
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (cmd: string, args?: Record<string, unknown>) => mockInvokeFn(cmd, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (cmd: string, args?: Record<string, unknown>) => callWebBackendFn(cmd, args),
 }))
 
 vi.mock('../utils/vault-dialog', async (importOriginal) => {
@@ -52,7 +48,7 @@ describe('useVaultSwitcher', () => {
   const onToast = vi.fn()
 
   const setMockInvokeBehavior = (overrides: MockInvokeOverrides = {}) => {
-    mockInvokeFn.mockImplementation((cmd: string, args?: Record<string, unknown>): Promise<unknown> => {
+    callWebBackendFn.mockImplementation((cmd: string, args?: Record<string, unknown>): Promise<unknown> => {
       if (cmd === 'load_vault_list') return Promise.resolve({ ...mockVaultListStore })
       if (cmd === 'save_vault_list') {
         mockVaultListStore = { ...(args as { list: PersistedVaultList }).list }
@@ -121,7 +117,7 @@ describe('useVaultSwitcher', () => {
     expect(result.current.allVaults[1].path).toBe('/Users/luca/Laputa')
     expect(result.current.allVaults[1].available).toBe(true)
     expect(result.current.vaultPath).toBe('/Users/luca/Laputa')
-    expect(mockInvokeFn).toHaveBeenCalledWith('load_vault_list', {})
+    expect(callWebBackendFn).toHaveBeenCalledWith('load_vault_list', {})
   })
 
   it('marks unavailable vaults when check_vault_exists returns false', async () => {
@@ -150,7 +146,7 @@ describe('useVaultSwitcher', () => {
     })
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('save_vault_list', expect.objectContaining({
+      expect(callWebBackendFn).toHaveBeenCalledWith('save_vault_list', expect.objectContaining({
         list: expect.objectContaining({
           vaults: expect.arrayContaining([
             expect.objectContaining({ label: 'Cloned', path: '/cloned/vault' }),
@@ -212,7 +208,7 @@ describe('useVaultSwitcher', () => {
     })
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('save_vault_list', expect.objectContaining({
+      expect(callWebBackendFn).toHaveBeenCalledWith('save_vault_list', expect.objectContaining({
         list: expect.objectContaining({
           active_vault: '/work/vault',
         }),
@@ -293,7 +289,7 @@ describe('useVaultSwitcher', () => {
 
   it('handles load error gracefully', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    mockInvokeFn.mockImplementation((cmd: string) => {
+    callWebBackendFn.mockImplementation((cmd: string) => {
       if (cmd === 'load_vault_list') return Promise.reject(new Error('disk error'))
       if (cmd === 'get_default_vault_path') return Promise.resolve(mockDefaultVaultPath)
       if (cmd === 'check_vault_exists') return Promise.resolve(true)
@@ -367,7 +363,7 @@ describe('useVaultSwitcher', () => {
       await result.current.handleCreateEmptyVault()
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('create_empty_vault', { targetPath: '/Users/luca/New Vault' })
+    expect(callWebBackendFn).toHaveBeenCalledWith('create_empty_vault', { targetPath: '/Users/luca/New Vault' })
     expect(result.current.vaultPath).toBe('/Users/luca/New Vault')
     expect(result.current.allVaults.some(v => v.path === '/Users/luca/New Vault')).toBe(true)
     expect(onToast).toHaveBeenCalledWith('Vault "New Vault" created and opened')
@@ -477,7 +473,7 @@ describe('useVaultSwitcher', () => {
       })
 
       await waitFor(() => {
-        expect(mockInvokeFn).toHaveBeenCalledWith('save_vault_list', expect.objectContaining({
+        expect(callWebBackendFn).toHaveBeenCalledWith('save_vault_list', expect.objectContaining({
           list: expect.objectContaining({
             hidden_defaults: [DEFAULT_VAULTS[0].path],
           }),
@@ -530,8 +526,8 @@ describe('useVaultSwitcher', () => {
         await result.current.restoreGettingStarted()
       })
 
-      expect(mockInvokeFn).toHaveBeenCalledWith('check_vault_exists', { path: expectedDefaultVaultPath })
-      expect(mockInvokeFn).toHaveBeenCalledWith('create_getting_started_vault', { targetPath: expectedDefaultVaultPath })
+      expect(callWebBackendFn).toHaveBeenCalledWith('check_vault_exists', { path: expectedDefaultVaultPath })
+      expect(callWebBackendFn).toHaveBeenCalledWith('create_getting_started_vault', { targetPath: expectedDefaultVaultPath })
     })
 
     it('shows a friendly toast and keeps the hidden vault hidden when cloning fails', async () => {

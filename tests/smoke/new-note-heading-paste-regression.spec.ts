@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { test, expect, type Page } from '@playwright/test'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { createFixtureVaultCopy, openFixtureVaultWebHarness, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 import { triggerMenuCommand } from './testBridge'
 
 const EDITOR_CRASH_FRAGMENTS = [
@@ -112,7 +112,7 @@ let tempVaultDir: string
 test.beforeEach(async ({ page }, testInfo) => {
   testInfo.setTimeout(90_000)
   tempVaultDir = createFixtureVaultCopy()
-  await openFixtureVaultTauri(page, tempVaultDir)
+  await openFixtureVaultWebHarness(page, tempVaultDir)
 })
 
 test.afterEach(async () => {

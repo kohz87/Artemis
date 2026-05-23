@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { SearchResult } from '../types'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { GITIGNORED_VISIBILITY_CHANGED_EVENT } from '../lib/gitignoredVisibilityEvents'
 
 interface SearchResultData {
@@ -20,9 +19,7 @@ interface SearchResponseData {
 const DEBOUNCE_MS = 300
 
 function searchCall(args: Record<string, unknown>): Promise<SearchResponseData> {
-  return isTauri()
-    ? invoke<SearchResponseData>('search_vault', args)
-    : mockInvoke<SearchResponseData>('search_vault', args)
+  return callWebBackend<SearchResponseData>('search_vault', args)
 }
 
 function mapResults(raw: SearchResultData[]): SearchResult[] {

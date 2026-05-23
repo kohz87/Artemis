@@ -5,7 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import './index.css'
 import App from './App.tsx'
 import { FrontendReadyMarker } from './components/FrontendReadyMarker'
-import { LinuxTitlebar } from './components/LinuxTitlebar'
+
 import { GlobalEventListeners } from './components/GlobalEventListeners'
 import { installGlobalEventListeners } from './components/installGlobalEventListeners'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -53,11 +53,6 @@ window.__laputaTest = {
   async triggerMenuCommand(id: string) {
     if (!isNativeMenuCommandId(id)) {
       throw new Error(`Unknown native menu command: ${id}`)
-    }
-
-    if ('__TAURI__' in window || '__TAURI_INTERNALS__' in window) {
-      const { invoke } = await import('@tauri-apps/api/core')
-      return invoke('trigger_menu_command', { id })
     }
 
     if (!window.__laputaTest?.dispatchBrowserMenuCommand) {
@@ -151,7 +146,7 @@ createRoot(document.getElementById('root')!, {
     <TooltipProvider>
       <RootErrorBoundary>
         <GlobalEventListeners />
-        <LinuxTitlebar />
+
         <ProtectedRoute>
           <App />
         </ProtectedRoute>

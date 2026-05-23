@@ -2,14 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AddRemoteModal } from './AddRemoteModal'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: vi.fn(),
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn(),
 }))
 
-import { mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
-const mockInvokeFn = vi.mocked(mockInvoke)
+const callWebBackendFn = vi.mocked(callWebBackend)
 
 describe('AddRemoteModal', () => {
   const onClose = vi.fn()
@@ -17,7 +16,7 @@ describe('AddRemoteModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       status: 'connected',
       message: 'Remote connected. This vault now tracks origin/main.',
     })
@@ -107,7 +106,7 @@ describe('AddRemoteModal', () => {
     fireEvent.click(screen.getByTestId('add-remote-submit'))
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('git_add_remote', {
+      expect(callWebBackendFn).toHaveBeenCalledWith('git_add_remote', {
         request: {
           vaultPath: '/vault',
           remoteUrl: 'git@github.com:user/my-vault.git',
@@ -120,7 +119,7 @@ describe('AddRemoteModal', () => {
   })
 
   it('shows backend validation errors without closing the modal', async () => {
-    mockInvokeFn.mockResolvedValueOnce({
+    callWebBackendFn.mockResolvedValueOnce({
       status: 'incompatible_history',
       message: 'This repository has unrelated history.',
     })

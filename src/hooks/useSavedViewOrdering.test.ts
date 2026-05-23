@@ -3,15 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SidebarSelection, ViewFile } from '../types'
 import { useSavedViewOrdering } from './useSavedViewOrdering'
 
-const mockInvokeFn = vi.fn()
+const callWebBackendFn = vi.fn()
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvokeFn(...args),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 function makeView(filename: string, name: string, order: number): ViewFile {
@@ -51,8 +47,8 @@ function renderOrdering(selection: SidebarSelection = { kind: 'view', filename: 
 
 describe('useSavedViewOrdering', () => {
   beforeEach(() => {
-    mockInvokeFn.mockReset()
-    mockInvokeFn.mockResolvedValue(null)
+    callWebBackendFn.mockReset()
+    callWebBackendFn.mockResolvedValue(null)
   })
 
   it('persists a dense order when moving a saved view', async () => {
@@ -62,12 +58,12 @@ describe('useSavedViewOrdering', () => {
       await result.current.onMoveView('beta.yml', 'up')
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_view_cmd', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_view_cmd', {
       vaultPath: '/vault',
       filename: 'beta.yml',
       definition: expect.objectContaining({ name: 'Beta', order: 0 }),
     })
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_view_cmd', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_view_cmd', {
       vaultPath: '/vault',
       filename: 'alpha.yml',
       definition: expect.objectContaining({ name: 'Alpha', order: 1 }),
@@ -93,7 +89,7 @@ describe('useSavedViewOrdering', () => {
       await result.current.onReorderViews(['alpha.yml', 'alpha.yml', 'gamma.yml'])
     })
 
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
     expect(reloadViews).not.toHaveBeenCalled()
   })
 })

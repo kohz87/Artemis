@@ -228,7 +228,7 @@ describe('countWords', () => {
       'notion_id: 63aeb735-e6f4-4a32-b7b6-d34276a26dee',
       'status: Active',
       'owner: Luca Rossi',
-      'tags: [Tauri, React, TypeScript]',
+      'tags: [desktop, React, TypeScript]',
       'belongs_to:',
       '  - "[[quarter/q1-2026]]"',
       'related_to:',

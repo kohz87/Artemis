@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../../mock-tauri'
+import { callWebBackend } from '../../backend/client'
 import type { SidebarSelection, VaultEntry } from '../../types'
 
 export interface FolderRenameResult {
@@ -62,17 +61,11 @@ export async function invokeRenameFolder(params: {
   folderPath: string
   newName: string
 }): Promise<FolderRenameResult> {
-  if (isTauri()) {
-    return invoke<FolderRenameResult>('rename_vault_folder', params)
-  }
-  return mockInvoke<FolderRenameResult>('rename_vault_folder', params)
+  return callWebBackend<FolderRenameResult>('rename_vault_folder', params)
 }
 
 export async function invokeDeleteFolder(params: { vaultPath: string; folderPath: string }): Promise<string> {
-  if (isTauri()) {
-    return invoke<string>('delete_vault_folder', params)
-  }
-  return mockInvoke<string>('delete_vault_folder', params)
+  return callWebBackend<string>('delete_vault_folder', params)
 }
 
 export function updateSelectionAfterFolderRename(params: {

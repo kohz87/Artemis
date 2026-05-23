@@ -2,14 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CloneVaultModal } from './CloneVaultModal'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: vi.fn(),
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn(),
 }))
 
-import { mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
-const mockInvokeFn = vi.mocked(mockInvoke)
+const callWebBackendFn = vi.mocked(callWebBackend)
 
 describe('CloneVaultModal', () => {
   const onClose = vi.fn()
@@ -17,7 +16,7 @@ describe('CloneVaultModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockInvokeFn.mockResolvedValue('Cloned successfully')
+    callWebBackendFn.mockResolvedValue('Cloned successfully')
   })
 
   it('renders nothing when not open', () => {
@@ -63,7 +62,7 @@ describe('CloneVaultModal', () => {
     fireEvent.click(screen.getByTestId('clone-vault-submit'))
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('clone_git_repo', {
+      expect(callWebBackendFn).toHaveBeenCalledWith('clone_git_repo', {
         url: 'git@github.com:user/my-vault.git',
         localPath: '/root/git/my-vault',
       })
@@ -74,7 +73,7 @@ describe('CloneVaultModal', () => {
   })
 
   it('shows the backend error when cloning fails', async () => {
-    mockInvokeFn.mockRejectedValueOnce(new Error('Permission denied'))
+    callWebBackendFn.mockRejectedValueOnce(new Error('Permission denied'))
 
     render(<CloneVaultModal open={true} onClose={onClose} onVaultCloned={onVaultCloned} />)
 
@@ -93,7 +92,7 @@ describe('CloneVaultModal', () => {
 
   it('keeps progress visible while the clone request is pending', async () => {
     let resolveClone: ((value: string) => void) | null = null
-    mockInvokeFn.mockReturnValueOnce(new Promise((resolve) => {
+    callWebBackendFn.mockReturnValueOnce(new Promise((resolve) => {
       resolveClone = resolve
     }))
 
@@ -116,7 +115,7 @@ describe('CloneVaultModal', () => {
 
   it('submits with Enter and blocks overlapping clone attempts while pending', async () => {
     let resolveClone: ((value: string) => void) | null = null
-    mockInvokeFn.mockReturnValueOnce(new Promise((resolve) => {
+    callWebBackendFn.mockReturnValueOnce(new Promise((resolve) => {
       resolveClone = resolve
     }))
 
@@ -130,7 +129,7 @@ describe('CloneVaultModal', () => {
     fireEvent.submit(screen.getByTestId('clone-vault-form'))
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledTimes(1)
+      expect(callWebBackendFn).toHaveBeenCalledTimes(1)
     })
 
     expect(screen.getByTestId('clone-repo-url')).toBeDisabled()

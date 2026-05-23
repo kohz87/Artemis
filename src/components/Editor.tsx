@@ -11,7 +11,6 @@ import type { FrontmatterValue } from './Inspector'
 import { ResizeHandle } from './ResizeHandle'
 import { useDiffMode, type CommitDiffRequest } from '../hooks/useDiffMode'
 import { useEditorFocus } from '../hooks/useEditorFocus'
-import { useDragRegion } from '../hooks/useDragRegion'
 import { EditorRightPanel } from './EditorRightPanel'
 import { EditorContent } from './EditorContent'
 import { EditorMemoryProbe } from './EditorMemoryProbe'
@@ -133,16 +132,13 @@ function useEditorModeExclusion({
 
 function EditorEmptyState({ locale = 'en' }: { locale?: AppLocale }) {
   const breadcrumbBarHeight = 52
-  const { onMouseDown } = useDragRegion()
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div
         aria-hidden="true"
-        data-tauri-drag-region
         data-testid="editor-empty-state-drag-region"
         className="shrink-0"
-        onMouseDown={onMouseDown}
         style={{ height: breadcrumbBarHeight }}
       />
       <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
@@ -177,7 +173,7 @@ function useEditorSetup({
 
   const editor = useCreateBlockNote({
     schema,
-    uploadFile: (file: File) => uploadImageFile(file, vaultPathRef.current),
+    uploadFile: (file: File) => uploadImageFile(file),
     _tiptapOptions: { injectNonce: RUNTIME_STYLE_NONCE },
     extensions: [createArrowLigaturesExtension(), createMathInputExtension()],
   })

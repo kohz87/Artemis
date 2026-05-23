@@ -3,7 +3,6 @@ import {
   APP_COMMAND_IDS,
   dispatchAppCommand,
   executeAppCommand,
-  findShortcutCommandId,
   findShortcutCommandIdForEvent,
   isAppCommandId,
   isNativeMenuCommandId,

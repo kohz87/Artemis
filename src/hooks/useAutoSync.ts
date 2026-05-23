@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { GitPullResult, GitPushResult, GitRemoteStatus, LastCommitInfo, SyncStatus } from '../types'
 import { trackEvent } from '../lib/telemetry'
 
@@ -13,8 +12,8 @@ type MaybePromise = void | Promise<void>
 
 type SyncCallbacks = Pick<UseAutoSyncOptions, 'onVaultUpdated' | 'onSyncUpdated' | 'onConflict' | 'onToast'>
 
-function tauriCall<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(cmd, args) : mockInvoke<T>(cmd, args)
+function webCommand<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(cmd, args)
 }
 
 interface UseAutoSyncOptions {
@@ -95,7 +94,7 @@ function useRemoteStatusRefresher(
 ) {
   return useCallback(async () => {
     try {
-      const status = await tauriCall<GitRemoteStatus>('git_remote_status', { vaultPath })
+      const status = await webCommand<GitRemoteStatus>('git_remote_status', { vaultPath })
       setRemoteStatus(status)
       return status
     } catch {
@@ -112,7 +111,7 @@ function useConflictChecker(
 ) {
   return useCallback(async (): Promise<boolean> => {
     try {
-      const files = await tauriCall<string[]>('get_conflict_files', { vaultPath })
+      const files = await webCommand<string[]>('get_conflict_files', { vaultPath })
       if (!Array.isArray(files) || files.length === 0) return false
       setConflictState(files, setSyncStatus, setConflictFiles, callbacksRef)
       return true
@@ -127,7 +126,7 @@ function useCommitInfoRefresher(
   setLastCommitInfo: SyncSetState<LastCommitInfo | null>,
 ) {
   return useCallback(() => {
-    tauriCall<LastCommitInfo | null>('get_last_commit_info', { vaultPath })
+    webCommand<LastCommitInfo | null>('get_last_commit_info', { vaultPath })
       .then(info => setLastCommitInfo(info))
       .catch((err) => console.warn('[sync] Failed to refresh last commit info:', err))
   }, [vaultPath, setLastCommitInfo])
@@ -301,7 +300,7 @@ export function useAutoSync({
       setLastSyncTime,
       setSyncStatus,
       task: async () => {
-        const result = await tauriCall<GitPullResult>('git_pull', { vaultPath })
+        const result = await webCommand<GitPullResult>('git_pull', { vaultPath })
         markPullTimestamp(setLastSyncTime, refreshCommitInfo)
 
         if (result.status === 'updated') {
@@ -340,7 +339,7 @@ export function useAutoSync({
       setSyncStatus,
       task: async () => {
         for (let attempt = 0; attempt < PULL_PUSH_RECOVERY_ATTEMPTS; attempt += 1) {
-          const pullResult = await tauriCall<GitPullResult>('git_pull', { vaultPath })
+          const pullResult = await webCommand<GitPullResult>('git_pull', { vaultPath })
           markPullTimestamp(setLastSyncTime, refreshCommitInfo)
 
           if (pullResult.status === 'conflict') {
@@ -363,7 +362,7 @@ export function useAutoSync({
             await callbacksRef.current.onSyncUpdated?.()
           }
 
-          const pushResult = await tauriCall<GitPushResult>('git_push', { vaultPath })
+          const pushResult = await webCommand<GitPushResult>('git_push', { vaultPath })
           if (pushResult.status === 'rejected' && attempt < PULL_PUSH_RECOVERY_ATTEMPTS - 1) continue
 
           handlePushResult({

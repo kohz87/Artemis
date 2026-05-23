@@ -2,7 +2,8 @@
 type: ADR
 id: "0052"
 title: "Renderer-first shortcut execution with native-menu dedupe"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-11
 ---
 

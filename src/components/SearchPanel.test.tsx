@@ -3,14 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SearchPanel } from './SearchPanel'
 import type { VaultEntry } from '../types'
 
-// Mock the mock-tauri module (component uses mockInvoke when isTauri() is false)
-vi.mock('../mock-tauri', () => ({
-  mockInvoke: vi.fn(),
-  isTauri: () => false,
+// Mock the mock-web module (component uses callWebBackend when false is false)
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn(),
 }))
 
-import { mockInvoke } from '../mock-tauri'
-const mockInvokeFn = vi.mocked(mockInvoke)
+import { callWebBackend } from '../backend/client'
+const callWebBackendFn = vi.mocked(callWebBackend)
 
 const NOW = Math.floor(Date.now() / 1000)
 
@@ -122,7 +121,7 @@ describe('SearchPanel', () => {
   })
 
   it('performs keyword search', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: '...designing APIs for AI...', score: 0.87, note_type: 'Essay' },
       ],
@@ -137,7 +136,7 @@ describe('SearchPanel', () => {
     fireEvent.change(input, { target: { value: 'api design' } })
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('search_vault', {
+      expect(callWebBackendFn).toHaveBeenCalledWith('search_vault', {
         vaultPath: '/vault',
         query: 'api design',
         mode: 'keyword',
@@ -151,7 +150,7 @@ describe('SearchPanel', () => {
   })
 
   it('shows note title from VaultEntry instead of filename from search result', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'ai-apis', path: '/vault/essay/ai-apis.md', snippet: '...designing APIs...', score: 0.87, note_type: null },
       ],
@@ -173,7 +172,7 @@ describe('SearchPanel', () => {
   })
 
   it('shows no results message when search returns empty', async () => {
-    mockInvokeFn.mockResolvedValue({ results: [], elapsed_ms: 10 })
+    callWebBackendFn.mockResolvedValue({ results: [], elapsed_ms: 10 })
 
     render(
       <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,
@@ -188,7 +187,7 @@ describe('SearchPanel', () => {
   })
 
   it('navigates results with arrow keys', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'Result One', path: '/vault/essay/ai-apis.md', snippet: 'First result', score: 0.9, note_type: null },
         { title: 'Result Two', path: '/vault/event/retreat.md', snippet: 'Second result', score: 0.8, note_type: null },
@@ -221,7 +220,7 @@ describe('SearchPanel', () => {
   })
 
   it('clears stale results when a follow-up search request fails', async () => {
-    mockInvokeFn
+    callWebBackendFn
       .mockResolvedValueOnce({
         results: [
           { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'First', score: 0.9, note_type: null },
@@ -250,7 +249,7 @@ describe('SearchPanel', () => {
   })
 
   it('selects result on Enter and calls onSelectNote', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'First', score: 0.9, note_type: null },
       ],
@@ -281,7 +280,7 @@ describe('SearchPanel', () => {
   })
 
   it('shows result count and elapsed time', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'Result', path: '/vault/essay/ai-apis.md', snippet: 'Content', score: 0.9, note_type: null },
       ],
@@ -301,7 +300,7 @@ describe('SearchPanel', () => {
   })
 
   it('displays note type badge from vault entries', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'Content', score: 0.9, note_type: null },
       ],
@@ -320,7 +319,7 @@ describe('SearchPanel', () => {
   })
 
   it('shows metadata subtitle with word count and links', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'Content', score: 0.9, note_type: null },
       ],
@@ -343,7 +342,7 @@ describe('SearchPanel', () => {
     const noLinksEntries = MOCK_ENTRIES.map(e =>
       e.path === '/vault/essay/ai-apis.md' ? { ...e, outgoingLinks: [] } : e,
     )
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: '', score: 0.9, note_type: null },
       ],
@@ -364,7 +363,7 @@ describe('SearchPanel', () => {
 
   it('shows loading spinner while searching', async () => {
     const resolvers: ((v: unknown) => void)[] = []
-    mockInvokeFn.mockImplementation(
+    callWebBackendFn.mockImplementation(
       () => new Promise(resolve => { resolvers.push(resolve) }),
     )
 
@@ -393,7 +392,7 @@ describe('SearchPanel', () => {
   })
 
   it('discards stale results when query changes rapidly', async () => {
-    mockInvokeFn.mockImplementation(async (_cmd: string, args?: Record<string, unknown>) => {
+    callWebBackendFn.mockImplementation(async (_cmd: string, args?: Record<string, unknown>) => {
       const q = (args as Record<string, string>)?.query
       if (q === 'second') {
         return {
@@ -420,7 +419,7 @@ describe('SearchPanel', () => {
   })
 
   it('deduplicates results when backend returns same note twice', async () => {
-    mockInvokeFn.mockResolvedValue({
+    callWebBackendFn.mockResolvedValue({
       results: [
         { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'keyword hit', score: 0.7, note_type: 'Essay' },
         { title: 'Refactoring Retreat', path: '/vault/event/retreat.md', snippet: 'unique', score: 0.6, note_type: 'Event' },
@@ -447,7 +446,7 @@ describe('SearchPanel', () => {
 
   it('cancels inflight searches when panel closes', async () => {
     const resolvers: ((v: unknown) => void)[] = []
-    mockInvokeFn.mockImplementation(
+    callWebBackendFn.mockImplementation(
       () => new Promise(resolve => { resolvers.push(resolve) }),
     )
 

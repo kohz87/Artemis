@@ -64,7 +64,7 @@ function setUserAgent(userAgent: string) {
 describe('useAppKeyboard', () => {
   afterEach(() => {
     setUserAgent(originalUserAgent)
-    delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__
+    delete (window as typeof window & { __WEB__?: unknown }).__WEB__
     resetAppCommandDispatchStateForTests()
     vi.restoreAllMocks()
   })
@@ -118,27 +118,27 @@ describe('useAppKeyboard', () => {
     expect(actions.onCreateNote).toHaveBeenCalled()
   })
 
-  it('Cmd+N still works in Tauri mode', () => {
+  it('Cmd+N still works in desktop mode', () => {
     const actions = makeActions()
-    ;(window as typeof window & { __TAURI__?: object }).__TAURI__ = {}
+    ;(window as typeof window & { __WEB__?: object }).__WEB__ = {}
     renderHook(() => useAppKeyboard(actions))
     fireKey('n', { metaKey: true })
     expect(actions.onCreateNote).toHaveBeenCalled()
   })
 
-  it('Cmd+\\ still works in Tauri mode', () => {
+  it('Cmd+\\ still works in desktop mode', () => {
     const actions = makeActions()
     actions.onToggleRawEditor = vi.fn()
-    ;(window as typeof window & { __TAURI__?: object }).__TAURI__ = {}
+    ;(window as typeof window & { __WEB__?: object }).__WEB__ = {}
     renderHook(() => useAppKeyboard(actions))
     fireKey('\\', { metaKey: true })
     expect(actions.onToggleRawEditor).toHaveBeenCalled()
   })
 
-  it('Cmd+Shift+I still works in Tauri mode', () => {
+  it('Cmd+Shift+I still works in desktop mode', () => {
     const actions = makeActions()
     const onToggleInspector = vi.fn()
-    ;(window as typeof window & { __TAURI__?: object }).__TAURI__ = {}
+    ;(window as typeof window & { __WEB__?: object }).__WEB__ = {}
     renderHook(() => useAppKeyboard({ ...actions, onToggleInspector }))
     fireKey('i', { metaKey: true, shiftKey: true })
     expect(onToggleInspector).toHaveBeenCalled()
@@ -153,10 +153,10 @@ describe('useAppKeyboard', () => {
     expect(actions.onToggleFavorite).toHaveBeenCalledWith('/vault/test.md')
   })
 
-  it('Cmd+D still works in Tauri mode', () => {
+  it('Cmd+D still works in desktop mode', () => {
     const actions = makeActions()
     actions.onToggleFavorite = vi.fn()
-    ;(window as typeof window & { __TAURI__?: object }).__TAURI__ = {}
+    ;(window as typeof window & { __WEB__?: object }).__WEB__ = {}
     renderHook(() => useAppKeyboard(actions))
     fireKey('d', { metaKey: true })
     expect(actions.onToggleFavorite).toHaveBeenCalledWith('/vault/test.md')

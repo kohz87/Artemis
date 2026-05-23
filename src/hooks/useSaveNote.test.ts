@@ -2,15 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useSaveNote } from './useSaveNote'
 
-const mockInvokeFn = vi.fn<(cmd: string, args?: Record<string, unknown>) => Promise<null>>(() => Promise.resolve(null))
+const callWebBackendFn = vi.fn<(cmd: string, args?: Record<string, unknown>) => Promise<null>>(() => Promise.resolve(null))
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (cmd: string, args?: Record<string, unknown>) => mockInvokeFn(cmd, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (cmd: string, args?: Record<string, unknown>) => callWebBackendFn(cmd, args),
   updateMockContent: vi.fn(),
 }))
 
@@ -19,17 +15,17 @@ describe('useSaveNote', () => {
 
   beforeEach(() => {
     updateContent = vi.fn<(path: string, content: string) => void>()
-    mockInvokeFn.mockClear()
+    callWebBackendFn.mockClear()
   })
 
-  it('saves content immediately via Tauri command', async () => {
+  it('saves content immediately via desktop command', async () => {
     const { result } = renderHook(() => useSaveNote(updateContent))
 
     await act(async () => {
       await result.current.saveNote('/test/note.md', '---\ntitle: Test\n---\n\n# Test\n\nContent')
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/test/note.md',
       content: '---\ntitle: Test\n---\n\n# Test\n\nContent',
     })
@@ -50,7 +46,7 @@ describe('useSaveNote', () => {
   })
 
   it('propagates save errors to the caller', async () => {
-    mockInvokeFn.mockRejectedValueOnce(new Error('File is read-only'))
+    callWebBackendFn.mockRejectedValueOnce(new Error('File is read-only'))
     const { result } = renderHook(() => useSaveNote(updateContent))
 
     await expect(

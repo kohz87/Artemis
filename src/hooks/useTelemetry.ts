@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { initSentry, teardownSentry, initPostHog, teardownPostHog, updatePostHogIdentify, setReleaseChannel } from '../lib/telemetry'
 import { normalizeReleaseChannel, type ReleaseChannel } from '../lib/releaseChannel'
 import type { Settings } from '../types'
 
-function tauriCall(command: string): Promise<void> {
-  return isTauri() ? invoke<void>(command) : mockInvoke<void>(command)
+function webCommand(command: string): Promise<void> {
+  return callWebBackend<void>(command)
 }
 
 function resolveReleaseChannel(releaseChannel: Settings['release_channel']): ReleaseChannel {
@@ -26,7 +25,7 @@ function syncCrashReporting(
   if (!wasEnabled) return
 
   teardownSentry()
-  tauriCall('reinit_telemetry').catch((err) => console.warn('[telemetry] Reinit failed:', err))
+  webCommand('reinit_telemetry').catch((err) => console.warn('[telemetry] Reinit failed:', err))
 }
 
 function syncAnalytics(

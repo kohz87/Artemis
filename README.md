@@ -1,6 +1,6 @@
 # Artemis
 
-Artemis is a local-first markdown knowledge base for writing, organizing, searching, and versioning notes. It treats a folder of `.md` files as the source of truth, layers a fast React/Tauri interface on top, and keeps your notes portable so they continue to work in any editor or git workflow.
+Artemis is a local-first markdown knowledge base for writing, organizing, searching, and versioning notes. It treats a folder of `.md` files as the source of truth, layers a fast React web interface on top, and keeps your notes portable so they continue to work in any editor or git workflow.
 
 ## What Artemis does
 
@@ -8,12 +8,12 @@ Artemis is a local-first markdown knowledge base for writing, organizing, search
 - Vault-based organization: open a folder as a vault, create notes, browse folders, and keep metadata close to the files.
 - Git-aware workflows: initialize git, commit changes, connect remotes, pull/push, and resolve conflicts from the app.
 - Fast editing: rich editing, raw markdown editing, wikilinks, backlinks, search, file previews, and keyboard-first commands.
-- Web or desktop runtime: run as a browser app through Vite, or as a native desktop app through Tauri.
+- Web runtime: run as a browser app through Vite, with optional local `/api/vault` backend support.
 - Optional web password gate: protect a standalone web session with `ARTEMIS_PASSWORD`.
 - Configurable network binding: use `ARTEMIS_HOST` and `ARTEMIS_PORT` for local, LAN, or server deployments.
 
 
-Artemis no longer requires or configures AI providers, model catalogs, MCP servers, or API keys. Current configuration is limited to the web listener, optional password gate, localization/telemetry build-time settings, Tauri desktop settings, and per-vault note/git metadata.
+Artemis no longer requires or configures AI providers, model catalogs, MCP servers, or API keys. Current configuration is limited to the web listener, optional password gate, localization/telemetry build-time settings, per-vault note/git metadata.
 
 ## Requirements
 
@@ -23,27 +23,6 @@ For web development:
 - pnpm 8+
 - git
 
-For desktop development:
-
-- Rust stable
-- Tauri system dependencies for your OS
-
-Linux desktop dependencies:
-
-```bash
-# Debian / Ubuntu 22.04+
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
-  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
-  libsoup-3.0-dev patchelf
-
-# Fedora 38+
-sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
-  libappindicator-gtk3-devel librsvg2-devel
-
-# Arch / Manjaro
-sudo pacman -S --needed webkit2gtk-4.1 base-devel curl wget file openssl \
-  appmenu-gtk-module libappindicator-gtk3 librsvg
-```
 
 ## Setup
 
@@ -67,7 +46,7 @@ The most common local settings are:
 # Bind only to this machine by default.
 ARTEMIS_HOST=localhost
 
-# Default dev port used by Vite and Tauri.
+# Default dev port used by Vite.
 ARTEMIS_PORT=5202
 
 # Optional. Leave blank to disable the login gate.
@@ -98,7 +77,7 @@ When running in web mode, Artemis uses the local Vite `/api/vault/*` middleware 
 
 ## First vault setup
 
-1. Start Artemis with `pnpm dev:web` or `pnpm tauri dev`.
+1. Start Artemis with `pnpm dev:web`.
 2. Open or select a vault folder when prompted.
 3. Use a dedicated folder for your notes, for example `~/ArtemisVault` or `~/notes`.
 4. Create a note. Artemis writes it as a `.md` file in the selected vault.
@@ -132,15 +111,6 @@ The production web server listens on `0.0.0.0:5173` unless `ARTEMIS_HOST`, `ARTE
 ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm serve:web
 ```
 
-## Run Artemis as a desktop app
-
-Start the Tauri desktop app:
-
-```bash
-pnpm tauri dev
-```
-
-Tauri uses the same React frontend and native Rust commands for filesystem, git, updater, clipboard, window, and desktop integrations. AI provider/API/MCP commands are not part of the current app surface.
 
 ## Useful commands
 
@@ -148,7 +118,6 @@ Tauri uses the same React frontend and native Rust commands for filesystem, git,
 pnpm dev:web              # Web dev server
 pnpm build:web            # Type-check and build web assets
 pnpm serve:web            # Serve the production web build
-pnpm tauri dev            # Native desktop development
 pnpm lint                 # ESLint
 pnpm test                 # Vitest test suite
 pnpm test:coverage        # Vitest coverage gate
@@ -156,18 +125,10 @@ pnpm playwright:smoke     # Curated Playwright smoke tests
 pnpm playwright:regression # Full Playwright smoke directory
 ```
 
-Rust tests live under `src-tauri`:
-
-```bash
-cd src-tauri
-cargo test
-```
-
 ## Project layout
 
 ```text
 src/                React frontend, hooks, components, utilities, localization
-src-tauri/          Tauri/Rust backend commands, vault scanning, git integration
 docs/               Architecture notes, setup docs, and ADRs
 scripts/            Local build, serving, and validation helpers
 tests/              Playwright tests

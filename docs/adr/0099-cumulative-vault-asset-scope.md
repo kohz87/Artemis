@@ -2,7 +2,8 @@
 type: ADR
 id: "0099"
 title: "Cumulative vault asset scope for previews"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-04-29
 supersedes: "0074 asset-protocol runtime scoping"
 ---

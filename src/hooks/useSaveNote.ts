@@ -1,15 +1,10 @@
 import { useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke, updateMockContent } from '../mock-tauri'
+import { callWebBackend, updateMockContent } from '../backend/client'
 import { cacheNoteContent } from './useTabManagement'
 
 export async function persistContent(path: string, content: string, vaultPath?: string): Promise<void> {
   const args = vaultPath ? { path, content, vaultPath } : { path, content }
-  if (isTauri()) {
-    await invoke('save_note_content', args)
-  } else {
-    await mockInvoke('save_note_content', args)
-  }
+  await callWebBackend('save_note_content', args)
 }
 
 /**
@@ -22,9 +17,7 @@ export function useSaveNote(updateContent: (path: string, content: string) => vo
   const saveNote = useCallback(async (path: string, content: string) => {
     await persistContent(path, content, vaultPath)
     cacheNoteContent(path, content)
-    if (!isTauri()) {
-      updateMockContent(path, content)
-    }
+    updateMockContent(path, content)
     updateContent(path, content)
   }, [updateContent, vaultPath])
 

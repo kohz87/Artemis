@@ -15,7 +15,7 @@ import {
   loadVaultFolders,
   loadVaultViews,
   reloadVaultEntries,
-  tauriCall,
+  webCommand,
 } from './vaultLoaderCommands'
 import { normalizeVaultEntry } from '../utils/vaultMetadataNormalization'
 import { useUnavailableVaultState } from './useUnavailableVaultState'
@@ -294,9 +294,9 @@ function useModifiedFilesLoader(vaultPath: string, isCurrentVaultPath: (path: st
     }
 
     try {
-      const files = await tauriCall<ModifiedFile[]>({
+      const files = await webCommand<ModifiedFile[]>({
         command: 'get_modified_files',
-        tauriArgs: { vaultPath: path },
+        webArgs: { vaultPath: path },
         mockArgs: { vaultPath: path },
       })
       if (isCurrentVaultPath(path)) setModifiedFiles(files)
@@ -369,9 +369,9 @@ function useEntryMutations(
 function useGitLoaders(vaultPath: string) {
   const loadGitHistory = useCallback(async (path: string): Promise<GitCommit[]> => {
     try {
-      return await tauriCall<GitCommit[]>({
+      return await webCommand<GitCommit[]>({
         command: 'get_file_history',
-        tauriArgs: { vaultPath, path },
+        webArgs: { vaultPath, path },
         mockArgs: { path },
       })
     }
@@ -379,16 +379,16 @@ function useGitLoaders(vaultPath: string) {
   }, [vaultPath])
 
   const loadDiffAtCommit = useCallback((path: string, commitHash: string): Promise<string> =>
-    tauriCall<string>({
+    webCommand<string>({
       command: 'get_file_diff_at_commit',
-      tauriArgs: { vaultPath, path, commitHash },
+      webArgs: { vaultPath, path, commitHash },
       mockArgs: { path, commitHash },
     }), [vaultPath])
 
   const loadDiff = useCallback((path: string): Promise<string> =>
-    tauriCall<string>({
+    webCommand<string>({
       command: 'get_file_diff',
-      tauriArgs: { vaultPath, path },
+      webArgs: { vaultPath, path },
       mockArgs: { path },
     }), [vaultPath])
 

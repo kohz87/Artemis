@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import { slugify } from './useNoteCreation'
 import {
@@ -63,7 +62,7 @@ export async function performRename({
 }: RenameRequest): Promise<RenameResult> {
   return invokeRenameCommand({
     command: 'rename_note',
-    tauriArgs: { vaultPath, oldPath: path, newTitle, oldTitle: oldTitle ?? null },
+    webArgs: { vaultPath, oldPath: path, newTitle, oldTitle: oldTitle ?? null },
     mockArgs: { vault_path: vaultPath, old_path: path, new_title: newTitle, old_title: oldTitle ?? null },
   })
 }
@@ -71,13 +70,11 @@ export async function performRename({
 function invokeRenameCommand(
   params: {
     command: RenameCommand
-    tauriArgs: Record<string, unknown>
+    webArgs: Record<string, unknown>
     mockArgs: Record<string, unknown>
   },
 ): Promise<RenameResult> {
-  return isTauri()
-    ? invoke<RenameResult>(params.command, params.tauriArgs)
-    : mockInvoke<RenameResult>(params.command, params.mockArgs)
+  return callWebBackend<RenameResult>(params.command, params.mockArgs)
 }
 
 export async function performFilenameRename({
@@ -87,7 +84,7 @@ export async function performFilenameRename({
 }: FilenameRenameRequest): Promise<RenameResult> {
   return invokeRenameCommand({
     command: 'rename_note_filename',
-    tauriArgs: { vaultPath, oldPath: path, newFilenameStem },
+    webArgs: { vaultPath, oldPath: path, newFilenameStem },
     mockArgs: { vault_path: vaultPath, old_path: path, new_filename_stem: newFilenameStem },
   })
 }
@@ -99,7 +96,7 @@ export async function performMoveNoteToFolder({
 }: FolderMoveRequest): Promise<RenameResult> {
   return invokeRenameCommand({
     command: 'move_note_to_folder',
-    tauriArgs: { vaultPath, oldPath: path, folderPath },
+    webArgs: { vaultPath, oldPath: path, folderPath },
     mockArgs: { vault_path: vaultPath, old_path: path, folder_path: folderPath },
   })
 }
@@ -115,9 +112,7 @@ export function buildFilenameRenamedEntry(entry: VaultEntry, newPath: string): V
 }
 
 export async function loadNoteContent({ path }: LoadNoteContentRequest): Promise<string> {
-  return isTauri()
-    ? invoke<string>('get_note_content', { path })
-    : mockInvoke<string>('get_note_content', { path })
+  return callWebBackend<string>('get_note_content', { path })
 }
 
 function rewriteSummaryLabel(params: { updatedFiles: number }): string {

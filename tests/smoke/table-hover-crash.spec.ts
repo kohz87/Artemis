@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { createFixtureVaultCopy, openFixtureVaultWebHarness, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 import { seedBlockNoteTable, triggerMenuCommand } from './testBridge'
 
 let tempVaultDir: string
@@ -140,7 +140,7 @@ test.describe('table hover crash regression', () => {
   test('moving through table wrappers, cells, and nearby text keeps the editor stable', async ({ page }) => {
     const errors = trackUnexpectedErrors(page)
 
-    await openFixtureVaultTauri(page, tempVaultDir)
+    await openFixtureVaultWebHarness(page, tempVaultDir)
     await createUntitledNote(page)
     await seedBlockNoteTable(page, [180, 120, 120])
 
@@ -163,7 +163,7 @@ test.describe('table hover crash regression', () => {
   test('dragging table row and column handles completes without editor errors', async ({ page }) => {
     const errors = trackUnexpectedErrors(page)
 
-    await openFixtureVaultTauri(page, tempVaultDir)
+    await openFixtureVaultWebHarness(page, tempVaultDir)
     await createUntitledNote(page)
     await seedBlockNoteTable(page, [180, 120, 120])
 
@@ -197,7 +197,7 @@ test.describe('table hover crash regression', () => {
   test('adding table rows and columns from handle menus keeps selection valid', async ({ page }) => {
     const errors = trackUnexpectedErrors(page)
 
-    await openFixtureVaultTauri(page, tempVaultDir)
+    await openFixtureVaultWebHarness(page, tempVaultDir)
     await createUntitledNote(page)
     await seedBlockNoteTable(page, [180, 120, 120])
 

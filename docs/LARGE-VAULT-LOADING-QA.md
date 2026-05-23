@@ -40,7 +40,7 @@ echo "$VAULT"
 
 ## Manual QA
 
-1. Start Tolaria with `pnpm tauri dev`.
+1. Start Artemis with `pnpm dev`.
 2. Open the synthetic vault path printed above.
 3. Verify the main shell renders before the full note list finishes indexing.
 4. Confirm the status bar shows vault activity while indexing is still in progress.

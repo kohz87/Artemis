@@ -2,13 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useConflictResolver } from './useConflictResolver'
 
-const mockInvokeFn = vi.fn()
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvokeFn(...args),
-}))
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
+const callWebBackendFn = vi.fn()
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 describe('useConflictResolver', () => {
@@ -18,7 +14,7 @@ describe('useConflictResolver', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockInvokeFn.mockResolvedValue(undefined)
+    callWebBackendFn.mockResolvedValue(undefined)
   })
 
   function renderResolver(files: string[] = ['note.md', 'plan.md']) {
@@ -50,7 +46,7 @@ describe('useConflictResolver', () => {
       await result.current.resolveFile('note.md', 'ours')
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('git_resolve_conflict', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('git_resolve_conflict', {
       vaultPath: '/vault', file: 'note.md', strategy: 'ours',
     })
     expect(result.current.fileStates[0].resolution).toBe('ours')
@@ -64,7 +60,7 @@ describe('useConflictResolver', () => {
       await result.current.resolveFile('plan.md', 'theirs')
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('git_resolve_conflict', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('git_resolve_conflict', {
       vaultPath: '/vault', file: 'plan.md', strategy: 'theirs',
     })
     expect(result.current.fileStates[1].resolution).toBe('theirs')
@@ -94,7 +90,7 @@ describe('useConflictResolver', () => {
   })
 
   it('commits resolution and calls onResolved', async () => {
-    mockInvokeFn.mockImplementation((cmd: string) => {
+    callWebBackendFn.mockImplementation((cmd: string) => {
       if (cmd === 'git_commit_conflict_resolution') return Promise.resolve('Committed')
       return Promise.resolve(undefined)
     })
@@ -109,7 +105,7 @@ describe('useConflictResolver', () => {
       await result.current.commitResolution()
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('git_commit_conflict_resolution', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenCalledWith('git_commit_conflict_resolution', { vaultPath: '/vault' })
     expect(onResolved).toHaveBeenCalled()
     expect(onToast).toHaveBeenCalledWith('Conflicts resolved — sync resumed')
   })
@@ -121,11 +117,11 @@ describe('useConflictResolver', () => {
       await result.current.commitResolution()
     })
 
-    expect(mockInvokeFn).not.toHaveBeenCalledWith('git_commit_conflict_resolution', expect.anything())
+    expect(callWebBackendFn).not.toHaveBeenCalledWith('git_commit_conflict_resolution', expect.anything())
   })
 
   it('shows error when resolve fails', async () => {
-    mockInvokeFn.mockRejectedValueOnce(new Error('git checkout failed'))
+    callWebBackendFn.mockRejectedValueOnce(new Error('git checkout failed'))
 
     const { result } = renderResolver()
 
@@ -138,7 +134,7 @@ describe('useConflictResolver', () => {
   })
 
   it('shows error when commit fails', async () => {
-    mockInvokeFn.mockImplementation((cmd: string) => {
+    callWebBackendFn.mockImplementation((cmd: string) => {
       if (cmd === 'git_commit_conflict_resolution') return Promise.reject(new Error('user.email not set'))
       return Promise.resolve(undefined)
     })

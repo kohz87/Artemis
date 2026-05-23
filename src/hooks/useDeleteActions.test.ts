@@ -2,13 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useDeleteActions } from './useDeleteActions'
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: vi.fn(),
+vi.mock('../backend/client', () => ({
+  callWebBackend: vi.fn(),
 }))
 
-const { mockInvoke } = await import('../mock-tauri')
-const mockInvokeFn = mockInvoke as ReturnType<typeof vi.fn>
+const { callWebBackend } = await import('../backend/client')
+const callWebBackendFn = callWebBackend as ReturnType<typeof vi.fn>
 
 describe('useDeleteActions', () => {
   let onDeselectNote: ReturnType<typeof vi.fn>
@@ -25,7 +24,7 @@ describe('useDeleteActions', () => {
     refreshModifiedFiles = vi.fn().mockResolvedValue(undefined)
     reloadVault = vi.fn().mockResolvedValue(undefined)
     setToastMessage = vi.fn()
-    mockInvokeFn.mockReset()
+    callWebBackendFn.mockReset()
   })
 
   function renderDeleteActions() {
@@ -64,15 +63,15 @@ describe('useDeleteActions', () => {
   }
 
   async function confirmDeleteAndExpectBatchCall(paths: string[], deletedPaths = paths) {
-    mockInvokeFn.mockResolvedValue(deletedPaths)
+    callWebBackendFn.mockResolvedValue(deletedPaths)
     const { result } = renderDeleteActions()
 
     await openDeleteDialog(result, paths)
     await confirmCurrentDelete(result)
 
     expect(result.current.confirmDelete).toBeNull()
-    expect(mockInvokeFn).toHaveBeenCalledTimes(1)
-    expect(mockInvokeFn).toHaveBeenCalledWith('batch_delete_notes', { paths })
+    expect(callWebBackendFn).toHaveBeenCalledTimes(1)
+    expect(callWebBackendFn).toHaveBeenCalledWith('batch_delete_notes', { paths })
 
     return { result }
   }
@@ -82,7 +81,7 @@ describe('useDeleteActions', () => {
   describe('deleteNoteFromDisk', () => {
     it('invokes batch_delete_notes, updates pending state, and returns true', async () => {
       let resolveDelete: ((paths: string[]) => void) | null = null
-      mockInvokeFn.mockImplementation(() => new Promise((resolve) => {
+      callWebBackendFn.mockImplementation(() => new Promise((resolve) => {
         resolveDelete = resolve as (paths: string[]) => void
       }))
       const { result } = renderDeleteActions()
@@ -93,7 +92,7 @@ describe('useDeleteActions', () => {
       })
 
       expect(result.current.pendingDeleteCount).toBe(1)
-      expect(mockInvokeFn).toHaveBeenCalledWith('batch_delete_notes', { paths: ['/vault/a.md'] })
+      expect(callWebBackendFn).toHaveBeenCalledWith('batch_delete_notes', { paths: ['/vault/a.md'] })
       expect(onDeselectNote).toHaveBeenCalledWith('/vault/a.md')
       expect(removeEntries).toHaveBeenCalledWith(['/vault/a.md'])
       expect(removeEntry).not.toHaveBeenCalled()
@@ -112,7 +111,7 @@ describe('useDeleteActions', () => {
     })
 
     it('reloads the vault and returns false on failure', async () => {
-      mockInvokeFn.mockRejectedValue(new Error('disk full'))
+      callWebBackendFn.mockRejectedValue(new Error('disk full'))
       const { result } = renderDeleteActions()
       let ok: boolean | undefined
       await act(async () => {

@@ -1,6 +1,5 @@
 import { startTransition, useCallback, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { trackEvent } from '../lib/telemetry'
 
 interface ConfirmDeleteState {
@@ -44,8 +43,7 @@ function buildPartialDeleteMessage(deletedCount: number, requestedCount: number)
 }
 
 async function runDeleteCommand(paths: string[]): Promise<string[]> {
-  if (isTauri()) return invoke<string[]>('batch_delete_notes_async', { paths })
-  return mockInvoke<string[]>('batch_delete_notes', { paths })
+  return callWebBackend<string[]>('batch_delete_notes', { paths })
 }
 
 function useDeleteRunner({

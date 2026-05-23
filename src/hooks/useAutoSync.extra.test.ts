@@ -3,15 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAutoSync } from './useAutoSync'
 import type { GitPullResult, GitRemoteStatus } from '../types'
 
-const mockInvokeFn = vi.fn()
+const callWebBackendFn = vi.fn()
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvokeFn(...args),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 const LAST_COMMIT_INFO = {
@@ -94,20 +90,20 @@ async function waitForInitialIdle(
     expect(result.current.syncStatus).toBe('idle')
     expect(result.current.remoteStatus).toEqual(REMOTE_STATUS)
   })
-  mockInvokeFn.mockClear()
+  callWebBackendFn.mockClear()
 }
 
 describe('useAutoSync extra', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockInvokeFn.mockImplementation(defaultMockImplementation)
+    callWebBackendFn.mockImplementation(defaultMockImplementation)
   })
 
   it('pulls, pushes, and refreshes remote status after a recovery sync', async () => {
     const hook = renderSync()
     await waitForInitialIdle(hook.result)
 
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'get_last_commit_info') return Promise.resolve(LAST_COMMIT_INFO)
       if (command === 'get_conflict_files') return Promise.resolve([])
       if (command === 'git_remote_status') return Promise.resolve({ ...REMOTE_STATUS, behind: 1 })
@@ -132,7 +128,7 @@ describe('useAutoSync extra', () => {
     const hook = renderSync()
     await waitForInitialIdle(hook.result)
 
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'get_last_commit_info') return Promise.resolve(LAST_COMMIT_INFO)
       if (command === 'get_conflict_files') return Promise.resolve([])
       if (command === 'git_remote_status') return Promise.resolve(REMOTE_STATUS)
@@ -149,7 +145,7 @@ describe('useAutoSync extra', () => {
       expect(hook.result.current.conflictFiles).toEqual(['plans/weekly.md'])
     })
     expect(
-      mockInvokeFn.mock.calls.some(([command]) => command === 'git_push'),
+      callWebBackendFn.mock.calls.some(([command]) => command === 'git_push'),
     ).toBe(false)
   })
 
@@ -170,7 +166,7 @@ describe('useAutoSync extra', () => {
     const hook = renderSync()
     await waitForInitialIdle(hook.result)
 
-    mockInvokeFn.mockImplementation((command: string) => {
+    callWebBackendFn.mockImplementation((command: string) => {
       if (command === 'get_last_commit_info') return Promise.resolve(LAST_COMMIT_INFO)
       if (command === 'get_conflict_files') return Promise.resolve([])
       if (command === 'git_remote_status') return Promise.resolve(REMOTE_STATUS)

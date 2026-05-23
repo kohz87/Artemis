@@ -38,7 +38,7 @@ BASE_URL="http://localhost:5201" npx playwright test tests/smoke/<slug>.spec.ts
 **Phase 2 — Native app QA:**
 
 ```bash
-pnpm tauri dev &
+pnpm dev:web &
 sleep 10
 bash ~/.openclaw/skills/artemis-qa/scripts/focus-app.sh laputa
 bash ~/.openclaw/skills/artemis-qa/scripts/screenshot.sh /tmp/qa-native.png
@@ -103,14 +103,14 @@ Pre-commit and pre-push hooks enforce **Hotspot Code Health** and **Average Code
 ### Check suite (runs on every push)
 ```bash
 pnpm lint && npx tsc --noEmit && pnpm test && pnpm test:coverage  # frontend ≥70%
-cargo test && cargo llvm-cov --manifest-path src-tauri/Cargo.toml --no-clean --fail-under-lines 85
+pnpm test && pnpm test:coverage
 ```
 
 ### ADRs & docs
 
 ADRs live in `docs/adr/`. Create in the same commit as the code. Never edit existing — create a new one that supersedes. Use `/create-adr`. **When:** new dependency, storage strategy, platform target, core abstraction, cross-cutting pattern. **Not for:** bug fixes, styling, refactors.
 
-After any Tauri command, new component/hook, data model change, or new integration: update `docs/ARCHITECTURE.md`, `docs/ABSTRACTIONS.md`, and/or `docs/GETTING-STARTED.md` in the same commit.
+After any web backend command, new component/hook, data model change, or new integration: update `docs/ARCHITECTURE.md`, `docs/ABSTRACTIONS.md`, and/or `docs/GETTING-STARTED.md` in the same commit.
 
 ---
 
@@ -156,12 +156,11 @@ Default to `demo-vault-v2/`. If you must use `~/Laputa/` for testing:
 
 ## 4. Reference
 
-### macOS / Tauri gotchas
+### Web runtime gotchas
 
 - `Option+N` → special chars on macOS. Use `e.code` or `Cmd+N`
-- Tauri menu accelerators: `MenuItemBuilder::new(label).accelerator("CmdOrCtrl+1")`
 - `app.set_menu()` replaces the ENTIRE menu bar — include all submenus
-- `mock-tauri.ts` silently swallows Tauri calls — not a substitute for native testing
+- `src/backend/web-command-handlers.ts` is a browser demo fallback — prefer the explicit web backend client helpers for application code
 
 ### QA scripts
 

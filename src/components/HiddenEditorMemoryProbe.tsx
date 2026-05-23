@@ -14,7 +14,7 @@ import { SingleEditorView } from './SingleEditorView'
 function useProbeEditor(target: ProbeTarget, vaultPath?: string) {
   const editor = useCreateBlockNote({
     schema,
-    uploadFile: (file: File) => uploadImageFile(file, vaultPath),
+    uploadFile: (file: File) => uploadImageFile(file),
     _tiptapOptions: { injectNonce: RUNTIME_STYLE_NONCE },
     extensions: [createArrowLigaturesExtension(), createMathInputExtension()],
   })

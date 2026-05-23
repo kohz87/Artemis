@@ -1,14 +1,11 @@
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
 import type { VaultEntry } from '../types'
 import type { FrontmatterValue } from '../components/Inspector'
 import { updateMockFrontmatter, deleteMockFrontmatterProperty } from './mockFrontmatterHelpers'
-import { updateMockContent, trackMockChange } from '../mock-tauri'
+import { callWebBackend, updateMockContent, trackMockChange } from '../backend/client'
 import { parseFrontmatter } from '../utils/frontmatter'
 import { canonicalFrontmatterKey, isSystemMetadataKey } from '../utils/systemMetadata'
 import { normalizeNoteWidthMode } from '../utils/noteWidth'
 
-type FrontmatterCommand = 'update_frontmatter' | 'delete_frontmatter_property'
 type FrontmatterKey = string
 type FrontmatterOp = 'update' | 'delete'
 type MarkdownContent = string
@@ -180,17 +177,13 @@ export function contentToEntryPatch(content: MarkdownContent): Partial<VaultEntr
   return merged
 }
 
-async function invokeFrontmatter(command: FrontmatterCommand, args: Record<string, unknown>): Promise<MarkdownContent> {
-  return invoke<string>(command, args)
-}
-
 function seedMockContent(path: VaultPath, content: MarkdownContent): void {
   updateMockContent(path, content)
 }
 
 async function loadMockContent(path: VaultPath): Promise<MarkdownContent> {
   try {
-    return await mockInvoke<MarkdownContent>('get_note_content', { path })
+    return await callWebBackend<MarkdownContent>('get_note_content', { path })
   } catch {
     return typeof window === 'undefined' ? '' : window.__mockContent?.[path] ?? ''
   }
@@ -198,7 +191,7 @@ async function loadMockContent(path: VaultPath): Promise<MarkdownContent> {
 
 async function persistMockContent(path: VaultPath, content: MarkdownContent): Promise<void> {
   try {
-    await mockInvoke('save_note_content', { path, content })
+    await callWebBackend('save_note_content', { path, content })
   } finally {
     updateMockContent(path, content)
     trackMockChange(path)
@@ -235,14 +228,7 @@ async function executeFrontmatterOp(
   key: FrontmatterKey,
   value?: FrontmatterValue,
 ): Promise<MarkdownContent> {
-  if (op === 'update') {
-    return isTauri()
-      ? invokeFrontmatter('update_frontmatter', { path, key, value })
-      : executeMockFrontmatterOp(op, path, key, value)
-  }
-  return isTauri()
-    ? invokeFrontmatter('delete_frontmatter_property', { path, key })
-    : executeMockFrontmatterOp(op, path, key)
+  return executeMockFrontmatterOp(op, path, key, value)
 }
 
 export interface FrontmatterOpOptions {

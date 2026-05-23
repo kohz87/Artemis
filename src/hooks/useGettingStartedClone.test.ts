@@ -1,11 +1,10 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockInvokeFn = vi.fn()
+const callWebBackendFn = vi.fn()
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 vi.mock('../utils/vault-dialog', async (importOriginal) => {
@@ -39,14 +38,14 @@ describe('useGettingStartedClone', () => {
       await result.current()
     })
 
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
     expect(onSuccess).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
   })
 
   it('clones into a child Getting Started folder and reports the canonical path', async () => {
     vi.mocked(pickFolder).mockResolvedValue('/Users/luca/Documents')
-    mockInvokeFn.mockResolvedValue('/Users/luca/Documents/Getting Started')
+    callWebBackendFn.mockResolvedValue('/Users/luca/Documents/Getting Started')
 
     const onSuccess = vi.fn()
     const onError = vi.fn()
@@ -56,7 +55,7 @@ describe('useGettingStartedClone', () => {
       await result.current()
     })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('create_getting_started_vault', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('create_getting_started_vault', {
       targetPath: '/Users/luca/Documents/Getting Started',
     })
     expect(onSuccess).toHaveBeenCalledWith('/Users/luca/Documents/Getting Started', 'Getting Started')
@@ -65,7 +64,7 @@ describe('useGettingStartedClone', () => {
 
   it('surfaces a friendly message for download failures', async () => {
     vi.mocked(pickFolder).mockResolvedValue('/Users/luca/Documents')
-    mockInvokeFn.mockRejectedValue('git clone failed: fatal: unable to access')
+    callWebBackendFn.mockRejectedValue('git clone failed: fatal: unable to access')
 
     const onSuccess = vi.fn()
     const onError = vi.fn()

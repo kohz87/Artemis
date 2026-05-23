@@ -1,20 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import { RAPID_CREATE_NOTE_SETTLE_MS } from './useNoteCreation'
 import { useNoteActions } from './useNoteActions'
 import type { NoteActionsConfig } from './useNoteActions'
 import { GITIGNORED_VISIBILITY_APPLIED_EVENT } from '../lib/gitignoredVisibilityEvents'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn().mockResolvedValue(''),
+  callWebBackend: vi.fn().mockResolvedValue(''),
 }))
 vi.mock('./mockFrontmatterHelpers', () => ({
   updateMockFrontmatter: vi.fn().mockReturnValue('---\nupdated: true\n---\n'),
@@ -67,7 +64,6 @@ describe('useNoteActions hook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(isTauri).mockReturnValue(false)
     vi.useRealTimers()
   })
 
@@ -339,7 +335,7 @@ describe('useNoteActions hook', () => {
     it.each([
       ['start', 'Pending Test', 'pending-test.md', 'addPendingSave'],
       ['completion', 'Persist OK', 'persist-ok.md', 'removePendingSave'],
-    ])('createAndPersist calls pending-save callback on %s (non-Tauri)', async (
+    ])('createAndPersist calls pending-save callback on %s (non-desktop)', async (
       _phase,
       title,
       pathFragment,
@@ -362,9 +358,8 @@ describe('useNoteActions hook', () => {
       expect(callback).toHaveBeenCalledWith(expect.stringContaining(pathFragment))
     })
 
-    it('createAndPersist calls removePendingSave AND reverts when persist fails (Tauri)', async () => {
-      vi.mocked(isTauri).mockReturnValue(true)
-      vi.mocked(invoke).mockRejectedValueOnce(new Error('disk full'))
+    it('createAndPersist calls removePendingSave AND reverts when persist fails (desktop)', async () => {
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('disk full'))
       const addPendingSave = vi.fn()
       const removePendingSave = vi.fn()
       const config = makeConfig()
@@ -385,8 +380,7 @@ describe('useNoteActions hook', () => {
     })
 
     it('handleCreateNoteImmediate creates the backing file before opening the note', async () => {
-      vi.mocked(isTauri).mockReturnValue(true)
-      vi.mocked(invoke).mockResolvedValueOnce(undefined)
+      vi.mocked(callWebBackend).mockResolvedValueOnce(undefined)
       const addPendingSave = vi.fn()
       const removePendingSave = vi.fn()
       const onNewNotePersisted = vi.fn()
@@ -403,7 +397,7 @@ describe('useNoteActions hook', () => {
       })
 
       const createdPath = expect.stringMatching(/untitled-note-\d+\.md$/)
-      expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledWith('create_note_content', {
         path: createdPath,
         content: expect.stringContaining('type: Note'),
         vaultPath: '/test/vault',
@@ -416,7 +410,7 @@ describe('useNoteActions hook', () => {
       expect(result.current.tabs[0].entry.path).toMatch(/untitled-note-\d+\.md$/)
     })
 
-    it('calls onNewNotePersisted after successful disk write (non-Tauri)', async () => {
+    it('calls onNewNotePersisted after successful disk write (non-desktop)', async () => {
       const onNewNotePersisted = vi.fn()
       const config = makeConfig()
       config.onNewNotePersisted = onNewNotePersisted
@@ -432,9 +426,8 @@ describe('useNoteActions hook', () => {
       expect(onNewNotePersisted).toHaveBeenCalledWith(expect.stringContaining('persist-callback.md'))
     })
 
-    it('does not call onNewNotePersisted when disk write fails (Tauri)', async () => {
-      vi.mocked(isTauri).mockReturnValue(true)
-      vi.mocked(invoke).mockRejectedValueOnce(new Error('disk full'))
+    it('does not call onNewNotePersisted when disk write fails (desktop)', async () => {
+      vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('disk full'))
       const onNewNotePersisted = vi.fn()
       const config = makeConfig()
       config.onNewNotePersisted = onNewNotePersisted
@@ -450,16 +443,21 @@ describe('useNoteActions hook', () => {
     })
   })
 
-  describe('optimistic error recovery (Tauri mode)', () => {
+  describe('optimistic error recovery (desktop mode)', () => {
     beforeEach(() => {
-      vi.mocked(isTauri).mockReturnValue(true)
     })
 
     it.each([
       ['handleCreateNote', 'Failing Note', 'Note', 'failing-note.md'],
       ['handleCreateType', 'Recipe', 'Type', 'recipe.md'],
     ])('reverts optimistic creation via %s when disk write fails', async (method, title, type, pathFragment) => {
-      vi.mocked(invoke).mockRejectedValueOnce(new Error('disk full'))
+      if (type === 'Type') {
+        vi.mocked(callWebBackend)
+          .mockRejectedValueOnce(new Error('not found'))
+          .mockRejectedValueOnce(new Error('disk full'))
+      } else {
+        vi.mocked(callWebBackend).mockRejectedValueOnce(new Error('disk full'))
+      }
       const { result } = renderHook(() => useNoteActions(makeConfig()))
 
       await act(async () => {
@@ -478,7 +476,7 @@ describe('useNoteActions hook', () => {
     })
 
     it('does not revert when disk write succeeds', async () => {
-      vi.mocked(invoke).mockResolvedValueOnce(undefined)
+      vi.mocked(callWebBackend).mockResolvedValueOnce(undefined)
       const { result } = renderHook(() => useNoteActions(makeConfig()))
 
       await act(async () => {
@@ -492,7 +490,7 @@ describe('useNoteActions hook', () => {
 
     it('handleCreateNoteImmediate writes each rapid note before opening it', async () => {
       vi.useFakeTimers()
-      vi.mocked(invoke).mockResolvedValue(undefined)
+      vi.mocked(callWebBackend).mockResolvedValue(undefined)
       const { result } = renderHook(() => useNoteActions(makeConfig()))
 
       await act(async () => {
@@ -511,7 +509,7 @@ describe('useNoteActions hook', () => {
       })
 
       expect(addEntry).toHaveBeenCalledTimes(3)
-      expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === 'create_note_content')).toHaveLength(3)
+      expect(vi.mocked(callWebBackend).mock.calls.filter(([command]) => command === 'create_note_content')).toHaveLength(3)
       expect(removeEntry).not.toHaveBeenCalled()
     })
 
@@ -521,7 +519,7 @@ describe('useNoteActions hook', () => {
     it('changing type only updates frontmatter, does not move file', async () => {
       const entry = makeEntry({ path: '/test/vault/my-note.md', filename: 'my-note.md', title: 'My Note', isA: 'Note' })
       const config = makeConfig([entry])
-      vi.mocked(mockInvoke).mockResolvedValue('')
+      vi.mocked(callWebBackend).mockResolvedValue('')
 
       const { result } = renderHook(() => useNoteActions(config))
 
@@ -535,9 +533,8 @@ describe('useNoteActions hook', () => {
 
   describe('note open is read-only', () => {
     it('does not sync title or reload entry when reopening an identity-matched cached note', async () => {
-      vi.mocked(isTauri).mockReturnValue(true)
       const entry = makeEntry({ path: '/test/vault/qa-test.md', filename: 'qa-test.md', title: 'Qa Test' })
-      vi.mocked(invoke).mockImplementation(async (command) => {
+      vi.mocked(callWebBackend).mockImplementation(async (command) => {
         if (command === 'validate_note_content') return true
         if (command === 'get_note_content') return '# Qa Test\n'
         return null
@@ -546,13 +543,13 @@ describe('useNoteActions hook', () => {
       const { result } = renderHook(() => useNoteActions(makeConfig([entry])))
 
       await act(async () => { await result.current.handleSelectNote(entry) })
-      const callCountAfterFirstOpen = vi.mocked(invoke).mock.calls.length
+      const callCountAfterFirstOpen = vi.mocked(callWebBackend).mock.calls.length
 
       const desyncedEntry = { ...entry, title: 'Wrong Title Desynced' }
       await act(async () => { await result.current.handleSelectNote(desyncedEntry) })
 
-      expect(vi.mocked(invoke)).toHaveBeenCalledTimes(callCountAfterFirstOpen)
-      expect(vi.mocked(invoke).mock.calls).toEqual([
+      expect(vi.mocked(callWebBackend)).toHaveBeenCalledTimes(callCountAfterFirstOpen)
+      expect(vi.mocked(callWebBackend).mock.calls).toEqual([
         ['get_note_content', { path: '/test/vault/qa-test.md' }],
       ])
       expect(result.current.tabs[0].entry.title).toBe('Qa Test')
@@ -570,7 +567,7 @@ describe('useNoteActions hook', () => {
       const config = makeConfig([entry])
       config.replaceEntry = replaceEntry
 
-      vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
         if (cmd === 'rename_note') return { new_path: '/test/vault/sprint-retro.md', updated_files: 2 }
         if (cmd === 'get_note_content') return '---\nIs A: Note\n---\n# Sprint Retro\n'
         return ''
@@ -587,7 +584,7 @@ describe('useNoteActions hook', () => {
         )
       })
 
-      expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
+      expect(callWebBackend).toHaveBeenCalledWith('rename_note', expect.objectContaining({
         vault_path: '/test/vault',
         old_path: '/test/vault/weekly-review.md',
         new_title: 'Sprint Retro',
@@ -599,7 +596,7 @@ describe('useNoteActions hook', () => {
     it('handleRenameNote passes null old_title when entry not found', async () => {
       const config = makeConfig([])
 
-      vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
         if (cmd === 'rename_note') return { new_path: '/test/vault/new.md', updated_files: 0 }
         if (cmd === 'get_note_content') return '# New\n'
         return ''
@@ -613,7 +610,7 @@ describe('useNoteActions hook', () => {
         )
       })
 
-      expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
+      expect(callWebBackend).toHaveBeenCalledWith('rename_note', expect.objectContaining({
         old_title: null,
       }))
     })
@@ -630,7 +627,7 @@ describe('useNoteActions hook', () => {
       config.onPathRenamed = onPathRenamed
       config.replaceEntry = replaceEntry
 
-      vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+      vi.mocked(callWebBackend).mockImplementation(async (cmd: string) => {
         if (cmd === 'rename_note') return { new_path: '/test/vault/new-name.md', updated_files: 1 }
         if (cmd === 'get_note_content') return '---\ntitle: New Name\n---\n# New Name\n'
         return ''
@@ -645,7 +642,7 @@ describe('useNoteActions hook', () => {
         await result.current.handleUpdateFrontmatter('/test/vault/old-name.md', 'title', 'New Name')
       })
 
-      expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
+      expect(callWebBackend).toHaveBeenCalledWith('rename_note', expect.objectContaining({
         old_path: '/test/vault/old-name.md',
         new_title: 'New Name',
         old_title: 'Old Name',
@@ -659,7 +656,7 @@ describe('useNoteActions hook', () => {
 
     it('handleUpdateFrontmatter does not trigger rename for non-title keys', async () => {
       const config = makeConfig()
-      vi.mocked(mockInvoke).mockResolvedValue('')
+      vi.mocked(callWebBackend).mockResolvedValue('')
 
       const { result } = renderHook(() => useNoteActions(config))
 
@@ -667,7 +664,7 @@ describe('useNoteActions hook', () => {
         await result.current.handleUpdateFrontmatter('/vault/note.md', 'status', 'Done')
       })
 
-      expect(mockInvoke).not.toHaveBeenCalledWith('rename_note', expect.anything())
+      expect(callWebBackend).not.toHaveBeenCalledWith('rename_note', expect.anything())
     })
   })
 })

@@ -3,13 +3,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { VaultEntry } from '../types'
 import { useNoteActions, type NoteActionsConfig } from './useNoteActions'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn().mockResolvedValue(''),
+  callWebBackend: vi.fn().mockResolvedValue(''),
 }))
 vi.mock('./mockFrontmatterHelpers', () => ({
   updateMockFrontmatter: vi.fn().mockReturnValue('---\ntype: Hotel\n---\n'),

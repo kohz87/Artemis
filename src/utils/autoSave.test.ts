@@ -1,15 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushEditorContent, type FlushDeps } from './autoSave'
 
-const mockInvokeFn = vi.fn(() => Promise.resolve(null))
+const callWebBackendFn = vi.fn(() => Promise.resolve(null))
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
 
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (cmd: string, args?: Record<string, unknown>) => mockInvokeFn(cmd, args),
+vi.mock('../backend/client', () => ({
+  callWebBackend: (cmd: string, args?: Record<string, unknown>) => callWebBackendFn(cmd, args),
   updateMockContent: vi.fn(),
 }))
 
@@ -34,7 +30,7 @@ describe('flushEditorContent', () => {
     expect(deps.savePendingForPath).toHaveBeenCalledWith('/vault/note.md')
     // Should NOT check tab content or persist — pending flush handled it
     expect(deps.getTabContent).not.toHaveBeenCalled()
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
   })
 
   it('saves tab content when note is unsaved (newly created)', async () => {
@@ -43,7 +39,7 @@ describe('flushEditorContent', () => {
 
     await flushEditorContent('/vault/note.md', deps)
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/vault/note.md',
       content: '# New note content',
     })
@@ -56,7 +52,7 @@ describe('flushEditorContent', () => {
 
     await flushEditorContent('/vault/note.md', deps)
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('save_note_content', {
       path: '/vault/note.md',
       content: 'edited body',
     })
@@ -69,7 +65,7 @@ describe('flushEditorContent', () => {
 
     await flushEditorContent('/vault/note.md', deps)
 
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
     expect(deps.onSaved).not.toHaveBeenCalled()
   })
 
@@ -77,14 +73,14 @@ describe('flushEditorContent', () => {
     // getTabContent returns undefined (no tab for this path)
     await flushEditorContent('/vault/note.md', deps)
 
-    expect(mockInvokeFn).not.toHaveBeenCalled()
+    expect(callWebBackendFn).not.toHaveBeenCalled()
     expect(deps.onSaved).not.toHaveBeenCalled()
   })
 
   it('propagates errors from persistContent', async () => {
     ;(deps.getTabContent as ReturnType<typeof vi.fn>).mockReturnValue('content')
     ;(deps.isUnsaved as ReturnType<typeof vi.fn>).mockReturnValue(true)
-    mockInvokeFn.mockRejectedValueOnce(new Error('Disk full'))
+    callWebBackendFn.mockRejectedValueOnce(new Error('Disk full'))
 
     await expect(flushEditorContent('/vault/note.md', deps)).rejects.toThrow('Disk full')
     expect(deps.onSaved).not.toHaveBeenCalled()

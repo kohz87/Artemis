@@ -1,11 +1,4 @@
-/**
- * Vault dialog utilities.
- * In Tauri mode, uses the native dialog plugin for folder picking.
- * In browser mode, falls back to window.prompt() for testing.
- */
-
-import { isTauri } from '../mock-tauri'
-
+// Folder picking is browser-only in the web build.
 export const NATIVE_FOLDER_PICKER_UNAVAILABLE_MESSAGE =
   'Native folder picker is unavailable in this environment.'
 
@@ -75,20 +68,11 @@ function normalizePickedFolderPath(selected: string | string[] | null): string |
 }
 
 /**
- * Selects a vault directory. Tauri can use a native picker; browser mode asks
- * for an absolute path on the machine running the Vite/static server.
+ * Selects a vault directory. Browser mode asks for an absolute path on the
+ * machine running the Vite/static server.
  * Returns the selected path, or null if the user cancelled.
  */
 export async function pickFolder(title?: string): Promise<string | null> {
-  if (isTauri()) {
-    const { open } = await import('@tauri-apps/plugin-dialog')
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: title ?? 'Select folder',
-    })
-    return normalizePickedFolderPath(selected)
-  }
   const promptTitle = `${title ?? 'Enter folder path'}\n\nEnter an absolute path on the machine running Artemis Web, for example /home/alex/notes.`
   const pickedPath = normalizePickedFolderPath(prompt(promptTitle))
   if (!pickedPath) return null

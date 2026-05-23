@@ -49,13 +49,13 @@ describe('attachClickHandlers', () => {
   it('includes subfolder path in wikilink target', () => {
     const insertWikilink = vi.fn()
     const candidates = [
-      { title: 'ADR 001', aliases: [], group: 'Note', entryTitle: 'ADR 001', path: '/vault/docs/adr/0001-tauri-stack.md' },
+      { title: 'ADR 001', aliases: [], group: 'Note', entryTitle: 'ADR 001', path: '/vault/docs/adr/0001-web-stack.md' },
     ]
 
     const result = attachClickHandlers(candidates, insertWikilink, vaultPath)
 
     result[0].onItemClick()
-    expect(insertWikilink).toHaveBeenCalledWith('docs/adr/0001-tauri-stack')
+    expect(insertWikilink).toHaveBeenCalledWith('docs/adr/0001-web-stack')
   })
 
   it('omits any default alias even when the title differs from the path stem', () => {

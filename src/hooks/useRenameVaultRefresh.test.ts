@@ -1,18 +1,16 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import type { NoteActionsConfig } from './useNoteActions'
 import { useNoteActions } from './useNoteActions'
 import { useNoteRename } from './useNoteRename'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn().mockResolvedValue(''),
+  callWebBackend: vi.fn().mockResolvedValue(''),
 }))
 vi.mock('./mockFrontmatterHelpers', () => ({
   updateMockFrontmatter: vi.fn().mockReturnValue('---\ntitle: New Title\n---\n# New Title\n'),
@@ -56,7 +54,7 @@ function makeEntry(overrides: Partial<VaultEntry> = {}): VaultEntry {
 }
 
 function mockRenameSuccess() {
-  vi.mocked(mockInvoke).mockImplementation(async (command: string) => {
+  vi.mocked(callWebBackend).mockImplementation(async (command: string) => {
     if (command === 'rename_note') return { new_path: '/vault/new-title.md', updated_files: 2 }
     if (command === 'get_note_content') return '---\ntitle: New Title\n---\n# New Title\n'
     return ''
@@ -96,7 +94,6 @@ function makeNoteActionsConfig(reloadVault: () => Promise<unknown>): NoteActions
 describe('rename vault refresh', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(isTauri).mockReturnValue(false)
     mockRenameSuccess()
   })
 

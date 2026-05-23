@@ -1,6 +1,6 @@
 # Architecture
 
-Artemis is a personal knowledge and life management desktop app. It reads a vault of markdown files with YAML frontmatter and presents them in a four-panel UI inspired by Bear Notes.
+Artemis is a personal knowledge and life management web app. It reads a vault of markdown files with YAML frontmatter through the local web vault API (or a browser-local demo vault) and presents them in a four-panel UI inspired by Bear Notes.
 
 ## Design Principles
 
@@ -65,7 +65,7 @@ flowchart LR
     FS -->|"scan_vault_cached()"| Cache
     Cache -->|"useVaultLoader on load"| RS
     FS -->|"reload_vault (full rescan)"| RS
-    RS -.->|"write via Tauri IPC first"| FS
+    RS -.->|"callWebBackend / /api/vault write first"| FS
 
     style FS fill:#d4edda,stroke:#28a745,color:#000
     style Cache fill:#fff3cd,stroke:#ffc107,color:#000
@@ -76,22 +76,22 @@ flowchart LR
 
 | Layer | Owner | Writes to | Reads from |
 |-------|-------|-----------|------------|
-| Filesystem | Tauri Rust commands (`save_note_content`, `update_frontmatter`, etc.) | Disk | — |
-| Cache | `scan_vault_cached()` in `vault/cache.rs` | `~/.laputa/cache/` | Filesystem + git diff |
-| React state | `useVaultLoader` + `useEntryActions` + `useNoteActions` | In-memory `entries` | Cache (on load), filesystem (on reload) |
+| Filesystem | Web vault backend functions/routes (`saveNoteContent()`, frontmatter save helpers, etc.) | Disk | — |
+| Transient content cache | `useTabManagement` / `useEditorTabSwap` | In-memory tab/content caches | Current `VaultEntry` identity + local API validation |
+| React state | `useVaultLoader` + `useEntryActions` + `useNoteActions` | In-memory `entries` | Filesystem scan / browser fallback state |
 
 #### Invariants
 
-1. **Disk-first writes**: All functions that change vault data must write to disk (via Tauri IPC) *before* updating React state. This ensures that if the disk write fails, React state remains consistent with what's actually on disk.
+1. **Disk-first writes**: All functions that change vault data must write through the web backend *before* updating React state. This ensures that if the disk write fails, React state remains consistent with what's actually on disk.
 2. **Optimistic UI with rollback**: Where responsiveness matters (e.g. `persistOptimistic` in `useNoteCreation`), state may update before disk confirmation — but a failure callback must revert the optimistic state.
 3. **No orphan state updates**: Never call `updateEntry()` before the corresponding `handleUpdateFrontmatter()` or `handleDeleteProperty()` has resolved. The three functions in `useEntryActions` (`handleCustomizeType`, `handleRenameSection`, `handleToggleTypeVisibility`) follow this rule — disk write first, then state update.
-4. **Recovery via reload**: If state ever diverges from disk (crash, external edit, race condition), `Reload Vault` (Cmd+K → "Reload Vault") invalidates the cache and does a full filesystem rescan via the `reload_vault` Tauri command, replacing all React state. The `reload_vault_entry` command can re-read a single file.
-5. **Cache is disposable**: The `reload_vault` command deletes the cache file before rescanning, guaranteeing fresh data. The cache never contains data that doesn't exist on the filesystem.
-6. **Visibility filters are command-boundary concerns**: Gitignored-content visibility is applied after scanning/caching, before entries, folders, or search results reach React. The cache remains complete so toggling the setting can show ignored content again without rebuilding a different cache shape. Large folder filtering runs on the blocking Tokio pool and drains `git check-ignore` output while feeding stdin so broad ignore matches cannot freeze the native UI thread.
+4. **Recovery via reload**: If state ever diverges from disk (crash, external edit, race condition), `Reload Vault` (Cmd+K → "Reload Vault") performs a filesystem rescan via `reloadVault()`, replacing React state. `reloadVaultEntry()` can re-read a single file.
+5. **Caches are disposable**: Renderer caches are performance hints only. A reload or identity mismatch discards them and reads the local API/mock store again.
+6. **Visibility filters are renderer concerns**: All Notes file-kind visibility and gitignored visibility toggles live in React settings/state. The current web vault API scans non-hidden files and does not implement the old backend `git check-ignore` filter.
 
 #### External Change Detection
 
-The main window starts a native watcher for the active vault through `start_vault_watcher` / `stop_vault_watcher` (`src-tauri/src/vault_watcher.rs`, backed by Rust `notify`). The watcher emits `vault-changed` events for content paths and ignores churn from `.git/`, `node_modules/`, temp files, and `.tolaria-rename-txn`. `useVaultWatcher` batches those events, suppresses recent app-owned saves, and sends the remaining external paths through `refreshPulledVaultState()` so folders, saved views, note-list state, and the clean active editor all refresh under the ADR-0071 unsaved-edit rules. `useVaultLoader.isReloading` drives the status-bar reload spinner for both manual and watcher-triggered reloads.
+The web build detects external vault changes by polling `/api/vault/snapshot` through `useVaultWatcher`. The hook diffs file identity snapshots, suppresses recent app-owned saves, and sends changed paths through `refreshPulledVaultState()` so folders, saved views, note-list state, and the clean active editor all refresh under the ADR-0071 unsaved-edit rules. `useVaultLoader.isReloading` drives the status-bar reload spinner for both manual and watcher-triggered reloads.
 
 #### Progressive Vault Loading
 
@@ -101,7 +101,7 @@ Large-vault reproduction and keyboard QA steps live in [LARGE-VAULT-LOADING-QA.m
 
 #### Note Opening Fast Path
 
-Note opening uses bounded in-memory fast paths for raw content and parsed editor blocks. `useTabManagement` owns the markdown/text prefetch cache and treats every cached value as a performance hint only: identity-matched entries (`modifiedAt` + `fileSize`) can be reused immediately, while identity-missing or identity-mismatched cached text is checked with `validate_note_content`, which compares the cached text with the current file bytes inside the validated vault boundary. If validation fails, Artemis discards the cached entry and reads fresh disk content before swapping the editor.
+Note opening uses bounded in-memory fast paths for raw content and parsed editor blocks. `useTabManagement` owns the markdown/text prefetch cache and treats every cached value as a performance hint only: identity-matched entries (`modifiedAt` + `fileSize`) can be reused immediately, while identity-missing or identity-mismatched cached text is checked with `validateNoteContent()`, which compares the cached text with the current file bytes through the local web API. If validation fails, Artemis discards the cached entry and reads fresh disk content before swapping the editor.
 
 The note list opportunistically preloads visible and adjacent markdown/text entries after a short delay. When a large warmed Markdown note resolves, `useEditorTabSwap` may parse it into a bounded parsed-block cache only after foreground editor work has been idle and the rich editor is mounted. Parsed blocks are keyed by vault, path, and exact source content; every async swap carries a generation/source-content token so stale conversion results cannot overwrite newer file content or dirty editor state. The editor never renders a preview surface that later morphs into BlockNote. See [ADR-0105](./adr/0105-editor-correctness-and-responsiveness-contract.md).
 
@@ -109,7 +109,6 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Desktop shell | Tauri v2 | 2.10.0 |
 | Frontend | React + TypeScript | React 19, TS 5.9 |
 | Editor | BlockNote | 0.46.2 |
 | Code block highlighting | @blocknote/code-block | 0.46.2 |
@@ -120,19 +119,19 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 | UI primitives | Radix UI + shadcn/ui | - |
 | Icons | Phosphor Icons + Lucide | - |
 | Build | Vite | 7.3.1 |
-| Backend language | Rust (edition 2021) | 1.77.2 |
+| Web vault backend | HTTP `/api/vault` command API + browser fallback handlers | - |
 | Frontmatter parsing | gray_matter | 0.2 |
-| Filesystem watcher | notify | 6.1 |
+| Filesystem watcher | Web snapshot polling | - |
 | Search | Keyword (walkdir-based file scan) | - |
 | Localization | App-owned runtime + JSON catalogs (`src/lib/i18n.ts`, `src/lib/locales/*.json`, `lara.yaml`) | English fallback + Lara CLI sync |
-| Tests | Vitest (unit), Playwright (E2E/smoke), cargo test (Rust) | - |
+| Tests | Vitest (unit), Playwright (E2E/smoke) | - |
 | Package manager | pnpm | - |
 
 ## System Overview
 
 ```mermaid
 flowchart TD
-    subgraph TW["Tauri v2 Window"]
+    subgraph TW["Browser Window"]
         subgraph FE["React Frontend"]
             App["App.tsx (orchestrator)"]
             WS["WelcomeScreen\n(onboarding)"]
@@ -148,13 +147,13 @@ flowchart TD
             ED --> IN
         end
 
-        subgraph RB["Rust Backend"]
-            LIB["lib.rs → Tauri commands"]
-            VAULT["vault/"]
-            FM["frontmatter/"]
-            GIT["git/\n(commit, sync, clone)"]
-            SETTINGS["settings.rs"]
-            SEARCH["search.rs"]
+        subgraph RB["Web Vault Backend"]
+            API["/api/vault command routes"]
+            VAULT["vault operations"]
+            FM["frontmatter operations"]
+            GIT["git\n(commit, sync, clone)"]
+            SETTINGS["settings storage"]
+            SEARCH["search"]
         end
 
         subgraph EXT["External Services"]
@@ -162,7 +161,7 @@ flowchart TD
             REMOTE["Git remotes\n(GitHub/GitLab/Gitea/etc.)"]
         end
 
-        FE -->|"Tauri IPC"| RB
+        FE -->|"callWebBackend / HTTP"| RB
         GIT -->|"clone / fetch / push / pull"| GCLI
         GCLI -->|"network auth via user config"| REMOTE
     end
@@ -204,31 +203,7 @@ flowchart TD
 
 Panels are separated by `ResizeHandle` components that support drag-to-resize. `useLayoutPanels` clamps the sidebar, note-list, and inspector widths before applying them, keeps the side panes from flex-shrinking below their protected widths, and persists the last chosen widths in installation-local localStorage under `tolaria:layout-panels`.
 
-The main Tauri window derives its minimum width from the visible panes instead of a single fixed floor. `useMainWindowSizeConstraints` treats the editor-only shell as the 480px baseline, adds the current sidebar / note-list / expanded-inspector widths on top with minimum floors, and calls the native `update_current_window_min_size` command whenever view mode, inspector visibility, or restored pane widths change. That same native command also grows the current window back out when a wider pane combination is restored, while note windows skip this path and keep their dedicated 800×700 initial sizing.
-
-The main Tauri window also persists its last normal size and screen position in the app config directory as `window-state.json`. The state stores logical window points, while `window_state.rs` migrates older physical-pixel state on read so Retina and non-Retina launches restore the same user-facing bounds. On startup, the restored frame applies only to the main window and clamps to the currently available monitor work areas, so stale coordinates from a disconnected display fall back to a visible placement. Maximized, fullscreen, minimized, and detached note-window frames are not written as the restore baseline.
-
-
-Linux uses custom React-rendered window chrome instead of the native Tauri menu bar. `setup_linux_window_chrome()` drops server-side decorations on the main window, `openNoteInNewWindow()` does the same for detached note windows, and `LinuxTitlebar`/`LinuxMenuButton` route both window controls and menu actions back through the same shared command pipeline that the desktop native menus use. The native app menu keeps macOS-only Services/Hide entries off Windows and Linux, registers a window-scoped menu event handler on Windows where Tauri delivers menu clicks through the main `WebviewWindow`, and cross-platform custom items such as Check for Updates emit Artemis command IDs with visible updater feedback.
-When Artemis is launched from a Linux AppImage, `run()` also applies AppImage-only WebKitGTK startup safeguards without changing native package installs. It injects `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` independently unless the user already set either variable, and on Wayland sessions it re-execs once with the first architecture-matching system `libwayland-client.so` in `LD_PRELOAD` when the user has not provided their own preload. The candidate order prefers Fedora-style `lib64` and Debian-style `x86_64-linux-gnu` paths before generic `/usr/lib`, and the ELF header is checked so a 64-bit Artemis process does not retry with a 32-bit Wayland client library. The same AppImage path checks whether `fc-match` resolves the default emoji font to `Noto-COLRv1.ttf`; when the user has not provided `FONTCONFIG_FILE` or `FONTCONFIG_PATH`, Artemis writes a cache-local fontconfig file that rejects only that matched font file and exports it before WebKit starts. The rendering overrides keep AppImage WebViews from blanking after accelerated compositing/DMA-BUF failures, the re-exec addresses AppImage library-order failures that can surface as `Could not create default EGL display: EGL_BAD_PARAMETER`, and the fontconfig guard avoids known WebKit crashes in COLRv1 emoji font rendering while leaving other emoji fonts available.
-
-## Multi-Window (Note Windows)
-
-Notes can be opened in separate Tauri windows for focused editing. Secondary windows show only the editor panel (no sidebar, no note list).
-
-**Triggers:**
-- `Cmd+Shift+Click` on any note in the note list or sidebar
-- `Cmd+K` → "Open in New Window" (command palette, requires active note)
-- `Cmd+Shift+O` keyboard shortcut
-- Note → "Open in New Window" menu bar item
-
-**Architecture:**
-- `openNoteInNewWindow()` (`src/utils/openNoteWindow.ts`) creates a new `WebviewWindow` via the Tauri v2 JS API with URL query params (`?window=note&path=...&vault=...&title=...`)
-- `main.tsx` checks `isNoteWindow()` at boot to route between `App` (main window) and `NoteWindow` (secondary window)
-- `NoteWindow` (`src/NoteWindow.tsx`) is a minimal shell that loads vault entries, fetches note content, applies the theme, and renders a single `Editor` instance
-- Each window has its own auto-save via `useEditorSaveWithLinks` (same 1.5s low-end-safe idle debounce, same Rust `save_note_content` command), and raw-editor typing also derives frontmatter-backed `VaultEntry` state in the renderer so Inspector and note-list surfaces react immediately without waiting for a full reload
-- Secondary windows are sized 800×700; macOS keeps the overlay title bar, while Linux mounts the shared React titlebar on undecorated windows
-- Capabilities config (`src-tauri/capabilities/default.json`) grants permissions to both `main` and `note-*` window labels
+Artemis now relies on browser window management. The React layout clamps and persists pane widths in localStorage, but it does not resize the host OS window, mount custom Linux chrome, or open secondary note windows.
 
 ## Search
 
@@ -239,11 +214,11 @@ Search is keyword-based, using `walkdir` to scan all `.md` files in the vault di
 - Extracts contextual snippets around the first match
 - Skips hidden files
 
-The `search_vault` Tauri command runs the scan in a blocking Tokio task and returns results sorted by relevance score.
+The `search_vault` web backend command returns results sorted by relevance score.
 
 ## Vault Cache System
 
-The vault cache (`src-tauri/src/vault/cache.rs`) accelerates vault scanning using git-based incremental updates.
+The vault cache accelerates vault scanning using git-based incremental updates in the web vault backend.
 
 ### Cache File
 
@@ -298,7 +273,7 @@ Managed by `useVaultSwitcher` hook. Switching vaults resets sidebar and clears t
 
 ### Vault Config
 
-Per-vault UI settings stored locally per vault path (currently in browser/Tauri localStorage, not synced via git):
+Per-vault UI settings stored locally per vault path (currently in browser localStorage, not synced via git):
 - `zoom`: Float zoom level (0.8–1.5)
 - `view_mode`: "all" | "editor-list" | "editor-only"
 - `editor_mode`: "raw" | "preview" (persists across note switches and sessions)
@@ -324,7 +299,7 @@ When the user enables Git later, `init_git_repo` runs `git init`, ensures Artemi
 
 
 
-The starter content no longer lives in the app repo. `src-tauri/src/vault/getting_started.rs` holds the public starter repo URL (`refactoringhq/tolaria-getting-started`), delegates the clone to the git backend, then normalizes Artemis-managed root type scaffolding (`type.md`, `note.md`) so fresh starter vaults pick up the current defaults even when the remote starter repo still carries an older pre-`type:` `is_a`-era template. The clone helper still accepts the legacy `LAPUTA_GETTING_STARTED_REPO_URL` environment override so older automation can continue to redirect the starter source during the transition.
+The starter content no longer lives in the app repo. The web backend helper for `createGettingStartedVault()` uses the public starter repo URL (`refactoringhq/tolaria-getting-started`), delegates cloning to system git where available, then normalizes Artemis-managed root type scaffolding (`type.md`, `note.md`) so fresh starter vaults pick up the current defaults even when the remote starter repo still carries an older pre-`type:` `is_a`-era template. The helper still accepts the legacy `LAPUTA_GETTING_STARTED_REPO_URL` environment override so older automation can continue to redirect the starter source during the transition.
 
 After the clone completes, Artemis removes every configured git remote from the new starter vault. Getting Started vaults therefore open as local-only by default, and users opt into a remote later with the explicit Add Remote flow.
 
@@ -335,10 +310,9 @@ Artemis no longer implements provider-specific OAuth or remote-repository APIs. 
 **Flow:**
 1. User opens `CloneVaultModal` from onboarding or the vault menu
 2. User pastes any git URL and chooses a local destination
-3. The `clone_git_repo()` Tauri command runs `git clone` inside a blocking Tokio task so the Tauri window stays responsive during slow or failing clones
-4. Linux AppImage builds strip AppImage loader variables from system-git subprocesses before spawning `git`, keeping `git-remote-https` on the host git/library stack
-5. `git_push()` / `git_pull()` continue to use the same system git path
-6. Clone commands disable interactive terminal / askpass prompts and surface the git failure back to the UI instead of freezing the app waiting for input
+3. `cloneRepo()` sends the request to the local web API, which shells out to `git clone` for development/local runs
+4. `gitPush()` / `gitPull()` continue to use the same system git path through the local API
+5. Clone commands disable interactive terminal / askpass prompts and surface the git failure back to the UI instead of freezing the app waiting for input
 
 **Auth model:**
 - SSH keys, Git Credential Manager, macOS Keychain helpers, `gh auth`, and other git helpers all work without app-specific setup
@@ -355,7 +329,7 @@ Artemis no longer implements provider-specific OAuth or remote-repository APIs. 
 - Links to GitHub commits when `githubUrl` is available
 - Infinite scroll pagination (20 commits per page) via Intersection Observer
 
-Backend: `get_vault_pulse` Tauri command parses `git log` with `--name-status`.
+Backend: `getVaultPulse()` / `GET /api/vault/pulse` parses `git log` with `--name-status`.
 
 ## Data Flow
 
@@ -363,25 +337,23 @@ Backend: `get_vault_pulse` Tauri command parses `git log` with `--name-status`.
 
 ```mermaid
 sequenceDiagram
-    participant T as Tauri (Rust)
+    participant API as Web Vault API
     participant A as App.tsx
     participant VL as useVaultLoader
     participant U as User
 
-    T->>T: apply Linux AppImage WebKit env/preload safeguards<br/>(AppImage only)
-    T->>T: start background legacy vault housekeeping<br/>(does not block setup)
-    T->>A: App mounts
+    API->>A: App mounts
 
     A->>A: useOnboarding — vault exists?
     alt Vault missing
         A-->>U: WelcomeScreen
     else Vault found
         A->>VL: useVaultLoader fires
-        VL->>T: invoke('reload_vault') → allow requested vault roots in asset scope + scan_vault_cached()
-        T-->>VL: VaultEntry[]
-        VL->>T: invoke('get_modified_files')
+        VL->>API: reloadVault() → scan local filesystem / browser fallback
+        API-->>VL: VaultEntry[]
+        VL->>API: getModifiedFiles()
         alt Runtime vault path disappears
-            VL->>T: invoke('check_vault_exists')
+            VL->>API: checkVaultExists()
             VL-->>A: unavailable vault path + cleared stale state
             A-->>U: WelcomeScreen (vault missing)
         end
@@ -389,8 +361,8 @@ sequenceDiagram
     end
 
     U->>A: clicks note in NoteList
-    A->>T: invoke('get_note_content')
-    T-->>A: raw markdown
+    A->>API: getNoteContent()
+    API-->>A: raw markdown
     A->>A: splitFrontmatter → [yaml, body]
     A->>A: preProcessDurableEditorMarkdown(body)
     A->>A: preProcessWikilinks(body)
@@ -406,7 +378,7 @@ flowchart LR
     A["✏️ Editor content changes"] --> B["useEditorSave\n(debounced)"]
     B --> C["blocksToMarkdownLossy()"]
     C --> D["postProcessWikilinks()\n→ restore [[target]] syntax"]
-    D --> E["invoke('save_note_content')"]
+    D --> E["saveNoteContent()"]
     E --> F["💾 Disk write"]
     F --> G["Update tab status indicator"]
 ```
@@ -415,7 +387,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    AS["useAutoSync\n(configurable interval)"] --> PULL["invoke('git_pull')"]
+    AS["useAutoSync\n(configurable interval)"] --> PULL["gitPull()"]
     PULL --> PC{Result?}
     PC -->|Conflicts| CM["ConflictResolverModal\nor ConflictNoteBanner"]
     PC -->|Fast-forward| RV["reload vault + folders/views"]
@@ -426,29 +398,29 @@ flowchart TD
     PC -->|Up to date| DONE["idle"]
 
     MAN["Manual commit\n(CommitDialog)"] --> RS["useGitRemoteStatus\n(commit-time check)"]
-    RS --> RCHK["invoke('git_remote_status')"]
+    RS --> RCHK["gitRemoteStatus()"]
     RCHK --> RMODE{Remote configured?}
-    RMODE -->|No| GC["invoke('git_commit', message)"]
+    RMODE -->|No| GC["gitCommit(message)"]
     GC --> LOCAL["Local commit only\nNo remote chip + local toast"]
-    RMODE -->|Yes| GC2["invoke('git_commit', message)"]
-    GC2 --> GP["invoke('git_push')"]
+    RMODE -->|Yes| GC2["gitCommit(message)"]
+    GC2 --> GP["gitPush()"]
     GP --> PR{Push result?}
     PR -->|ok| RM["Reload modified files"]
     PR -->|rejected| DIV["syncStatus = pull_required"]
     DIV -->|User clicks badge| PAP["pullAndPush()"]
-    PAP --> PULL2["invoke('git_pull')"]
-    PULL2 --> GP2["invoke('git_push')"]
+    PAP --> PULL2["gitPull()"]
+    PULL2 --> GP2["gitPush()"]
     GP2 --> RM
 
     CMD["Cmd+K → Pull\nor Menu → Pull"] --> PULL
     STATUS["Click sync badge"] --> POPUP["GitStatusPopup\n(branch, ahead/behind)"]
 ```
 
-`useGitRemoteStatus` re-checks `git_remote_status` when the commit dialog opens and again right before submit. If `hasRemote` is false, Artemis keeps the flow local-only: the status bar shows a neutral `No remote` chip, the dialog copy switches from "Commit & Push" to "Commit", and no `git_push` call is attempted.
+`useGitRemoteStatus` re-checks `gitRemoteStatus()` when the commit dialog opens and again right before submit. If `hasRemote` is false, Artemis keeps the flow local-only: the status bar shows a neutral `No remote` chip, the dialog copy switches from "Commit & Push" to "Commit", and no `gitPush()` call is attempted.
 
 If the current vault is not a Git repository, Artemis treats Git as disabled instead of degraded. The status bar replaces changes, commit, sync, remote, conflict, and history controls with a `Git disabled` warning that reopens Git setup. Command registration follows the same state: only `Initialize Git for Current Vault` is available in the Git group, while pull, commit, changes, conflict, and remote commands are hidden. `useAutoSync` is disabled for non-git vaults so the app does not run background Git commands against plain folders.
 
-The same local-only state enables the explicit Add Remote flow. `AddRemoteModal` is reachable from the `No remote` chip and the command palette. The backend `git_add_remote` command ensures the local author identity, adds `origin`, fetches it, refuses incompatible histories, and only enables tracking after a safe push or fast-forward-compatible check succeeds.
+The same local-only state enables the explicit Add Remote flow. `AddRemoteModal` is reachable from the `No remote` chip and the command palette. The backend `gitAddRemote()` flow ensures the local author identity, adds `origin`, fetches it, refuses incompatible histories, and only enables tracking after a safe push or fast-forward-compatible check succeeds.
 
 `useCommitFlow` also exposes `runAutomaticCheckpoint()`, a dialog-free commit path shared by AutoGit and the bottom-bar Commit button. `useAutoGit` watches the last editor activity plus app focus/visibility state, and when the vault is git-backed, all saves are flushed, and no unsaved edits remain, it triggers the same deterministic `Updated N note(s)` / `Updated N file(s)` commit message path after the configured idle or inactive thresholds. The bottom-bar quick action reuses that checkpoint flow after forcing a save first, so manual quick commits and scheduled AutoGit commits stay aligned on message generation and push behavior.
 
@@ -462,113 +434,67 @@ The same local-only state enables the explicit Add Remote flow. `AddRemoteModal`
 | `conflict` | Conflict | orange | Merge conflicts detected |
 | `error` | Sync failed | grey | Network/auth error |
 
-## Vault Module Structure
+## Web Backend Structure
 
-The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
+Artemis is web-only. The renderer calls explicit backend functions from `src/backend/client.ts`; those functions prefer the local `/api/vault/*` HTTP middleware and fall back to browser-local demo handlers in `src/backend/web-command-handlers.ts`.
 
 | File | Purpose |
 |------|---------|
-| `mod.rs` | Core types (`VaultEntry`, `Frontmatter`), `parse_md_file`, `scan_vault`, relationship/link extraction |
-| `parsing.rs` | Text processing: snippet extraction, markdown stripping, ISO date parsing, `extract_title` (H1 → legacy frontmatter → filename), `slug_to_title` |
-| `title_sync.rs` | Legacy filename → `title` frontmatter sync helper; no longer used by the normal note-open flow |
-| `cache.rs` | Git-based incremental vault caching (`scan_vault_cached`), git helpers |
-| `ignored.rs` | Gitignored-content visibility filtering via batched, pipe-safe `git check-ignore` |
-| `filename_rules.rs` | Cross-platform validation for note filenames, folder names, and custom view filenames |
-| `rename.rs` | `rename_note` / `rename_note_filename` / `move_note_to_folder` — stage crash-safe file moves, update `title` frontmatter when needed, recover unfinished rename transactions, and report backlink rewrite failures |
-| `image.rs` | `save_image` / `copy_image_to_vault` — save editor image attachments with sanitized filenames |
-| `migration.rs` | `flatten_vault`, `vault_health_check`, `migrate_is_a_to_type` |
-| `config_seed.rs` | Removes obsolete legacy `config/agents.md` and repairs missing root type scaffolding such as `type.md` and `note.md` |
-| `getting_started.rs` | Clones and normalizes the public Getting Started starter vault |
+| `src/backend/client.ts` | Explicit typed client functions (`listVault`, `getNoteContent`, `saveNoteContent`, Git wrappers, settings wrappers) used by React hooks and components |
+| `src/backend/vault-api.ts` | Detects the local `/api/vault` server, maps legacy command names to HTTP routes, validates route origin, and unwraps API responses |
+| `src/backend/web-command-handlers.ts` | Browser-local/demo fallback for vault content, settings, Git-like state, and command test hooks |
+| `src/backend/web-content.ts` / `web-entries.ts` / `web-persistence.ts` | Mock/demo vault content, entry derivation, and local persistence helpers |
+| `vite.config.ts` | Local development vault API middleware: filesystem scanning/parsing, vault CRUD, folder operations, Git shell-outs, search, default path resolution, and test server configuration |
 
-## Rust Backend Modules
-
-| Module | Purpose |
-|--------|---------|
-| `vault/` | Vault scanning, caching, parsing, rename, image, migration |
-| `frontmatter/` | YAML frontmatter read/write (`mod.rs`, `yaml.rs`, `ops.rs`) |
-| `git/` | Git operations (`commit.rs`, `status.rs`, `history.rs`, `conflict.rs`, `remote.rs`, `pulse.rs`, `clone.rs`, `connect.rs`) |
-| `search.rs` | Keyword search — walkdir-based vault file scan with Gitignored-content visibility filtering |
-| `commands/` | Tauri command handlers (split into submodules) |
-| `settings.rs` | App settings persistence |
-| `vault_config.rs` | Per-vault UI config |
-| `vault_list.rs` | Vault list persistence |
-| `menu.rs` | Native desktop menu definitions and command IDs (not mounted on Linux) |
-
-## Tauri IPC Commands
+## HTTP Vault API Surface
 
 ### Vault Operations
 
-| Command | Description |
+| Route / client function | Description |
 |---------|-------------|
-| `list_vault` | Scan vault (cached), then apply Gitignored-content visibility → `Vec<VaultEntry>` |
-| `get_note_content` | Read note file content |
-| `save_note_content` | Write note content to disk |
-| `delete_note` | Permanently delete note from disk (with confirm dialog) |
-| `rename_note` | Crash-safe note rename + `title` frontmatter update + cross-vault wikilinks + failed backlink counts |
-| `move_note_to_folder` | Crash-safe folder move that preserves the filename, reloads the moved note, and rewrites path-based wikilinks |
-| `create_vault_folder` | Create a folder relative to the active vault root |
-| `list_vault_folders` | Build the folder tree on the blocking Tokio pool, then apply Gitignored-content visibility → `Vec<FolderNode>` |
-| `rename_vault_folder` | Rename a folder relative to the active vault root and return old/new relative paths |
-| `delete_vault_folder` | Permanently delete a folder subtree relative to the active vault root |
-| `sync_note_title` | Legacy helper: rewrite `title` frontmatter from filename → `bool` (modified); not used by the normal note-open flow |
-| `batch_archive_notes` | Archive multiple notes |
-| `batch_delete_notes` | Permanently delete notes from disk |
-| `reload_vault` | Allow the requested vault roots in the runtime asset scope, invalidate cache, full rescan from filesystem, then apply Gitignored-content visibility → `Vec<VaultEntry>` |
-| `reload_vault_entry` | Re-read a single file from disk → `VaultEntry` |
-| `open_vault_file_external` | Legacy/native-only boundary command; the web UI no longer exposes external file launching |
-| `start_vault_watcher` / `stop_vault_watcher` | Start or stop native active-vault filesystem change events |
-| `check_vault_exists` | Check if vault path exists |
-| `create_empty_vault` | Create a git-backed vault, then seed root `type.md` and `note.md` defaults |
-| `create_getting_started_vault` | Clone the public Getting Started vault, refresh Artemis-managed type/config defaults, and keep the cloned repo clean |
-
-### Frontmatter
-
-| Command | Description |
-|---------|-------------|
-| `update_frontmatter` | Update a frontmatter property |
-| `delete_frontmatter_property` | Remove a frontmatter property |
+| `GET /api/vault/list` / `listVault()` | Scan Markdown files and return `VaultEntry[]` |
+| `GET /api/vault/content` / `getNoteContent()` | Read file content |
+| `POST /api/vault/save` / `saveNoteContent()` | Write note/text content |
+| `POST /api/vault/delete` / `deleteNote()` / `batchDeleteNotes()` | Permanently delete one or more files |
+| `POST /api/vault/rename` / `renameNote()` | Rename a note by title |
+| `POST /api/vault/rename-filename` / `renameNoteFilename()` | Rename only the filename stem |
+| `POST /api/vault/move-to-folder` / `moveNoteToFolder()` | Move a note to a vault-relative folder |
+| `GET /api/vault/folders` / `listVaultFolders()` | Build the folder tree |
+| `POST /api/vault/create-folder` / `createVaultFolder()` | Create a folder relative to the vault root |
+| `POST /api/vault/rename-folder` / `renameVaultFolder()` | Rename a vault-relative folder |
+| `POST /api/vault/delete-folder` / `deleteVaultFolder()` | Permanently delete a vault-relative folder subtree |
+| `GET /api/vault/entry` / `reloadVaultEntry()` | Re-read a single file and derive its `VaultEntry` |
+| `GET /api/vault/exists` / `checkVaultExists()` | Check if a vault path exists |
+| `POST /api/vault/create-empty` / `createEmptyVault()` | Create an empty vault folder with starter scaffolding |
+| `POST /api/vault/create-getting-started` / `createGettingStartedVault()` | Create a starter vault from the public template flow |
 
 ### Git
 
-| Command | Description |
+| Route / client function | Description |
 |---------|-------------|
-| `init_git_repo` | Initialize a local repo, add default `.gitignore`, and create the unsigned setup commit |
-| `git_commit` | Stage all + commit |
-| `git_pull` | Pull from remote |
-| `git_push` | Push to remote |
-| `git_remote_status` | Get branch name + ahead/behind counts |
-| `git_add_remote` | Connect a local-only vault to a compatible remote and start tracking it |
-| `git_resolve_conflict` | Resolve a merge conflict |
-| `git_commit_conflict_resolution` | Commit conflict resolution |
-| `get_file_history` | Last N commits for a file |
-| `get_modified_files` | `git status` filtered to .md |
-| `get_file_diff` | Unified diff for a file |
-| `get_file_diff_at_commit` | Diff at a specific commit |
-| `get_conflict_files` | List conflicted files |
-| `get_conflict_mode` | Get conflict resolution mode |
-| `get_vault_pulse` | Git activity feed (paginated) |
-| `get_last_commit_info` | Latest commit metadata |
-| `clone_repo` | Clone a remote repository into a local folder using system git |
+| `POST /api/vault/git/init` / `initGitRepo()` | Initialize a local repo and setup commit |
+| `POST /api/vault/git/commit` / `gitCommit()` | Stage all + commit |
+| `POST /api/vault/git/pull` / `gitPull()` | Pull from remote |
+| `POST /api/vault/git/push` / `gitPush()` | Push to remote |
+| `GET /api/vault/git/remote-status` / `gitRemoteStatus()` | Branch name + ahead/behind counts |
+| `POST /api/vault/git/add-remote` / `gitAddRemote()` | Connect a local vault to a compatible remote |
+| `GET /api/vault/history` / `getFileHistory()` | Commits for a file |
+| `GET /api/vault/changes` / `getModifiedFiles()` | `git status` as `ModifiedFile[]` |
+| `GET /api/vault/diff` / `getFileDiff()` | Unified diff for a file |
+| `GET /api/vault/diff-at-commit` / `getFileDiffAtCommit()` | Diff at a specific commit |
+| `GET /api/vault/git/conflicts` / `getConflictFiles()` | List conflicted files |
+| `GET /api/vault/pulse` / `getVaultPulse()` | Git activity feed |
+| `GET /api/vault/git/last-commit` / `getLastCommitInfo()` | Latest commit metadata |
+| `POST /api/vault/git/clone` / `cloneRepo()` | Clone a remote repository into a local folder |
 
-### Search
+### Search, settings, and frontmatter
 
-| Command | Description |
+| Surface | Description |
 |---------|-------------|
-| `search_vault` | Keyword search across vault files |
+| `GET /api/vault/search` / `searchVault()` | Keyword search across vault files |
+| `src/hooks/frontmatterOps.ts` | Frontmatter update/delete is implemented as load → YAML edit → `saveNoteContent()` → immediate `VaultEntry` patch |
+| `useSettings`, `useVaultConfig`, `useVaultList` | App/vault settings and vault lists persist through browser/local web storage helpers rather than desktop IPC |
 
-### Vault Maintenance
-
-| Command | Description |
-|---------|-------------|
-| `get_vault_settings` | Read `.laputa/settings.json` |
-| `save_vault_settings` | Write vault settings |
-| `repair_vault` | Flatten vault structure, migrate legacy frontmatter, restore root config/type defaults including `note.md` |
-
-
-| Command | Description |
-|---------|-------------|
-| `copy_text_to_clipboard` | Copy setup snippets through the native desktop clipboard command path |
-| `read_text_from_clipboard` | Read current desktop clipboard text for command-driven plain-text paste |
 
 
 ### Settings & Config
@@ -585,27 +511,14 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `get_build_number` | Get app build number |
 | `save_image` | Save base64 image to `attachments/` and ensure the vault root is in the runtime asset scope |
 | `copy_image_to_vault` | Copy image file to `attachments/` and ensure the vault root is in the runtime asset scope |
-| `update_menu_state` | Update native menu checkmarks and enabled/disabled state for selection-dependent actions |
-| `trigger_menu_command` | Emit a native menu command ID for deterministic shortcut QA |
-| `update_current_window_min_size` | Update the active Tauri window's minimum size and optionally grow it to fit restored panes |
 
 `get_build_number` feeds the bottom status bar label. It preserves legacy `bNNN` date-build labels, renders local `0.1.0` / `0.0.0` builds as `dev`, formats calendar alpha builds as `Alpha YYYY.M.D.N`, strips any calendar `-stable.N` suffix back to `YYYY.M.D`, and keeps legacy semver releases readable instead of falling back to `?`.
 
-## Mock Layer
+## Web Backend Layer
 
-When running outside Tauri (browser at `localhost:5173`), `src/mock-tauri.ts` provides a transparent mock layer:
+`src/backend/client.ts` exposes explicit helper functions for each supported vault command. The client first tries the optional `/api/vault` HTTP bridge and falls back to browser demo handlers in `src/backend/web-command-handlers.ts` for local development and tests.
 
-```typescript
-if (isTauri()) {
-  result = await invoke<T>('command_name', { args })
-} else {
-  result = await mockInvoke<T>('command_name', { args })
-}
-```
-
-The mock layer includes sample entries across all entity types, full markdown content with realistic frontmatter, mock git history, and mock pulse commits. It also tracks per-vault remote state so browser-mode Getting Started and empty-vault flows now behave like the desktop app: local-only until `git_add_remote` succeeds.
-
-Browser smoke tests can also override `window.__mockHandlers` before the app boots. The AutoGit smoke bridge uses that path directly for seeded saves so the mocked git dirty-state stays synchronized even when the optional browser vault API is serving note content.
+The fallback handlers include sample entries across all entity types, full markdown content with realistic frontmatter, mock git history, and mock pulse commits. They also track per-vault remote state so browser-mode Getting Started and empty-vault flows are local-only until `git_add_remote` succeeds. Browser smoke tests can override `window.__mockHandlers` before the app boots when they need seeded backend behavior.
 
 ## State Management
 
@@ -619,9 +532,7 @@ No Redux or global context. State lives in the root `App.tsx` and custom hooks:
 | `useNoteCreation` | — | Note/type creation with optimistic persistence |
 | `useNoteRename` | — | Note renaming and folder moves with wikilink update |
 | `useNoteRetargeting` | — | Shared note retargeting logic for drag/drop and command-palette actions |
-| `useTauriDragDropEvent` | — | Shared native window drag/drop event subscription and cleanup |
-| `useNativePathDrop` | — | Tauri-native file/folder path drops for command text inputs |
-| `frontmatterOps` | — (pure functions) | Frontmatter CRUD: key→VaultEntry mapping, mock/Tauri dispatch |
+| `frontmatterOps` | — (pure functions) | Frontmatter CRUD: key→VaultEntry mapping and web backend dispatch |
 | `useTabManagement` | Navigation history, note switching | Note navigation lifecycle |
 | `useVaultSwitcher` | `vaultPath`, `extraVaults` | Vault switching |
 | `useTheme` | Editor theme CSS vars and theme-mode bridge | Editor typography and app theme runtime |
@@ -631,7 +542,7 @@ No Redux or global context. State lives in the root `App.tsx` and custom hooks:
 | `useGitRemoteStatus` | `remoteStatus`, `refreshRemoteStatus()` | On-demand remote detection for commit UI |
 | `useUnifiedSearch` | Query, results, loading state | Keyword search |
 | `useVaultConfig` | Per-vault UI preferences | Vault-specific config |
-| `appCommandDispatcher` | Manifest-backed shortcut/menu command IDs | Shared execution path for renderer and native menu commands |
+| `appCommandDispatcher` | Manifest-backed command IDs | Shared execution path for keyboard shortcuts and command-palette actions |
 
 Data flows unidirectionally: `App` passes data and callbacks as props to child components. No child-to-child communication — everything goes through `App`.
 
@@ -656,21 +567,15 @@ Selection-dependent actions are wired through the command palette and web-safe m
 
 Shortcut routing is explicit:
 
-- `src/shared/appCommandManifest.json` is the shared command/menu metadata source for command IDs, menu labels, accelerators, native-menu enablement groups, and deterministic QA flags
-- `appCommandCatalog.ts` derives renderer command IDs, shortcut lookup maps, Linux menu sections, and QA metadata from that manifest
+- `src/shared/appCommandManifest.json` is the shared command metadata source for command IDs, labels, accelerators, enablement groups, and deterministic QA flags
+- `appCommandCatalog.ts` derives renderer command IDs, shortcut lookup maps, menu sections, and QA metadata from that manifest
 - `formatShortcutDisplay()` derives platform-accurate visible shortcut labels (`⌘` on macOS, `Ctrl` on Windows/Linux) from that same manifest so menus, tooltips, and command-palette copy stay aligned with real accelerators
-- `useAppKeyboard` is the primary execution path for real shortcut keypresses, including Tauri runs
-- macOS browser-reserved chords such as `Cmd+O`, `Cmd+F`, and `Cmd+Shift+L` are unblocked at webview init via `tauri-plugin-prevent-default`, then continue through the same renderer-first command path
-- `Cmd+Shift+V` uses the same command path for "Paste without Formatting"; `plainTextPaste.ts` reads text through the native clipboard command in Tauri and inserts it through the active rich/raw editor target or the focused browser text control
-- `Cmd+F` is surface-aware: editor focus opens current-note find/replace in raw CodeMirror, note-list focus preserves note-list search, and native menu enablement follows focus availability events so only one `Cmd+F` menu item is active
-- `menu.rs`, `useMenuEvents`, and Linux's `LinuxMenuButton` emit the same manifest-derived command IDs for native menu clicks, accelerators, and custom titlebar menu actions; on Windows, `menu.rs` also listens to main-window menu events because Tauri attaches the native menu to the `WebviewWindow`
-- `appCommandDispatcher.ts` suppresses the paired native-menu/renderer echo from a single shortcut so the command runs once
-- Deterministic QA uses two explicit proof paths from the shared manifest:
-  - renderer shortcut-event proof through `window.__laputaTest.triggerShortcutCommand()`
-  - native menu-command proof through `trigger_menu_command`
-- The browser harness is only a deterministic desktop command bridge; exact native accelerator delivery still requires real Tauri QA for commands flagged as manual-native-critical
+- `useAppKeyboard` is the primary execution path for real shortcut keypresses in the browser runtime
+- `Cmd+Shift+V` uses the same command path for "Paste without Formatting"; `plainTextPaste.ts` reads text from the Web Clipboard API when available and inserts it through the active rich/raw editor target or the focused browser text control
+- `Cmd+F` is surface-aware: editor focus opens current-note find/replace in raw CodeMirror, while note-list focus preserves note-list search
+- Deterministic QA uses renderer shortcut-event proof through `window.__laputaTest.triggerShortcutCommand()`
 
-## Auto-Release & In-App Updates
+## Auto-Release
 
 ### Release Pipeline
 
@@ -679,25 +584,14 @@ Every push to `main` triggers `.github/workflows/release.yml`:
 ```
 push to main
   → version job: compute calendar alpha version YYYY.M.D-alpha.N
-    and a GitHub-sorted tag alpha-vYYYY.M.D-alpha.NNNN
-      → use today's UTC date unless the latest stable-vYYYY.M.D tag already uses today
-      → if stable already uses today, advance alpha to the next calendar day so semver still increases
   → build job:
-      → pnpm install, stamp version, pnpm build, tauri build --target aarch64-apple-darwin --bundles app
-      → pnpm install, stamp version, pnpm build, tauri build --target x86_64-apple-darwin --bundles app
-      → upload signed Apple Silicon and Intel .app.tar.gz + .sig updater artifacts named Artemis_<version>_macOS_Silicon and Artemis_<version>_macOS_Intel
-  → build-windows job:
-      → pnpm install, stamp version, tauri build --target x86_64-pc-windows-msvc --bundles nsis
-      → upload NSIS installer, optional MSI artifacts, and signed Windows updater bundles
+      → pnpm install, stamp version, pnpm build
+      → upload web build artifacts
   → release job:
-      → generate alpha-latest.json with darwin-aarch64, darwin-x86_64, Linux, and Windows updater URLs
       → publish GitHub prerelease alpha-vYYYY.M.D-alpha.NNNN named Artemis Alpha YYYY.M.D.N
   → pages job:
       → build static HTML release history page
-      → publish alpha/latest.json
-      → refresh latest.json + latest-canary.json as compatibility aliases to alpha
-      → preserve stable/latest.json
-      → deploy to gh-pages
+      → deploy release metadata/pages
 ```
 
 Stable promotions trigger `.github/workflows/release-stable.yml`:
@@ -706,23 +600,12 @@ Stable promotions trigger `.github/workflows/release-stable.yml`:
 push stable-vYYYY.M.D tag
   → version job: validate YYYY.M.D from the tag
   → build job:
-      → pnpm install, stamp version, pnpm build, tauri build --target aarch64-apple-darwin
-      → pnpm install, stamp version, pnpm build, tauri build --target x86_64-apple-darwin
-      → upload signed Apple Silicon and Intel .app.tar.gz + .sig and .dmg artifacts named Artemis_<version>_macOS_Silicon and Artemis_<version>_macOS_Intel
-  → build-linux job:
-      → pnpm install, stamp version, tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage
-      → upload .deb, .AppImage, and signed Linux updater bundles
-  → build-windows job:
-      → pnpm install, stamp version, tauri build --target x86_64-pc-windows-msvc --bundles nsis
-      → upload NSIS installer, optional MSI artifacts, and signed Windows updater bundles
+      → pnpm install, stamp version, pnpm build
+      → upload web build artifacts
   → release job:
-      → generate stable-latest.json with macOS Apple Silicon, macOS Intel, Linux, and Windows updater URLs plus platform-specific manual download URLs
       → publish GitHub release Artemis YYYY.M.D
   → pages job:
-      → publish stable/latest.json
-      → publish stable/download/ and download/ as permanent redirect URLs for the latest stable platform installer
-      → preserve alpha/latest.json
-      → deploy to gh-pages
+      → publish stable release metadata/pages
 ```
 
 ### Versioning
@@ -730,20 +613,8 @@ push stable-vYYYY.M.D tag
 - Stable promotions use git tags in the form `stable-vYYYY.M.D` and stamp the technical version `YYYY.M.D`.
 - Alpha builds stamp the technical version `YYYY.M.D-alpha.N` and display it as `Alpha YYYY.M.D.N`. The GitHub release tag zero-pads the sequence as `alpha-vYYYY.M.D-alpha.NNNN` so GitHub release ordering remains chronological.
 - If the latest stable tag already uses today's date, alpha advances to the next calendar day before assigning `-alpha.N` so Alpha remains semver-newer than Stable across channel switches.
-- The workflows stamp the computed version into `tauri.conf.json` and `Cargo.toml` at build time.
+- The workflows stamp the computed version into the web build environment.
 - This keeps display strings clean while preserving semver monotonicity when a user switches between Stable and Alpha.
-
-### In-App Updates
-
-```
-App startup (3s delay)
-  → useUpdater.check()
-    → idle (no update) → no UI
-    → available → UpdateBanner with release notes + "Update Now"
-      → downloading → progress bar
-        → ready → "Restart to apply" + Restart Now
-    → network error → fail silently
-```
 
 ### Telemetry (Opt-in)
 
@@ -771,7 +642,6 @@ sequenceDiagram
     Note over App: Settings panel toggle change
     User->>Settings: crash_reporting_enabled=false
     Settings->>Sentry: teardown()
-    Settings->>App: reinit_telemetry (Tauri cmd)
 ```
 
 **Privacy guarantees:**
@@ -781,20 +651,10 @@ sequenceDiagram
 - PostHog: `autocapture: false`, `persistence: 'memory'`, no cookies
 
 **Architecture:**
-- **Rust:** `sentry` crate initialized in `lib.rs::setup()` via `telemetry::init_sentry_from_settings()`
 - **JS:** `@sentry/react` + `posthog-js` initialized lazily by `useTelemetry` hook; the React root also wires `onCaughtError`, `onUncaughtError`, and `onRecoverableError` through `Sentry.reactErrorHandler()` so production React invariants include component stack context when crash reporting is enabled.
-- **Release grouping:** packaged release workflows pass `VITE_SENTRY_RELEASE` from the computed build version, but the app only assigns Sentry's `release` field for stable calendar builds (`YYYY.M.D`). Alpha/prerelease/internal builds omit `release` so they do not create normal Sentry Releases entries, while both frontend and Rust Sentry scopes tag `tolaria.build_version` and `tolaria.release_kind` for diagnostics.
-- **Settings:** `telemetry_consent`, `crash_reporting_enabled`, `analytics_enabled`, `anonymous_id` in `Settings` struct
+- **Release grouping:** packaged release workflows pass `VITE_SENTRY_RELEASE` from the computed build version, but the app only assigns Sentry's `release` field for stable calendar builds (`YYYY.M.D`). Alpha/prerelease/internal builds omit `release` so they do not create normal Sentry Releases entries, while the frontend Sentry scope tags `tolaria.build_version` and `tolaria.release_kind` for diagnostics.
+- **Settings:** `telemetry_consent`, `crash_reporting_enabled`, `analytics_enabled`, `anonymous_id` in web settings persistence
 - **Consent:** `TelemetryConsentDialog` shown when `telemetry_consent === null`
-
-### Updates
-
-Artemis uses the Tauri updater plugin for automatic updates:
-
-- `src-tauri/tauri.conf.json` points the default desktop feed at `stable/latest.json`
-- `useUpdater(releaseChannel)` waits 3 seconds after launch, then calls Rust commands instead of hard-coding one updater endpoint in the frontend
-- `src-tauri/src/app_updater.rs` maps the selected channel to `alpha/latest.json` or `stable/latest.json`
-- `download_and_install_app_update` streams progress events back into `UpdateBanner`
 
 ### Feature Flags (PostHog + Release Channels)
 
@@ -821,31 +681,6 @@ const enabled = useFeatureFlag('example_flag') // boolean
 
 Release channel is selectable in Settings as `alpha` or `stable` and passed to PostHog as a person property via `identify()`. Beta targeting is managed in PostHog, not in the updater settings. See ADR-0057.
 
-## Platform Support — iOS / iPadOS (Prototype)
+## Platform Support
 
-Tauri v2 supports iOS as a beta target. The Rust backend cross-compiles to `aarch64-apple-ios-sim` (simulator) and `aarch64-apple-ios` (device) with zero code changes to vault/frontmatter/search logic.
-
-**Conditional compilation strategy:**
-
-```
-#[cfg(mobile)]   — stub commands returning graceful errors or empty results
-```
-
-Desktop-only modules gated at the crate level:
-- `pub mod menu` — macOS menu bar (entire module)
-
-Desktop-only features gated at the function level in `commands/`:
-- Git operations (commit, pull, push, status, history, diff, conflicts)
-- Clone-by-URL via system git (`clone_repo`)
-- Menu state updates
-
-Features that work on both platforms without changes:
-- Vault scan, note read/write, rename, delete, archive
-- Frontmatter read/write/delete
-- Search (pure Rust in-memory)
-- Settings persistence
-- Vault list management
-
-**Capabilities:** `src-tauri/capabilities/default.json` targets desktop; `mobile.json` targets iOS/Android with a minimal permission set.
-
-**Detailed feasibility report:** `docs/IPAD-PROTOTYPE.md`
+Artemis currently targets web browsers and the local Vite-backed development/runtime API. Native iOS/iPadOS packaging is out of scope for the web-only architecture.

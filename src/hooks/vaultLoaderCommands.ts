@@ -1,13 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
 import type { FolderNode, GitPushResult, VaultEntry, ViewFile } from '../types'
 import { normalizeVaultEntries, normalizeViewFiles } from '../utils/vaultMetadataNormalization'
-
-interface TauriCallOptions {
-  command: string
-  tauriArgs: Record<string, unknown>
-  mockArgs?: Record<string, unknown>
-}
+import { callWebBackend, checkVaultExists, gitCommit, gitPush, listVault, listVaultFolders, listViews, reloadVault } from '../backend/client'
 
 interface VaultPathOptions {
   vaultPath: string
@@ -30,48 +23,46 @@ export function hasVaultPath({ vaultPath }: VaultPathOptions): boolean {
   return vaultPath.trim().length > 0
 }
 
-export function tauriCall<T>({ command, tauriArgs, mockArgs }: TauriCallOptions): Promise<T> {
-  return isTauri() ? invoke<T>(command, tauriArgs) : mockInvoke<T>(command, mockArgs ?? tauriArgs)
+export function webCommand<T>({ command, webArgs, mockArgs }: { command: string; webArgs: Record<string, unknown>; mockArgs?: Record<string, unknown> }): Promise<T> {
+  return callWebBackend<T>(command, mockArgs ?? webArgs)
+}
+
+export function backendCall<T>({ command, args }: { command: string; args?: Record<string, unknown> }): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 export async function checkVaultPathAvailability({ vaultPath }: VaultPathOptions): Promise<boolean | null> {
   if (!hasVaultPath({ vaultPath })) return false
 
   try {
-    return await tauriCall<boolean>({
-      command: 'check_vault_exists',
-      tauriArgs: { path: vaultPath },
-    })
+    return await checkVaultExists(vaultPath)
   } catch {
     return null
   }
 }
 
-function loadVaultEntriesWithCommand({ vaultPath, command }: VaultPathOptions & { command: string }): Promise<VaultEntry[]> {
-  return tauriCall<unknown>({ command, tauriArgs: { path: vaultPath } })
-    .then((entries) => normalizeVaultEntries(entries, vaultPath))
+function loadVaultEntriesWithCommand({ vaultPath, reload }: VaultPathOptions & { reload: boolean }): Promise<VaultEntry[]> {
+  const request = reload ? reloadVault(vaultPath) : listVault(vaultPath)
+  return request.then((entries) => normalizeVaultEntries(entries, vaultPath))
 }
 
 function loadVaultEntries({ vaultPath }: VaultPathOptions): Promise<VaultEntry[]> {
-  const command = isTauri() ? 'reload_vault' : 'list_vault'
-  return loadVaultEntriesWithCommand({ vaultPath, command })
+  return loadVaultEntriesWithCommand({ vaultPath, reload: false })
 }
 
 export function reloadVaultEntries({ vaultPath }: VaultPathOptions): Promise<VaultEntry[]> {
-  return loadVaultEntriesWithCommand({ vaultPath, command: 'reload_vault' })
+  return loadVaultEntriesWithCommand({ vaultPath, reload: true })
 }
 
 export function loadVaultFolders({ vaultPath }: VaultPathOptions): Promise<FolderNode[]> {
-  return tauriCall<FolderNode[]>({ command: 'list_vault_folders', tauriArgs: { path: vaultPath } })
+  return listVaultFolders(vaultPath)
 }
 
 export function loadVaultViews({ vaultPath }: VaultPathOptions): Promise<ViewFile[]> {
-  return tauriCall<unknown>({ command: 'list_views', tauriArgs: { vaultPath } })
-    .then(normalizeViewFiles)
+  return listViews(vaultPath).then(normalizeViewFiles)
 }
 
 export async function loadVaultData({ vaultPath }: VaultPathOptions): Promise<LoadedVaultData> {
-  if (!isTauri()) console.info('[mock] Using mock Tauri data for browser testing')
   const entries = await loadVaultEntries({ vaultPath })
   console.log(`Vault scan complete: ${entries.length} entries found`)
   return { entries }
@@ -90,10 +81,6 @@ export async function loadVaultChrome({ vaultPath }: VaultPathOptions): Promise<
 }
 
 export async function commitWithPush({ vaultPath, message }: CommitWithPushOptions): Promise<GitPushResult> {
-  if (!isTauri()) {
-    await mockInvoke<string>('git_commit', { vaultPath, message })
-    return mockInvoke<GitPushResult>('git_push', { vaultPath })
-  }
-  await invoke<string>('git_commit', { vaultPath, message })
-  return invoke<GitPushResult>('git_push', { vaultPath })
+  await gitCommit(vaultPath, message)
+  return gitPush(vaultPath)
 }

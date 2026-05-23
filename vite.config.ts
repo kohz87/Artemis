@@ -1745,7 +1745,6 @@ export default defineConfig(({ mode }) => {
       exclude: [
         'src/**/*.{test,spec}.{ts,tsx}',
         'src/test/**',
-        'src/mock-tauri.ts',
         'src/main.tsx',
         'src/types.ts',
         'src/components/ui/dropdown-menu.tsx',

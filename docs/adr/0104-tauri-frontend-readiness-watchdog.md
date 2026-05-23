@@ -2,7 +2,8 @@
 type: ADR
 id: "0104"
 title: "Tauri frontend readiness watchdog"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-05-01
 ---
 

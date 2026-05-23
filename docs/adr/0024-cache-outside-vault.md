@@ -2,7 +2,8 @@
 type: ADR
 id: "0024"
 title: "Vault cache stored outside vault directory"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-03-08
 ---
 

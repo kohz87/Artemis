@@ -1,5 +1,4 @@
 import { useEffect, useCallback, useMemo, useRef, useContext, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { trackEvent } from '../lib/telemetry'
 import {
   useCreateBlockNote,
@@ -24,7 +23,6 @@ import { useEditorTheme } from '../hooks/useTheme'
 import { useImageDrop } from '../hooks/useImageDrop'
 import { useImageLightbox } from '../hooks/useImageLightbox'
 import { createTranslator, type AppLocale } from '../lib/i18n'
-import { isTauri } from '../mock-tauri'
 import { copyTextToClipboard } from '../utils/url'
 import { buildTypeEntryMap } from '../utils/typeColors'
 import { preFilterWikilinks, deduplicateByPath, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
@@ -350,11 +348,6 @@ function codeBlockText(codeBlock: HTMLElement): string {
 }
 
 async function writeClipboardText(text: string): Promise<void> {
-  if (isTauri()) {
-    await invoke('copy_text_to_clipboard', { text })
-    return
-  }
-
   await copyTextToClipboard(text)
 }
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { createFixtureVaultCopy, openFixtureVaultWebHarness, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 import { triggerMenuCommand } from './testBridge'
 
 async function createUntitledNote(page: Page): Promise<void> {
@@ -56,7 +56,7 @@ let tempVaultDir: string
 test.beforeEach(async ({ page }, testInfo) => {
   testInfo.setTimeout(90_000)
   tempVaultDir = createFixtureVaultCopy()
-  await openFixtureVaultTauri(page, tempVaultDir)
+  await openFixtureVaultWebHarness(page, tempVaultDir)
 })
 
 test.afterEach(async () => {

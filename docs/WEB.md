@@ -1,6 +1,6 @@
 # Artemis Web
 
-Artemis can run as a browser app without the Tauri desktop shell.
+Artemis is a browser-first web app. The React UI talks to explicit web backend functions in `src/backend/client.ts`, which prefer the local `/api/vault/*` middleware and fall back to browser-local demo persistence when the API is unavailable.
 
 ## Local Web Development
 
@@ -9,12 +9,9 @@ pnpm install
 pnpm dev:web
 ```
 
-Open the URL printed by Vite. Browser mode uses the same React UI as the
-desktop app and falls back to the mock Tauri command layer when native commands
-are unavailable.
+Open the URL printed by Vite. Web mode uses the same React UI in development and production. Filesystem-backed vaults go through the local web vault API; when that API is not available, Artemis uses an in-browser demo vault backed by localStorage.
 
-The development server binds to `localhost:5202` by default for Tauri dev
-compatibility. Set `ARTEMIS_HOST=0.0.0.0` to allow network access from other
+The development server binds to `localhost:5202` by default. Set `ARTEMIS_HOST=0.0.0.0` to allow network access from other
 devices, and set `ARTEMIS_PORT=5300` before `pnpm dev:web` to use a different
 browser port. `ARTEMIS_WEB_PORT` and `PORT` remain compatibility aliases for the
 port.

@@ -52,7 +52,7 @@ _width: wide              # rich-editor width override for this note
 
 **This convention is universal** — apply it to all future system-level frontmatter fields. When a new feature needs to store configuration in a note's frontmatter (especially in Type notes), use `_field_name` to keep it hidden from normal user-facing surfaces while still stored on-disk as plain text.
 
-The frontmatter parser (Rust: `vault/mod.rs`, TS: `utils/frontmatter.ts`) must filter out `_*` fields before passing `properties` to the UI.
+The frontmatter parsers (`vite.config.ts` for the local web backend and `src/utils/frontmatter.ts` in the renderer) must filter out `_*` fields before passing `properties` to the UI.
 
 ## Document Model
 
@@ -73,7 +73,7 @@ Git initialization is intentionally scoped to dedicated vault folders. When the 
 
 ### VaultEntry
 
-The core data type representing a single note, defined in Rust (`src-tauri/src/vault/mod.rs`) and TypeScript (`src/types.ts`).
+The core data type representing a single note, defined in TypeScript (`src/types.ts`) and populated by the web vault backend or browser-local demo store.
 
 ```mermaid
 classDiagram
@@ -154,7 +154,7 @@ interface VaultEntry {
 
 ### File kinds and binary previews
 
-`VaultEntry.fileKind` comes from the Rust vault scanner and intentionally stays coarse-grained:
+`VaultEntry.fileKind` comes from the web vault scanner and intentionally stays coarse-grained:
 
 | `fileKind` | Source files | UI behavior |
 |---|---|---|
@@ -166,7 +166,7 @@ Asset previewability is inferred in the renderer from the filename extension (`s
 
 ### Note Content Freshness
 
-The renderer may cache recently opened or preloaded markdown content, but cached content is only a performance hint. `useTabManagement` can reuse cached text immediately when it carries the same `modifiedAt` and `fileSize` identity as the current `VaultEntry`; otherwise it validates the cached string with the `validate_note_content` Tauri command. That command re-enters the same vault path boundary checks as `get_note_content` and compares the cached text against the current on-disk file bytes. A mismatch, missing file, or unreadable file falls back to the normal fresh-read path and existing missing/unreadable recovery.
+The renderer may cache recently opened or preloaded markdown content, but cached content is only a performance hint. `useTabManagement` can reuse cached text immediately when it carries the same `modifiedAt` and `fileSize` identity as the current `VaultEntry`; otherwise it validates the cached string with the `validateNoteContent()` web backend client function. The local `/api/vault/*` backend re-enters the same vault path boundary checks as `getNoteContent()` and compares the cached text against the current on-disk file bytes. A mismatch, missing file, or unreadable file falls back to the normal fresh-read path and existing missing/unreadable recovery.
 
 `useEditorTabSwap` may reuse BlockNote blocks that were already opened successfully or warmed from prefetched raw content, keyed by vault, path, and exact source content. Background warming is limited to likely next large Markdown notes and defers while the editor is unmounted, raw mode is active, or recent typing/navigation is still inside the foreground idle window. Every async editor swap carries a generation and source-content token so stale conversion results cannot overwrite newer file content or dirty editor state.
 
@@ -176,7 +176,7 @@ The editor Table of Contents is derived from the live BlockNote document, not fr
 
 ### Entity Types (isA / type)
 
-Entity type is stored in the `type:` frontmatter field (e.g. `type: Quarter`). The legacy field name `Is A:` is still accepted as an alias for backwards compatibility but new notes use `type:`. The `VaultEntry.isA` property in TypeScript/Rust holds the resolved value.
+Entity type is stored in the `type:` frontmatter field (e.g. `type: Quarter`). The legacy field name `Is A:` is still accepted as an alias for backwards compatibility but new notes use `type:`. The `VaultEntry.isA` TypeScript property holds the resolved value.
 
 Type is determined **purely** from the `type:` frontmatter field — it is never inferred from the file's folder location. All notes live at the vault root as flat `.md` files:
 
@@ -193,7 +193,7 @@ Type is determined **purely** from the `type:` frontmatter field — it is never
 
 New notes are created at the vault root: `{vault}/{slug}.md`. Changing a note's type only requires updating the `type:` field in frontmatter — the file does not move. Moving a note into a user folder is a separate filesystem concern: the folder path changes, but the note keeps the same filename and `type:` value. Legacy `type/` and `types/` folders are still scanned like other non-hidden vault folders, so existing type documents in those folders continue to work, but new type documents created by Artemis are written at the vault root. Legacy `config/` content is still recognized during migration and repair.
 
-A `flatten_vault` migration command is available to move existing notes from type-based subfolders to the vault root.
+Legacy flattening is a vault-maintenance migration concept, not part of the current browser command surface.
 
 ### Types as Files
 
@@ -205,7 +205,7 @@ Each entity type can have a corresponding **type document**: any markdown note w
 - Are navigable entities — they appear in the sidebar under "Types" and can be opened/edited like any note
 - Serve as the "definition" for their type category
 
-**Type document properties** (read by Rust and used in the UI):
+**Type document properties** (parsed by the web backend and used in the UI):
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -218,7 +218,7 @@ Each entity type can have a corresponding **type document**: any markdown note w
 | `view` | string | Default view mode: "all", "editor-list", "editor-only" |
 | `visible` | bool | Whether type appears in sidebar (default: true) |
 
-**Type relationship**: When any entry has an `isA` value (e.g., "Project"), the Rust backend automatically adds a `"Type"` entry to its `relationships` map pointing to `[[project]]`. This makes the type navigable from the Inspector panel while keeping location as an implementation detail.
+**Type relationship**: When any entry has an `isA` value (e.g., "Project"), Artemis can derive a `"Type"` relationship pointing to `[[project]]` in UI state. This makes the type navigable from the Inspector panel while keeping location as an implementation detail.
 
 **Instance schema/defaults**: Custom scalar properties and relationship fields on a type document define the expected shape for notes of that type. Existing instances do not get mutated when a type changes; the Inspector enriches their real frontmatter with gray placeholders for missing type-defined properties/relationships. Valued type fields are copied into frontmatter only when Artemis creates a new instance of that type. Blank type fields stay as placeholders.
 
@@ -245,7 +245,7 @@ aliases:
 ---
 ```
 
-Supported value types (defined in `src-tauri/src/frontmatter/yaml.rs` as `FrontmatterValue`):
+Supported value types (defined by TypeScript frontmatter normalization and serialized as YAML-compatible values):
 - **String**: `status: Active`
 - **Number**: `priority: 5`
 - **Bool**: `archived: true`
@@ -254,7 +254,7 @@ Supported value types (defined in `src-tauri/src/frontmatter/yaml.rs` as `Frontm
 
 ### Custom Relationships
 
-The Rust parser scans all frontmatter keys for fields containing `[[wikilinks]]`. Any non-standard field with wikilink values is captured in the `relationships` HashMap:
+The web backend and renderer frontmatter helpers scan frontmatter keys for fields containing `[[wikilinks]]`. Any non-standard field with wikilink values is captured in the `relationships` map:
 
 ```yaml
 ---
@@ -341,75 +341,58 @@ The renderer uses `viewOrdering` helpers to convert drag or command-palette move
 
 ## Command Surface
 
-`src/shared/appCommandManifest.json` is the cross-runtime source for stable app command IDs, menu structure, display labels, accelerators, deterministic shortcut QA metadata, and native menu enablement groups. The renderer imports it through `src/hooks/appCommandCatalog.ts`, which derives `APP_COMMAND_IDS`, shortcut lookup maps, Linux titlebar menu sections, native-menu command membership, and test helpers. Tauri includes the same JSON in `src-tauri/src/menu.rs` and uses it to build custom menu items, emit overridden menu item IDs such as the quick-open alias as their primary command IDs, register the Windows main-window menu event bridge, and toggle state-dependent menu items from manifest groups.
+`src/shared/appCommandManifest.json` is the source for stable app command IDs, menu structure, display labels, accelerators, deterministic shortcut QA metadata, and command availability groups. The renderer imports it through `src/hooks/appCommandCatalog.ts`, which derives `APP_COMMAND_IDS`, shortcut lookup maps, command-palette metadata, and test helpers.
 
-Domain command builders still own context-sensitive command-palette entries, availability, and execution callbacks. The manifest owns metadata that must stay identical across native menus, renderer shortcuts, deterministic QA bridges, and the Linux fallback menu; OS-native menu items such as Undo, Copy/Paste, Services, Quit, and Window controls remain local to the native menu implementation.
+Domain command builders still own context-sensitive command-palette entries, availability, and execution callbacks. Browser-only command execution stays in the renderer and test bridge; there is no native menu command path in the web-only architecture.
 
 ## File System Integration
 
-### Vault Scanning (Rust)
+### Vault Scanning (Web backend)
 
-`vault::scan_vault(path)` in `src-tauri/src/vault/mod.rs`:
+`src/backend/client.ts` exposes explicit functions such as `listVault()`, `reloadVault()`, `getNoteContent()`, `saveNoteContent()`, and `searchVault()`. Those functions prefer the local `/api/vault/*` middleware and fall back to the browser-local demo vault handlers in `src/backend/web-command-handlers.ts`.
 
-1. Validates the path exists and is a directory
-2. Recursively scans non-hidden files while skipping hidden directories such as `.git/`
-3. For each `.md` file, calls `parse_md_file()`:
-   - Reads content with `fs::read_to_string()`
-   - Parses frontmatter with `gray_matter::Matter::<YAML>`
-   - Extracts title from first `#` heading
-   - Reads entity type from `type:` frontmatter field (`Is A:` accepted as legacy alias); type is never inferred from folder
-   - Parses dates as ISO 8601 to Unix timestamps
-   - Extracts relationships, outgoing links, custom properties, word count, snippet
-4. For recognized non-markdown text and binary files, emits a minimal `VaultEntry` with `fileKind`
-5. Sorts by `modified_at` descending
-6. Skips unparseable files with a warning log
+The local web vault backend:
+
+1. Validates the path exists and is a directory.
+2. Recursively scans non-hidden files while skipping hidden directories such as `.git/`.
+3. For each `.md` file, parses frontmatter, extracts title from the first `#` heading, reads the `type:` field (`Is A:` accepted as legacy alias), parses dates, relationships, outgoing links, custom properties, word count, and snippet.
+4. Emits minimal `VaultEntry` records with `fileKind` for recognized non-markdown text and binary files.
+5. Sorts by `modified_at` descending and skips unparseable files with a warning log.
 
 All Notes starts from Markdown notes and excludes Markdown files under `attachments/`. `src/utils/allNotesFileVisibility.ts` resolves the installation-local PDF, image, and unsupported-file toggles from app settings; `noteListHelpers` applies that policy only to All Notes filtering and counts. Folder/root browsing continues to show files from the selected folder independently of those All Notes toggles.
 
 The folder tree hides the legacy `type/` directory, since those type documents already appear through the Types sidebar section. Default vault folders such as `attachments/` and `views/` remain visible alongside user-created folders under the synthetic vault-root row.
 
-Command-facing vault content is filtered through `vault::filter_gitignored_entries`, `vault::filter_gitignored_folders`, and `vault::filter_gitignored_paths` when the app setting `hide_gitignored_files` is enabled. The cache still stores the complete scan; `list_vault`, `reload_vault`, `list_vault_folders`, and search apply the visibility filter at the boundary before React consumes entries. The filter batches paths through `git check-ignore --no-index --stdin`, drains stdout while stdin is still being written, and short-circuits root `.gitignore` detection before walking for nested ignore files, so large ignored folder sets cannot deadlock the native UI while preserving Git semantics as closely as the app can reasonably support.
+Gitignored visibility is now a renderer setting plus test-harness concern. `src/lib/gitignoredVisibility.ts` resolves the effective toggle and emits refresh events; the current local web vault API scans visible non-hidden files and does not implement the old Rust `git check-ignore` boundary filter.
 
-A `vault_health_check` command detects stray files in non-protected subfolders and filename-title mismatches. On vault load, a migration banner offers to flatten stray files to the root via `flatten_vault`.
+Legacy vault-health and flattening behaviors are not exposed as current web API commands. The web-only app treats missing or unavailable vault roots through the normal vault loader recovery path and keeps folder/file repair as explicit future maintenance work.
 
-Command-layer path access is fenced to the active vault before file operations reach the vault backend. `src-tauri/src/commands/vault/boundary.rs` canonicalizes the configured/requested vault root, rejects `..` escapes and absolute paths outside that root, and validates writable targets through the nearest existing ancestor so note reads, saves, deletes, view-file edits, folder mutations, and image attachment writes cannot step outside the active vault. If the active root itself cannot be canonicalized, the renderer treats `Active vault is not available` the same as no active vault: it clears stale vault state, drops prefetched note content, and shows the missing-vault recovery screen instead of continuing note/view requests against the disappeared path. Image attachment commands add the current vault root to the runtime asset scope after saving so files created under a previously missing `attachments/` directory can render immediately.
+Local API file access is constrained by route-specific path resolution in `vite.config.ts`. `resolveUserPath()` expands user-provided roots, `resolveInside()` rejects relative escapes, and mutating routes validate their source and destination paths before copying, renaming, deleting, or writing files. Browser-local demo handlers in `src/backend/web-command-handlers.ts` mutate only the in-memory/mock vault state.
 
-UI-only file actions operate on paths that are already selected or indexed in React state. Path actions copy file and folder paths through the browser clipboard API, with a manual-copy prompt when the browser blocks clipboard access. Plain-text paste reads the desktop clipboard through `read_text_from_clipboard` in Tauri so WKWebView clipboard permissions do not block the command; browser/mock mode falls back to the Web Clipboard API or mock handlers. None of those actions mutate vault contents or bypass the backend write boundary.
-
+UI-only file actions operate on paths that are already selected or indexed in React state. Path actions copy file and folder paths through the browser clipboard API, with a manual-copy prompt when the browser blocks clipboard access. Plain-text paste uses the Web Clipboard API or mock handlers. None of those actions mutate vault contents or bypass the backend write boundary.
 
 ### Vault Caching
 
-`vault::scan_vault_cached(path)` wraps scanning with git-based caching:
+The web-only backend currently performs direct scans through `/api/vault/list` and `findMarkdownFiles()` in `vite.config.ts`; there is no persisted vault-entry cache file. The renderer may keep transient tab/content caches for responsiveness, but on-disk Markdown remains the source of truth.
 
-1. Reads cache from `~/.laputa/cache/<vault-hash>.json` (external to vault)
-2. Compares cache version, vault path, and git HEAD commit hash
-3. If cache is valid and same commit → only re-parse uncommitted changed files
-4. If different commit → use `git diff` to find changed files → selective re-parse
-5. If no cache → full scan
-6. Replaces the cache with a temp-file write + rename only if a short-lived writer lock and cache fingerprint check show another scan has not already refreshed it
-7. On first run, migrates any legacy `.laputa-cache.json` from inside the vault
+### Frontmatter Manipulation (Web)
 
-### Frontmatter Manipulation (Rust)
+`src/hooks/frontmatterOps.ts` coordinates frontmatter update/delete flows:
 
-`frontmatter/ops.rs:update_frontmatter_content()` performs line-by-line YAML editing:
-
-1. Finds the frontmatter block between `---` delimiters
-2. Iterates through lines looking for the target key
-3. If found: replaces the value (consuming multi-line list items if present)
-4. If not found: appends the new key-value at the end
-5. If no frontmatter exists: creates a new `---` block
-
-The `with_frontmatter()` helper wraps this in a read-transform-write cycle on the actual file.
+1. Loads the current Markdown content through `callWebBackend('get_note_content', { path })` or the mock content map.
+2. Applies `updateMockFrontmatter()` or `deleteMockFrontmatterProperty()` to edit the YAML block.
+3. Persists the resulting Markdown through `callWebBackend('save_note_content', { path, content })` when the local API is available, while also keeping the browser-local mock store in sync.
+4. Applies a computed `VaultEntry` patch immediately so Inspector/list state stays reactive without waiting for a full reload.
 
 ### Content Loading
 
-- **Tauri mode**: Content loaded on-demand when a tab is opened via `invoke('get_note_content', { path })`
-- **Browser mode**: All content loaded at startup from mock data
-- Content for backlink detection (`allContent`) is stored in memory as `Record<string, string>`
+- **Local web API**: Content is loaded on demand through explicit backend client functions such as `getNoteContent(path)`, `getAllContent(path)`, and `validateNoteContent(path, content)`.
+- **Browser demo/mock mode**: The same client falls back to `src/backend/web-command-handlers.ts` and in-memory mock content.
+- Content for backlink detection (`allContent`) is stored in memory as `Record<string, string>`.
 
 ## Git Integration
 
-Git operations live in `src-tauri/src/git/`. All operations shell out to the `git` CLI (not libgit2). Path-producing commands use `core.quotePath=false` so Unicode note filenames stay as UTF-8 paths across status, history, cache invalidation, and rename detection.
+Git operations are exposed through `/api/vault/git/*` routes in the Vite local web middleware (`vite.config.ts`) and wrapped by explicit functions in `src/backend/client.ts`. The middleware shells out to the configured `git` binary, resolves a Git root for each vault path, and normalizes status/history paths to UTF-8 slash-separated relative paths for React.
 
 ### Data Types
 
@@ -578,12 +561,11 @@ Defined in `src/components/tolariaEditorFormatting.tsx` and `src/components/tola
 - `useEditorComposing` tracks editor-owned IME composition events and closes the floating formatting toolbar during composition plus a short post-composition settle window, keeping CJK candidate windows unobstructed without changing normal selection toolbar behavior.
 - `useImageLightbox` listens for `dblclick` on the rich-editor container and opens `ImageLightbox` only when the event target resolves to a viewable BlockNote image. The target resolver handles media wrappers, ignores image captions/resize controls, missing sources, and tiny tracking-style images, preserving BlockNote's ordinary single-click image selection path.
 - The `/` slash menu remains the supported path for markdown-safe block transformations such as headings, quotes, list blocks, Mermaid diagrams, and whiteboards. Artemis filters out BlockNote's toggle-heading and toggle-list variants because those do not map cleanly to the markdown note model.
-- The block-handle side menu keeps only actions that survive Artemis's markdown round-trip. Delete and table-header toggles remain available; BlockNote's `Colors` submenu is removed because block colors are not part of Artemis's supported markdown surface. Artemis renders the add-block button outside the drag handle so the handle stays next to the block content. The side menu aligns itself to the first rendered text line for the hovered block, so H1/H2 typography, line-height, wrapping, and theme changes do not need per-heading offsets. Block reordering uses a Artemis-owned pointer gesture and direct BlockNote block moves instead of HTML5 `DataTransfer`, keeping it independent from Tauri's native file-drop system. Block-handle actions re-resolve the current live BlockNote block before mutating or dragging, so note reloads and sync churn cannot leave controls acting on stale block references.
+- The block-handle side menu keeps only actions that survive Artemis's markdown round-trip. Delete and table-header toggles remain available; BlockNote's `Colors` submenu is removed because block colors are not part of Artemis's supported markdown surface. Artemis renders the add-block button outside the drag handle so the handle stays next to the block content. The side menu aligns itself to the first rendered text line for the hovered block, so H1/H2 typography, line-height, wrapping, and theme changes do not need per-heading offsets. Block reordering uses an Artemis-owned pointer gesture and direct BlockNote block moves instead of HTML5 `DataTransfer`, keeping it independent from external file/drop payloads. Block-handle actions re-resolve the current live BlockNote block before mutating or dragging, so note reloads and sync churn cannot leave controls acting on stale block references.
 - BlockNote's table row/column handles are patched so stale or missing hovered-table state cancels the drag and hides handles instead of throwing. Add/remove row and column actions also validate the table position and cell indexes before resolving a ProseMirror `CellSelection`, so reloads or menu lag cannot turn stale handles into invalid table-selection positions. Checklist checkbox handlers also re-resolve the live block before updating `checked`, making delayed clicks after note reloads a no-op instead of a stale block mutation. Browser and native table regressions should exercise row and column dragging plus add-menu actions because the state is tracked per orientation.
 - `useNoteWikilinkDrop()` is the shared editor-drop abstraction for dragging note rows into either editor mode. It reads the existing note-retargeting drag payload, resolves the vault-relative stem, and inserts a canonical `[[wikilink]]` without hijacking unrelated plain-text drags.
 - `plainTextPaste.ts` is the shared plain-text paste target registry. Rich BlockNote and raw CodeMirror surfaces register focused insertion targets, while ordinary focused text controls use DOM selection replacement, so the `Cmd+Shift+V` command can preserve caret/selection behavior without each surface inventing its own clipboard reader.
-- `useTauriDragDropEvent()` owns the shared Tauri window drag/drop subscription and duplicate-unlisten cleanup used by native drop features.
-- `useNativePathDrop()` is the shared Tauri file/folder-drop abstraction for text inputs that need filesystem paths instead of attachment import. It consumes native window drag/drop events, gates them to the target element bounds or focused text selection, and lets command-palette inputs insert formatted paths at the current cursor.
+- Browser file and note drop paths use DOM pointer/drag events directly; there is no Tauri window drag/drop subscription in the web-only runtime.
 
 ### Markdown-to-BlockNote Pipeline
 
@@ -610,7 +592,7 @@ flowchart LR
     A["✏️ BlockNote blocks\n(editor state)"] --> B["blocksToMarkdownLossy()"]
     B --> C["restoreWikilinks + serializeDurableEditorBlocks()\nschema nodes → Markdown source"]
     C --> D["prepend frontmatter yaml"]
-    D --> E["invoke('save_note_content')\n→ disk write"]
+    D --> E["saveNoteContent()\n→ local API/mock write"]
 
     style A fill:#cce5ff,stroke:#004085,color:#000
     style E fill:#d4edda,stroke:#28a745,color:#000
@@ -618,7 +600,7 @@ flowchart LR
 
 Rich-editor change events are coalesced before this serialization runs. `useEditorTabSwap` keeps the latest BlockNote state in the editor, schedules one Markdown serialization for a short idle window, and exposes an explicit flush hook for save, note switch, raw-mode entry, and destructive note actions. This keeps long notes from paying full-document Markdown serialization on every keystroke while preserving the disk-first save path.
 
-Autosave then waits for a 1.5s idle window before invoking `save_note_content`. If an older save resolves after the user has already typed newer content, the older save is treated as stale and cannot clear the newer pending buffer or repaint tab state over it; the latest pending content remains scheduled for its own save.
+Autosave then waits for a 1.5s idle window before calling `saveNoteContent()`. If an older save resolves after the user has already typed newer content, the older save is treated as stale and cannot clear the newer pending buffer or repaint tab state over it; the latest pending content remains scheduled for its own save.
 
 ### Wikilink Navigation
 
@@ -631,7 +613,7 @@ Wikilink resolution (`resolveEntry` in `src/utils/wikilink.ts`) uses multi-pass 
 
 ### Raw Editor Mode
 
-Toggle via Cmd+K → "Raw Editor" or breadcrumb bar button. Uses CodeMirror 6 (`useCodeMirror` hook) to edit the raw markdown + frontmatter directly. Changes saved via the same `save_note_content` command.
+Toggle via Cmd+K → "Raw Editor" or breadcrumb bar button. Uses CodeMirror 6 (`useCodeMirror` hook) to edit the raw markdown + frontmatter directly. Changes save through the same `saveNoteContent()` backend client path.
 While the user types, `useEditorSaveWithLinks` derives a transient `VaultEntry` patch from parseable frontmatter so the Inspector, relationship chips, and note-list-visible metadata stay in sync with the raw editor before the next vault reload. Temporarily invalid or half-typed frontmatter is ignored until it becomes parseable again, which avoids clobbering the last known good derived state.
 
 Current-note find/replace is intentionally backed by raw CodeMirror mode. `Cmd+F`, "Find in Note", and "Replace in Note" switch the active Markdown/text note to raw mode, show the compact find bar above CodeMirror, and operate on the current note only. Plain text matching is case-insensitive by default, `Aa` toggles case sensitivity, `.*` toggles JavaScript-regex matching, and regex replacement supports capture groups through JavaScript replacement syntax.
@@ -796,7 +778,6 @@ Managed by `useSettings` hook and `SettingsPanel` component. `theme_mode` is ins
 ### Libraries
 - **`src/lib/telemetry.ts`** — `initSentry()`, `teardownSentry()`, `initPostHog()`, `teardownPostHog()`, `trackEvent()`. Path scrubber via `beforeSend` hook. DSN/key from `VITE_SENTRY_DSN` and `VITE_POSTHOG_KEY`; `VITE_SENTRY_RELEASE` is treated as the build version and only becomes Sentry's `release` for stable calendar builds (`YYYY.M.D`). Alpha/prerelease/internal builds tag `tolaria.build_version` and `tolaria.release_kind` without creating normal Sentry Releases entries.
 - **`src/main.tsx`** — React root error callbacks (`onCaughtError`, `onUncaughtError`, `onRecoverableError`) forward component-stack context to `Sentry.reactErrorHandler()` for debuggable production React errors.
-- **`src-tauri/src/telemetry.rs`** — Rust-side Sentry init with `beforeSend` path scrubber. `init_sentry_from_settings()` reads settings and conditionally initializes; stable calendar `CARGO_PKG_VERSION` values become Sentry releases, while alpha/prerelease/internal versions are kept as diagnostic tags only. `reinit_sentry()` for runtime toggle.
 
 ### Product Events
 - **File previews** — `file_preview_opened`, `file_preview_action`, and `file_preview_failed` report only preview/action categories such as `image`, `pdf`, `unsupported`, and `copy_path`.
@@ -804,30 +785,17 @@ Managed by `useSettings` hook and `SettingsPanel` component. `theme_mode` is ins
 - **Code block copy** — `code_block_copied` records that the rich-editor code-block copy action was used, without sending note paths, languages, or code content.
 - **All Notes visibility** — `all_notes_visibility_changed` records only the toggled category and enabled state.
 
-### Tauri Commands
-- **`reinit_telemetry`** — Re-reads settings and toggles Rust Sentry on/off. Called from frontend when user changes crash reporting setting.
-
 ---
 
 ## Updates & Feature Flags
 
 ### Hooks
-- **`useUpdater(releaseChannel)`** — Channel-aware updater state machine. Checks the selected feed, surfaces checking/available/downloading/ready states, and delegates install work to Rust.
 - **`useFeatureFlag(flag)`** — Returns boolean for a named feature flag. Checks `localStorage` override (`ff_<name>`), then falls back to telemetry-backed evaluation. Type-safe via `FeatureFlagName` union.
 
 ### Frontend helpers
 - **`src/lib/releaseChannel.ts`** — Normalizes persisted channel values so legacy or invalid settings fall back to Stable, while Stable serializes back to `null`.
-- **`src/lib/appUpdater.ts`** — Thin wrapper around the Tauri updater commands. Keeps the React hook free of endpoint-selection details.
-
-### Rust
-- **`src-tauri/src/app_updater.rs`** — Chooses the correct update endpoint (`alpha/latest.json` or `stable/latest.json`) and adapts Tauri updater results into frontend-friendly payloads.
-- **`src-tauri/src/commands/version.rs`** — Formats app build/version labels for the status bar, including calendar alpha labels and legacy release compatibility.
-
-### Tauri Commands
-- **`check_for_app_update`** — Channel-aware update manifest lookup.
-- **`download_and_install_app_update`** — Channel-aware download/install with streamed progress events.
 
 ### CI/CD
-- **`.github/workflows/release.yml`** — Alpha prereleases from every push to `main` using calendar-semver technical versions (`YYYY.M.D-alpha.N`) and clean `Alpha YYYY.M.D.N` release names. GitHub alpha tags zero-pad the prerelease sequence (`alpha-vYYYY.M.D-alpha.NNNN`) so GitHub release ordering stays chronological while the shipped app version remains `YYYY.M.D-alpha.N`. Publishes `alpha/latest.json` with macOS Apple Silicon/Intel, Linux x64, and Windows x64 updater entries, then refreshes the legacy `latest.json` / `latest-canary.json` aliases to the alpha feed. macOS release assets use `Artemis_<version>_macOS_Silicon` and `Artemis_<version>_macOS_Intel` base names. Packaged builds pass the computed version as `VITE_SENTRY_RELEASE`, which is retained as a diagnostic build-version tag but not registered as a normal Sentry release for alpha builds.
-- **`.github/workflows/release-stable.yml`** — Stable releases from `stable-vYYYY.M.D` tags. Publishes `stable/latest.json`, macOS Apple Silicon and Intel DMG/updater artifacts, Windows x64 installers/updater bundles, and Linux x86_64 `.deb` / AppImage artifacts. Stable macOS DMG/updater assets use the same `Artemis_<version>_macOS_Silicon` and `Artemis_<version>_macOS_Intel` base names. Packaged builds pass the computed stable version as `VITE_SENTRY_RELEASE`, which is registered as Sentry's release.
+- **`.github/workflows/release.yml`** — Alpha web builds from every push to `main` using calendar-semver technical versions (`YYYY.M.D-alpha.N`) and clean `Alpha YYYY.M.D.N` release names. Packaged web builds pass the computed version as `VITE_SENTRY_RELEASE`, which is retained as a diagnostic build-version tag but not registered as a normal Sentry release for alpha builds.
+- **`.github/workflows/release-stable.yml`** — Stable web releases from `stable-vYYYY.M.D` tags. Packaged builds pass the computed stable version as `VITE_SENTRY_RELEASE`, which is registered as Sentry's release.
 - **Beta cohorts** are handled in PostHog targeting only. There is no beta updater feed.

@@ -3,13 +3,9 @@ import { renderHook, act } from '@testing-library/react'
 import { useConflictFlow } from './useConflictFlow'
 import type { VaultEntry } from '../types'
 
-const mockInvokeFn = vi.fn()
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvokeFn(...args),
-}))
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
+const callWebBackendFn = vi.fn()
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 function makeEntry(path: string): VaultEntry {
@@ -35,7 +31,7 @@ describe('useConflictFlow', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockInvokeFn.mockResolvedValue(undefined)
+    callWebBackendFn.mockResolvedValue(undefined)
     deps.reloadVault.mockResolvedValue([])
   })
 
@@ -54,17 +50,17 @@ describe('useConflictFlow', () => {
   })
 
   it('fetches conflicts when cache is empty', async () => {
-    mockInvokeFn.mockResolvedValueOnce(['other.md'])
+    callWebBackendFn.mockResolvedValueOnce(['other.md'])
     const { result } = renderFlow({ conflictFiles: [] })
 
     await act(async () => { await result.current.handleOpenConflictResolver() })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('get_conflict_files', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenCalledWith('get_conflict_files', { vaultPath: '/vault' })
     expect(deps.initConflictFiles).toHaveBeenCalledWith(['other.md'])
   })
 
   it('shows toast when no conflicts found', async () => {
-    mockInvokeFn.mockResolvedValueOnce([])
+    callWebBackendFn.mockResolvedValueOnce([])
     const { result } = renderFlow({ conflictFiles: [] })
 
     await act(async () => { await result.current.handleOpenConflictResolver() })
@@ -83,7 +79,7 @@ describe('useConflictFlow', () => {
   })
 
   it('resolves inline and commits when all resolved', async () => {
-    mockInvokeFn.mockImplementation((cmd: string) => {
+    callWebBackendFn.mockImplementation((cmd: string) => {
       if (cmd === 'get_conflict_files') return Promise.resolve([])
       if (cmd === 'get_note_content') return Promise.resolve('resolved content')
       return Promise.resolve(undefined)
@@ -93,15 +89,15 @@ describe('useConflictFlow', () => {
 
     await act(async () => { await result.current.handleKeepMine('/vault/note.md') })
 
-    expect(mockInvokeFn).toHaveBeenCalledWith('git_resolve_conflict', {
+    expect(callWebBackendFn).toHaveBeenCalledWith('git_resolve_conflict', {
       vaultPath: '/vault', file: 'note.md', strategy: 'ours',
     })
-    expect(mockInvokeFn).toHaveBeenCalledWith('git_commit_conflict_resolution', { vaultPath: '/vault' })
+    expect(callWebBackendFn).toHaveBeenCalledWith('git_commit_conflict_resolution', { vaultPath: '/vault' })
     expect(deps.setToastMessage).toHaveBeenCalledWith('All conflicts resolved — merge committed')
   })
 
   it('shows remaining count when not all resolved', async () => {
-    mockInvokeFn.mockImplementation((cmd: string) => {
+    callWebBackendFn.mockImplementation((cmd: string) => {
       if (cmd === 'get_conflict_files') return Promise.resolve(['other.md'])
       if (cmd === 'get_note_content') return Promise.resolve('content')
       return Promise.resolve(undefined)

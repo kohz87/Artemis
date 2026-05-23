@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { APP_STORAGE_KEYS, LEGACY_APP_STORAGE_KEYS, getAppStorageItem } from '../constants/appStorage'
 import {
   buildGettingStartedVaultPath,
@@ -51,8 +50,8 @@ interface CreateEmptyVaultHandlerOptions extends ReadyVaultHandlerOptions {
   setCreatingAction: SetCreatingAction
 }
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 interface PersistedVaultList {
@@ -80,9 +79,9 @@ function markDismissed(): void {
 
 async function clearMissingActiveVault(missingPath: string): Promise<boolean> {
   try {
-    const list = await tauriCall<PersistedVaultList>('load_vault_list', {})
+    const list = await webCommand<PersistedVaultList>('load_vault_list', {})
     if (!list || list.active_vault !== missingPath) return false
-    await tauriCall('save_vault_list', {
+    await webCommand('save_vault_list', {
       list: {
         vaults: list.vaults ?? [],
         active_vault: null,
@@ -167,7 +166,7 @@ function useTemplateVaultCreation(
     options.setLastTemplatePath(targetPath)
 
     try {
-      const vaultPath = await tauriCall<string>('create_getting_started_vault', { targetPath })
+      const vaultPath = await webCommand<string>('create_getting_started_vault', { targetPath })
       try {
         await registerVaultSelection(options.registerVault, vaultPath, { verifyAvailability: false })
       } catch (err) {
@@ -216,7 +215,7 @@ function useCreateEmptyVaultHandler(
 
     try {
       options.setCreatingAction('empty')
-      const vaultPath = await tauriCall<string>('create_empty_vault', { targetPath: path })
+      const vaultPath = await webCommand<string>('create_empty_vault', { targetPath: path })
       try {
         await registerVaultSelection(options.registerVault, vaultPath, { verifyAvailability: false })
       } catch (err) {
@@ -281,8 +280,8 @@ export function useOnboarding(
 
     async function check() {
       try {
-        const defaultPath = await tauriCall<string>('get_default_vault_path', {})
-        const exists = await tauriCall<boolean>('check_vault_exists', { path: initialVaultPath })
+        const defaultPath = await webCommand<string>('get_default_vault_path', {})
+        const exists = await webCommand<boolean>('check_vault_exists', { path: initialVaultPath })
 
         if (cancelled) return
 

@@ -1,16 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { VaultEntry } from '../types'
 import { useNoteActions, type NoteActionsConfig } from './useNoteActions'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
-vi.mock('../mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
+vi.mock('../backend/client', () => ({
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
-  mockInvoke: vi.fn().mockResolvedValue(''),
+  callWebBackend: vi.fn().mockResolvedValue(''),
 }))
 vi.mock('./mockFrontmatterHelpers', () => ({
   updateMockFrontmatter: vi.fn().mockReturnValue('---\ntitle: New Name\n---\n# New Name\n'),
@@ -71,7 +69,6 @@ function makeConfig(
 describe('useNoteActions title rename guard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(isTauri).mockReturnValue(false)
   })
 
   it('flushes pending editor work before renaming through the title property', async () => {
@@ -81,7 +78,7 @@ describe('useNoteActions title rename guard', () => {
       events.push(`flush:${path}`)
     })
 
-    vi.mocked(mockInvoke).mockImplementation(async (command: string) => {
+    vi.mocked(callWebBackend).mockImplementation(async (command: string) => {
       if (command === 'rename_note') {
         events.push('rename')
         return { new_path: '/vault/new-name.md', updated_files: 0 }
@@ -119,7 +116,7 @@ describe('useNoteActions title rename guard', () => {
       await result.current.handleUpdateFrontmatter(entry.path, 'title', 'New Name')
     })
 
-    expect(mockInvoke).not.toHaveBeenCalledWith('rename_note', expect.anything())
+    expect(callWebBackend).not.toHaveBeenCalledWith('rename_note', expect.anything())
     expect(updateEntry).not.toHaveBeenCalledWith(entry.path, expect.objectContaining({ title: 'New Name' }))
   })
 })

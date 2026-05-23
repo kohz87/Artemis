@@ -3,11 +3,6 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { WelcomeScreen } from './WelcomeScreen'
 import tolariaIcon from '@/assets/tolaria-icon.svg'
 
-const dragRegionMouseDown = vi.fn()
-
-vi.mock('../hooks/useDragRegion', () => ({
-  useDragRegion: () => ({ onMouseDown: dragRegionMouseDown }),
-}))
 
 const defaultProps = {
   mode: 'welcome' as const,
@@ -200,13 +195,10 @@ describe('WelcomeScreen', () => {
       expect(screen.getByTestId('welcome-screen')).toBeInTheDocument()
     })
 
-    it('uses the surrounding surface as a drag region and excludes the card', () => {
+    it('marks the card as non-interactive shell content', () => {
       render(<WelcomeScreen {...defaultProps} />)
 
       const screenContainer = screen.getByTestId('welcome-screen')
-      fireEvent.mouseDown(screenContainer)
-
-      expect(dragRegionMouseDown).toHaveBeenCalledOnce()
       expect(screenContainer.querySelector('[data-no-drag]')).not.toBeNull()
     })
   })

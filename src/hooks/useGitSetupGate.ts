@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
 export type GitRepoState = 'checking' | 'missing' | 'ready'
 
@@ -26,9 +25,7 @@ export function useGitSetupGate({
   useEffect(() => {
     if (!vaultPath) return
     setGitRepoState('checking') // eslint-disable-line react-hooks/set-state-in-effect -- reset state on path change
-    const check = isTauri()
-      ? invoke<boolean>('is_git_repo', { vaultPath })
-      : mockInvoke<boolean>('is_git_repo', { vaultPath })
+    const check = callWebBackend<boolean>('is_git_repo', { vaultPath })
     check
       .then((isGit) => setGitRepoState(isGit ? 'ready' : 'missing'))
       .catch(() => setGitRepoState('ready')) // fail open
@@ -56,11 +53,7 @@ export function useGitSetupGate({
   }, [vaultPath])
 
   const handleInitGitRepo = useCallback(async () => {
-    if (isTauri()) {
-      await invoke('init_git_repo', { vaultPath })
-    } else {
-      await mockInvoke('init_git_repo', { vaultPath })
-    }
+    await callWebBackend('init_git_repo', { vaultPath })
     setGitRepoState('ready')
     dismissedGitSetupPathRef.current = null
     setShowGitSetupDialog(false)

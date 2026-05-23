@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { installFixtureVaultDesktopBridgeInBrowser } from './fixtureVaultDesktopBridge'
+import { installFixtureVaultWebBridgeInBrowser } from './fixtureVaultWebBridge'
 
 const FIXTURE_VAULT = path.resolve('tests/fixtures/test-vault')
 const FIXTURE_VAULT_READY_TIMEOUT = 30_000
@@ -422,26 +422,25 @@ export async function openFixtureVault(
   })
 }
 
-async function installFixtureVaultDesktopBridge({ page }: FixturePageArgs): Promise<void> {
-  await page.evaluate(installFixtureVaultDesktopBridgeInBrowser)
+async function installFixtureVaultWebBridge({ page }: FixturePageArgs): Promise<void> {
+  await page.evaluate(installFixtureVaultWebBridgeInBrowser)
 
   await page.waitForFunction(() => Boolean(window.__TAURI_INTERNALS__))
 }
 
 /**
- * Browser harness for desktop command-routing tests.
+ * Browser harness for web command-routing tests.
  *
- * This stubs the Tauri invoke bridge inside Playwright so tests can exercise
- * renderer shortcut dispatch and desktop menu-command dispatch without a native
- * shell. It is deterministic, but it is not a substitute for real native QA.
+ * This installs the browser test backend bridge inside Playwright so tests can
+ * exercise renderer shortcut dispatch and web command routing deterministically.
  */
-export async function openFixtureVaultDesktopHarness(
+export async function openFixtureVaultWebHarness(
   page: Page,
   vaultPath: string,
   options: FixtureVaultOptions = {},
 ): Promise<void> {
   await openFixtureVault(page, vaultPath, options)
-  await installFixtureVaultDesktopBridge({ page })
+  await installFixtureVaultWebBridge({ page })
 }
 
-export const openFixtureVaultTauri = openFixtureVaultDesktopHarness
+export const openFixtureVaultWebHarness = openFixtureVaultWebHarness

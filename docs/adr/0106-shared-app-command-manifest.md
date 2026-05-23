@@ -2,7 +2,8 @@
 type: ADR
 id: "0106"
 title: "Shared app command manifest"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-05-02
 ---
 

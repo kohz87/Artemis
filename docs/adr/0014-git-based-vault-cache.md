@@ -2,7 +2,8 @@
 type: ADR
 id: "0014"
 title: "Git-based incremental vault cache"
-status: active
+status: superseded
+superseded_by: "0111"
 date: 2026-03-08
 ---
 

@@ -2,7 +2,6 @@ import { act, render as rtlRender, screen, fireEvent, waitFor, within } from '@t
 import type { ReactElement, ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DEFAULT_VAULTS } from './hooks/useVaultSwitcher'
-import { invoke } from '@tauri-apps/api/core'
 import type { ViewDefinition, ViewFile } from './types'
 
 // Provide a localStorage mock that supports all methods (jsdom's may be incomplete)
@@ -30,26 +29,7 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-// Mock @tauri-apps/api/core before importing App
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}))
-
-vi.mock('@tauri-apps/api/window', async () => {
-  const actual = await vi.importActual<typeof import('@tauri-apps/api/window')>('@tauri-apps/api/window')
-
-  return {
-    ...actual,
-    getCurrentWindow: () => ({
-      innerSize: vi.fn(async () => ({ toLogical: () => ({ width: 1400, height: 900 }) })),
-      scaleFactor: vi.fn(async () => 1),
-      setMinSize: vi.fn(async () => {}),
-      setSize: vi.fn(async () => {}),
-    }),
-  }
-})
-
-// Mock mock-tauri module
+// Mock mock-web module
 const mockEntries = [
   {
     path: '/vault/project/test.md',
@@ -316,9 +296,15 @@ function resolveMockCommandResult(cmd: string, args?: unknown) {
     : result ?? null
 }
 
-vi.mock('./mock-tauri', () => ({
-  isTauri: vi.fn(() => false),
-  mockInvoke: vi.fn(async (cmd: string, args?: unknown) => resolveMockCommandResult(cmd, args)),
+vi.mock('./backend/client', () => ({
+  callWebBackend: vi.fn(async (cmd: string, args?: unknown) => resolveMockCommandResult(cmd, args)),
+  listVault: vi.fn(async (path: string) => resolveMockCommandResult('list_vault', { path })),
+  reloadVault: vi.fn(async (path: string) => resolveMockCommandResult('reload_vault', { path })),
+  listVaultFolders: vi.fn(async (path: string) => resolveMockCommandResult('list_vault_folders', { path })),
+  listViews: vi.fn(async (path: string) => resolveMockCommandResult('list_views', { path })),
+  checkVaultExists: vi.fn(async (path: string) => resolveMockCommandResult('check_vault_exists', { path })),
+  gitCommit: vi.fn(async (vaultPath: string, message: string) => resolveMockCommandResult('git_commit', { vaultPath, message })),
+  gitPush: vi.fn(async (vaultPath: string) => resolveMockCommandResult('git_push', { vaultPath })),
   addMockEntry: vi.fn(),
   updateMockContent: vi.fn(),
   trackMockChange: vi.fn(),
@@ -406,13 +392,10 @@ vi.mock('./components/tolariaEditorFormatting', () => ({
 
 import App from './App'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { isTauri } from './mock-tauri'
 
 function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: TooltipProvider })
 }
-
-vi.mocked(isTauri).mockReturnValue(true)
 
 const SLOW_APP_READY_TIMEOUT_MS = 10_000
 
@@ -420,8 +403,6 @@ describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     resetMockCommandResults()
-    vi.mocked(invoke).mockImplementation(async (cmd: string, args?: unknown) => resolveMockCommandResult(cmd, args))
-    vi.mocked(isTauri).mockReturnValue(false)
     localStorage.clear()
     window.history.replaceState({}, '', '/')
   })
@@ -515,32 +496,6 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText('Select a note to start editing')).toBeInTheDocument()
     })
-  })
-
-  it('opens a note window by loading only the requested entry', async () => {
-    const listVault = vi.fn(() => mockEntries)
-    const reloadVaultEntry = vi.fn(({ path }: { path: string }) =>
-      mockEntries.find((entry) => entry.path === path) ?? null,
-    )
-    const getNoteContent = vi.fn(({ path }: { path: string }) => mockAllContent[path] ?? '')
-    mockCommandResults.list_vault = listVault
-    mockCommandResults.reload_vault_entry = reloadVaultEntry
-    mockCommandResults.get_note_content = getNoteContent
-    window.history.replaceState(
-      {},
-      '',
-      '/?window=note&path=%2Fvault%2Fproject%2Ftest.md&vault=%2Fvault&title=Test+Project',
-    )
-
-    render(<App />)
-
-    await waitFor(() => expect(reloadVaultEntry).toHaveBeenCalled())
-    expect(reloadVaultEntry).toHaveBeenCalledWith({ path: '/vault/project/test.md', vaultPath: '/vault' })
-    await waitFor(() => expect(getNoteContent).toHaveBeenCalled())
-    expect(getNoteContent).toHaveBeenCalledWith({ path: '/vault/project/test.md', vaultPath: '/vault' })
-    await waitFor(() => expect(window.__laputaTest?.activeTabPath).toBe('/vault/project/test.md'))
-    expect(screen.getByTestId('blocknote-view')).toHaveAttribute('data-editable', 'true')
-    expect(listVault).not.toHaveBeenCalled()
   })
 
   it('keeps the empty editor state uncluttered', async () => {
@@ -1100,36 +1055,5 @@ describe('App', () => {
     })
   })
 
-  it('updates the main-window size constraints when the view mode changes', async () => {
-    const { invoke } = await import('@tauri-apps/api/core') as { invoke: ReturnType<typeof vi.fn> }
-    vi.mocked(isTauri).mockReturnValue(true)
-
-    render(<App />)
-    await waitFor(() => {
-      expect(screen.getByText('All Notes')).toBeInTheDocument()
-    })
-
-    invoke.mockClear()
-
-    fireEvent.keyDown(window, { key: '1', metaKey: true })
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
-        minWidth: 480,
-        minHeight: 400,
-        growToFit: true,
-      })
-    })
-
-    invoke.mockClear()
-
-    fireEvent.keyDown(window, { key: '3', metaKey: true })
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
-        minWidth: 1030,
-        minHeight: 400,
-        growToFit: true,
-      })
-    })
-  })
 })
 

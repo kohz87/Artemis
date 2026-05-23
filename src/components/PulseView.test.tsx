@@ -33,33 +33,24 @@ const mockCommits: PulseCommit[] = [
   },
 ]
 
-const mockInvokeFn = vi.fn()
-const dragRegionMouseDown = vi.fn()
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvokeFn(...args),
-}))
-vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
-  mockInvoke: (...args: unknown[]) => mockInvokeFn(...args),
-}))
-vi.mock('../hooks/useDragRegion', () => ({
-  useDragRegion: () => ({ onMouseDown: dragRegionMouseDown }),
+const callWebBackendFn = vi.fn()
+vi.mock('../backend/client', () => ({
+  callWebBackend: (...args: unknown[]) => callWebBackendFn(...args),
 }))
 
 describe('PulseView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    dragRegionMouseDown.mockClear()
   })
 
   it('shows loading state initially', () => {
-    mockInvokeFn.mockReturnValue(new Promise(() => {})) // never resolves
+    callWebBackendFn.mockReturnValue(new Promise(() => {})) // never resolves
     render(<PulseView vaultPath="/test/vault" />)
     expect(screen.getByText('Loading activity...')).toBeInTheDocument()
   })
 
   it('renders commits grouped by day', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -71,7 +62,7 @@ describe('PulseView', () => {
   })
 
   it('shows summary badges for added/modified/deleted', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -83,7 +74,7 @@ describe('PulseView', () => {
   })
 
   it('shows commit hashes', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -94,7 +85,7 @@ describe('PulseView', () => {
   })
 
   it('renders GitHub links for commits with githubUrl', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -110,7 +101,7 @@ describe('PulseView', () => {
   })
 
   it('renders file list with correct titles when expanded', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -141,7 +132,7 @@ describe('PulseView', () => {
       expected: ['note/old.md', 'def456abc789'],
     },
   ])('calls onOpenNote when clicking $label', async ({ rowLabels, fileText, expected }) => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
     const onOpenNote = vi.fn()
 
     render(<PulseView vaultPath="/test/vault" onOpenNote={onOpenNote} />)
@@ -160,7 +151,7 @@ describe('PulseView', () => {
   })
 
   it('shows empty state when no commits', async () => {
-    mockInvokeFn.mockResolvedValue([])
+    callWebBackendFn.mockResolvedValue([])
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -170,7 +161,7 @@ describe('PulseView', () => {
   })
 
   it('shows error state and retry button', async () => {
-    mockInvokeFn.mockRejectedValue('Not a git repository')
+    callWebBackendFn.mockRejectedValue('Not a git repository')
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -181,27 +172,27 @@ describe('PulseView', () => {
   })
 
   it('calls get_vault_pulse with skip=0 on initial load and passes correct page size', async () => {
-    mockInvokeFn.mockResolvedValue([])
+    callWebBackendFn.mockResolvedValue([])
 
     render(<PulseView vaultPath="/test/vault" />)
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('get_vault_pulse', { vaultPath: '/test/vault', limit: 20, skip: 0 })
+      expect(callWebBackendFn).toHaveBeenCalledWith('get_vault_pulse', { vaultPath: '/test/vault', limit: 20, skip: 0 })
     })
   })
 
   it('calls get_vault_pulse with correct arguments', async () => {
-    mockInvokeFn.mockResolvedValue([])
+    callWebBackendFn.mockResolvedValue([])
 
     render(<PulseView vaultPath="/my/vault" />)
 
     await waitFor(() => {
-      expect(mockInvokeFn).toHaveBeenCalledWith('get_vault_pulse', { vaultPath: '/my/vault', limit: 20, skip: 0 })
+      expect(callWebBackendFn).toHaveBeenCalledWith('get_vault_pulse', { vaultPath: '/my/vault', limit: 20, skip: 0 })
     })
   })
 
   it('toggles file list visibility when clicking anywhere on the commit row', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -223,7 +214,7 @@ describe('PulseView', () => {
   })
 
   it('uses a full-width surface for hover, focus, and expanded commit rows', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -243,7 +234,7 @@ describe('PulseView', () => {
   })
 
   it('supports keyboard activation for commit rows and file rows', async () => {
-    mockInvokeFn.mockResolvedValue(mockCommits)
+    callWebBackendFn.mockResolvedValue(mockCommits)
     const onOpenNote = vi.fn()
 
     render(<PulseView vaultPath="/test/vault" onOpenNote={onOpenNote} />)
@@ -260,7 +251,7 @@ describe('PulseView', () => {
   })
 
   it('renders History header', async () => {
-    mockInvokeFn.mockResolvedValue([])
+    callWebBackendFn.mockResolvedValue([])
 
     render(<PulseView vaultPath="/test/vault" />)
 
@@ -269,19 +260,8 @@ describe('PulseView', () => {
     })
   })
 
-  it('wires the Pulse header into the shared drag-region handler', async () => {
-    mockInvokeFn.mockResolvedValue([])
-
-    render(<PulseView vaultPath="/test/vault" />)
-
-    const header = await screen.findByTestId('pulse-header')
-    fireEvent.mouseDown(header)
-
-    expect(dragRegionMouseDown).toHaveBeenCalledTimes(1)
-  })
-
   it('keeps the expand-sidebar button clickable when the header is draggable', async () => {
-    mockInvokeFn.mockResolvedValue([])
+    callWebBackendFn.mockResolvedValue([])
     const onExpandSidebar = vi.fn()
 
     render(

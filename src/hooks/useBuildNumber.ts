@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
-function tauriCall<T>(cmd: string): Promise<T> {
-  return isTauri() ? invoke<T>(cmd) : mockInvoke<T>(cmd)
+function webCommand<T>(cmd: string): Promise<T> {
+  return callWebBackend<T>(cmd)
 }
 
 export function useBuildNumber(): string | undefined {
@@ -12,7 +11,7 @@ export function useBuildNumber(): string | undefined {
   useEffect(() => {
     let mounted = true
 
-    tauriCall<string>('get_build_number')
+    webCommand<string>('get_build_number')
       .then((value) => {
         if (mounted) setBuildNumber(value)
       })

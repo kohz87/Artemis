@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import { formatFolderPickerActionError, pickFolder } from '../utils/vault-dialog'
 import { loadVaultList, saveVaultList } from '../utils/vaultListStore'
 import type { VaultOption } from '../components/StatusBar'
@@ -13,7 +12,7 @@ export const GETTING_STARTED_LABEL = 'Getting Started'
 
 declare const __DEMO_VAULT_PATH__: string | undefined
 
-/** Build-time demo vault path (dev only). In production Tauri builds this is
+/** Build-time demo vault path (dev only). In production desktop builds this is
  *  undefined and the real path is resolved at runtime via get_default_vault_path. */
 const STATIC_DEFAULT_PATH = typeof __DEMO_VAULT_PATH__ !== 'undefined' ? __DEMO_VAULT_PATH__ : ''
 
@@ -130,8 +129,8 @@ function labelFromPath({ path }: VaultPathInput): string {
   return path.split('/').pop() || 'Local Vault'
 }
 
-function tauriCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(command, args) : mockInvoke<T>(command, args)
+function webCommand<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(command, args)
 }
 
 function serializePersistedVaultSnapshot(
@@ -152,7 +151,7 @@ async function resolveDefaultPath(): Promise<string> {
   }
 
   try {
-    return await tauriCall<string>('get_default_vault_path', {})
+    return await webCommand<string>('get_default_vault_path', {})
   } catch {
     return ''
   }
@@ -182,7 +181,7 @@ async function checkVaultAvailability(path: string): Promise<boolean> {
   }
 
   try {
-    return await tauriCall<boolean>('check_vault_exists', { path })
+    return await webCommand<boolean>('check_vault_exists', { path })
   } catch {
     return false
   }
@@ -564,9 +563,9 @@ function formatCreateEmptyVaultError(err: unknown): string {
 }
 
 async function ensureGettingStartedVaultReady(path: string): Promise<void> {
-  const exists = await tauriCall<boolean>('check_vault_exists', { path })
+  const exists = await webCommand<boolean>('check_vault_exists', { path })
   if (!exists) {
-    await tauriCall<string>('create_getting_started_vault', { targetPath: path })
+    await webCommand<string>('create_getting_started_vault', { targetPath: path })
   }
 }
 
@@ -957,7 +956,7 @@ function useCreateEmptyVaultAction(
 
     try {
       if (!targetPath) return
-      const vaultPath = await tauriCall<string>('create_empty_vault', { targetPath })
+      const vaultPath = await webCommand<string>('create_empty_vault', { targetPath })
       const label = labelFromPath({ path: vaultPath })
       addAndSwitch(vaultPath, label)
       onToastRef.current(`Vault "${label}" created and opened`)
@@ -1133,7 +1132,7 @@ async function restoreGettingStartedVault({
 }
 
 /** Manages vault path, extra vaults, switching, cloning, and local folder opening.
- *  Vault list and active vault are persisted via Tauri backend to survive app updates. */
+ *  Vault list and active vault are persisted via desktop backend to survive app updates. */
 export function useVaultSwitcher({ onSwitch, onToast }: UseVaultSwitcherOptions) {
   const onSwitchRef = useRef(onSwitch)
   const onToastRef = useRef(onToast)

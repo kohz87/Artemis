@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 import type { NoteWidthMode, Settings, VaultEntry } from '../types'
 import type { FrontmatterValue } from '../components/Inspector'
 import type { FrontmatterOpOptions } from './frontmatterOps'
@@ -74,9 +73,7 @@ async function readNoteContentForWidthPersistence({
   fallbackContent,
 }: ReadWidthContentRequest): Promise<MarkdownContent> {
   try {
-    return isTauri()
-      ? await invoke<MarkdownContent>('get_note_content', { path })
-      : await mockInvoke<MarkdownContent>('get_note_content', { path })
+    return await callWebBackend<MarkdownContent>('get_note_content', { path })
   } catch {
     return fallbackContent
   }

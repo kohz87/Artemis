@@ -1,5 +1,4 @@
 import { type ChangeEvent, type FormEvent, useCallback, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import {
   Dialog,
   DialogContent,
@@ -10,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { isTauri, mockInvoke } from '../mock-tauri'
+import { callWebBackend } from '../backend/client'
 
 type CloneStatus = 'idle' | 'cloning' | 'error'
 type CloneAttemptResult =
@@ -20,6 +19,9 @@ type CloneRequest = Record<string, unknown> & {
   url: string
   localPath: string
 }
+
+const DEFAULT_CLONE_ROOT = '/root/git'
+const DEFAULT_CLONE_PLACEHOLDER = `${DEFAULT_CLONE_ROOT}/my-vault`
 
 interface CloneVaultModalProps {
   open: boolean
@@ -40,8 +42,8 @@ interface CloneVaultFormState {
   handleClone: () => Promise<void>
 }
 
-function tauriCall<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
-  return isTauri() ? invoke<T>(cmd, args) : mockInvoke<T>(cmd, args)
+function webCommand<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
+  return callWebBackend<T>(cmd, args)
 }
 
 function repoNameFromUrl(request: Pick<CloneRequest, 'url'>): string {
@@ -53,8 +55,7 @@ function repoNameFromUrl(request: Pick<CloneRequest, 'url'>): string {
 
 function suggestedPathFromUrl(request: Pick<CloneRequest, 'url'>): string {
   const repoName = repoNameFromUrl(request)
-  const cloneRoot = isTauri() ? '~/Vaults' : '/root/git'
-  return repoName ? `${cloneRoot}/${repoName}` : ''
+  return repoName ? `${DEFAULT_CLONE_ROOT}/${repoName}` : ''
 }
 
 function labelFromPath(request: Pick<CloneRequest, 'localPath'>): string {
@@ -68,7 +69,7 @@ function shouldSyncSuggestedPath(localPath: string, pathDirty: boolean, previous
 
 async function attemptClone(request: CloneRequest): Promise<CloneAttemptResult> {
   try {
-    await tauriCall<string>('clone_git_repo', request)
+    await webCommand<string>('clone_git_repo', request)
     return { ok: true }
   } catch (error) {
     return { ok: false, errorMessage: `Clone failed: ${String(error)}` }
@@ -208,7 +209,7 @@ export function CloneVaultModal({ open, onClose, onVaultCloned }: CloneVaultModa
             <label className="text-xs font-medium text-foreground" htmlFor="clone-vault-path">Clone to</label>
             <Input
               id="clone-vault-path"
-              placeholder={isTauri() ? '~/Vaults/my-vault' : '/root/git/my-vault'}
+              placeholder={DEFAULT_CLONE_PLACEHOLDER}
               value={localPath}
               disabled={isCloning}
               onChange={handleLocalPathChange}

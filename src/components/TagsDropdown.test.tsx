@@ -29,8 +29,8 @@ describe('TagsDropdown', () => {
   const onClose = vi.fn()
 
   const defaultProps = {
-    selectedTags: ['React', 'Tauri'],
-    vaultTags: ['React', 'TypeScript', 'Tauri', 'Vite'],
+    selectedTags: ['React', 'desktop'],
+    vaultTags: ['React', 'TypeScript', 'desktop', 'Vite'],
     onToggle,
     onClose,
   }
@@ -49,7 +49,7 @@ describe('TagsDropdown', () => {
     render(<TagsDropdown {...defaultProps} />)
     expect(screen.getByTestId('tag-option-React')).toBeInTheDocument()
     expect(screen.getByTestId('tag-option-TypeScript')).toBeInTheDocument()
-    expect(screen.getByTestId('tag-option-Tauri')).toBeInTheDocument()
+    expect(screen.getByTestId('tag-option-desktop')).toBeInTheDocument()
     expect(screen.getByTestId('tag-option-Vite')).toBeInTheDocument()
   })
 
@@ -60,7 +60,7 @@ describe('TagsDropdown', () => {
 
   it('shows checkmark for selected tags', () => {
     render(<TagsDropdown {...defaultProps} />)
-    // React and Tauri are selected — their check marks should show
+    // React and desktop are selected — their check marks should show
     const reactOption = screen.getByTestId('tag-option-React').closest('div')!
     const checkSpans = reactOption.querySelectorAll('span')
     const hasCheck = Array.from(checkSpans).some(s => s.textContent === '\u2713')
