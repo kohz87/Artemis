@@ -1,6 +1,6 @@
 # Architecture
 
-Artemis is a personal knowledge and life management web app. It reads a vault of markdown files with YAML frontmatter through the local web vault API (or a browser-local demo vault) and presents them in a four-panel UI inspired by Bear Notes.
+Artemis is a personal knowledge and life management web app. It reads a vault of Markdown notes and related vault files through the local web vault API (or a browser-local demo vault) and presents them in a four-panel UI inspired by Bear Notes.
 
 ## Design Principles
 

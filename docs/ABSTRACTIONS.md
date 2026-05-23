@@ -359,7 +359,7 @@ The local web vault backend:
 4. Emits minimal `VaultEntry` records with `fileKind` for recognized non-markdown text and binary files.
 5. Sorts by `modified_at` descending and skips unparseable files with a warning log.
 
-All Notes starts from Markdown notes and excludes Markdown files under `attachments/`. `src/utils/allNotesFileVisibility.ts` resolves the installation-local PDF, image, and unsupported-file toggles from app settings; `noteListHelpers` applies that policy only to All Notes filtering and counts. Folder/root browsing continues to show files from the selected folder independently of those All Notes toggles.
+All Notes always includes non-attachment Markdown notes. `src/utils/allNotesFileVisibility.ts` resolves the installation-local PDF, image, and unsupported-file toggles from app settings; `noteListHelpers` applies that policy only to non-Markdown entries in All Notes filtering and counts. Folder/root browsing continues to show files from the selected folder independently of those All Notes toggles.
 
 The folder tree hides the legacy `type/` directory, since those type documents already appear through the Types sidebar section. Default vault folders such as `attachments/` and `views/` remain visible alongside user-created folders under the synthetic vault-root row.
 
@@ -367,13 +367,13 @@ Gitignored visibility is now a renderer setting plus test-harness concern. `src/
 
 Legacy vault-health and flattening behaviors are not exposed as current web API commands. The web-only app treats missing or unavailable vault roots through the normal vault loader recovery path and keeps folder/file repair as explicit future maintenance work.
 
-Local API file access is constrained by route-specific path resolution in `vite.config.ts`. `resolveUserPath()` expands user-provided roots, `resolveInside()` rejects relative escapes, and mutating routes validate their source and destination paths before copying, renaming, deleting, or writing files. Browser-local demo handlers in `src/backend/web-command-handlers.ts` mutate only the in-memory/mock vault state.
+Local API file access is constrained by route-specific path resolution in `packages/vault-server/src/index.ts`. `resolveUserPath()` expands user-provided roots, `resolveInside()` rejects relative escapes, and mutating routes validate their source and destination paths before copying, renaming, deleting, or writing files. Browser-local demo handlers in `src/backend/web-command-handlers.ts` mutate only the in-memory/mock vault state.
 
 UI-only file actions operate on paths that are already selected or indexed in React state. Path actions copy file and folder paths through the browser clipboard API, with a manual-copy prompt when the browser blocks clipboard access. Plain-text paste uses the Web Clipboard API or mock handlers. None of those actions mutate vault contents or bypass the backend write boundary.
 
 ### Vault Caching
 
-The web-only backend currently performs direct scans through `/api/vault/list` and `findMarkdownFiles()` in `vite.config.ts`; there is no persisted vault-entry cache file. The renderer may keep transient tab/content caches for responsiveness, but on-disk Markdown remains the source of truth.
+The web-only backend currently performs direct scans through `/api/vault/list` in `packages/vault-server/src/index.ts`; there is no persisted vault-entry cache file. The renderer may keep transient tab/content caches for responsiveness, but on-disk vault files remain the source of truth.
 
 ### Frontmatter Manipulation (Web)
 

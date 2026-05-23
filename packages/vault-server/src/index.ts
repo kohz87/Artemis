@@ -51,6 +51,7 @@ interface VaultEntry {
   visible: boolean | null
   outgoingLinks: string[]
   properties: Record<string, string | number | boolean | null>
+  fileKind?: 'markdown' | 'text' | 'binary'
 }
 
 interface VaultFolderNode {
@@ -157,7 +158,13 @@ const DEDICATED_KEYS = new Set([
 ].map((key) => key.toLowerCase()))
 
 type FrontmatterPropertyValue = string | number | boolean | null
+type VaultFileKind = NonNullable<VaultEntry['fileKind']>
 type VaultSearchResult = { title: string; path: string; snippet: string; score: number; note_type: string | null }
+
+const TEXT_FILE_EXTENSIONS = new Set([
+  '.csv', '.css', '.html', '.js', '.json', '.jsx', '.log', '.mdx', '.py',
+  '.sh', '.toml', '.ts', '.tsx', '.txt', '.xml', '.yaml', '.yml',
+])
 
 interface SearchEntryInput {
   entry: VaultEntry
@@ -431,10 +438,62 @@ function parseMarkdownFile(filePath: string): VaultEntry | null {
       visible: frontmatterBool(fm, 'visible'),
       outgoingLinks: [],
       properties: frontmatterProperties(fm),
+      fileKind: 'markdown',
     }
   } catch {
     return null
   }
+}
+
+function nonMarkdownFileKind(filePath: string): VaultFileKind {
+  return TEXT_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase()) ? 'text' : 'binary'
+}
+
+function parseNonMarkdownFile(filePath: string): VaultEntry | null {
+  try {
+    const stats = pathStats(filePath)
+    const filename = path.basename(filePath)
+    const fileKind = nonMarkdownFileKind(filePath)
+
+    return {
+      path: filePath,
+      filename,
+      title: filename,
+      isA: null,
+      aliases: [],
+      belongsTo: [],
+      relatedTo: [],
+      status: null,
+      archived: false,
+      trashed: false,
+      trashedAt: null,
+      modifiedAt: stats.mtimeMs,
+      createdAt: stats.birthtimeMs,
+      fileSize: stats.size,
+      snippet: '',
+      wordCount: 0,
+      relationships: {},
+      icon: null,
+      color: null,
+      order: null,
+      sidebarLabel: null,
+      template: null,
+      sort: null,
+      view: null,
+      visible: null,
+      outgoingLinks: [],
+      properties: {},
+      fileKind,
+    }
+  } catch {
+    return null
+  }
+}
+
+function parseVaultEntryFile(filePath: string): VaultEntry | null {
+  return path.extname(filePath).toLowerCase() === '.md'
+    ? parseMarkdownFile(filePath)
+    : parseNonMarkdownFile(filePath)
 }
 
 /** Recursively find all .md files under a directory. */
@@ -449,6 +508,26 @@ function findMarkdownFiles(dir: string): string[] {
       if (item.isDirectory()) {
         results.push(...findMarkdownFiles(full))
       } else if (item.name.endsWith('.md')) {
+        results.push(full)
+      }
+    }
+  } catch {
+    // skip unreadable dirs
+  }
+  return results
+}
+
+function findVaultEntryFiles(dir: string): string[] {
+  const results: string[] = []
+  try {
+    const items = directoryEntries(dir)
+    for (const item of items) {
+      if (item.name.startsWith('.')) continue
+      const full = resolveInside(dir, item.name)
+      if (!full) continue
+      if (item.isDirectory()) {
+        results.push(...findVaultEntryFiles(full))
+      } else {
         results.push(full)
       }
     }
@@ -591,7 +670,7 @@ function handleVaultList(url: URL, res: ServerResponse): boolean {
   if (url.pathname !== '/api/vault/list') return false
   const dirPath = readExistingQueryPath(url, res, 'path')
   if (!dirPath) return true
-  const entries = findMarkdownFiles(dirPath).map(parseMarkdownFile).filter(Boolean)
+  const entries = findVaultEntryFiles(dirPath).map(parseVaultEntryFile).filter(Boolean)
   sendJson(res, entries)
   return true
 }
