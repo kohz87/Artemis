@@ -13,9 +13,13 @@ How to navigate the web codebase, run the app, and find what you need.
 # Install dependencies
 pnpm install
 
-# Run in browser (no Rust needed — uses mock data or the local vault API)
-pnpm dev:web
+# Run the standalone vault API server and Vite frontend together
+pnpm dev
 # Open http://localhost:5202
+
+# Or run them independently in separate terminals
+pnpm dev:server
+pnpm dev:frontend
 
 # Run tests
 pnpm test          # Vitest unit tests
@@ -26,9 +30,11 @@ pnpm playwright:regression  # Full Playwright regression suite
 ## Optional Web Listening Configuration
 
 Vite reads `ARTEMIS_HOST` and `ARTEMIS_PORT` from `.env.local` or the shell when
-running `pnpm dev:web`. The default is `localhost:5202` for Vite
-dev compatibility. Use `ARTEMIS_HOST=0.0.0.0` when another device on the network
-needs to reach the dev server:
+running `pnpm dev`, `pnpm dev:frontend`, or `pnpm dev:web`. The default is
+`localhost:5202` for Vite dev compatibility. The standalone vault server reads
+`ARTEMIS_API_HOST` and `ARTEMIS_API_PORT` and defaults to `127.0.0.1:5302`; Vite
+proxies `/api/vault` to that address. Use `ARTEMIS_HOST=0.0.0.0` when another
+device on the network needs to reach the dev server:
 
 ```bash
 ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm dev:web
@@ -60,7 +66,7 @@ artemis/
 │   ├── App.tsx                   # Root component — orchestrates layout + state
 │   ├── App.css                   # App shell layout styles
 │   ├── types.ts                  # Shared TS types (VaultEntry, Settings, etc.)
-│   ├── backend/                  # Web backend client, demo handlers, optional HTTP vault API
+│   ├── backend/                  # Web backend client, demo handlers, HTTP bridge client
 │   ├── theme.json                # Editor typography theme configuration
 │   ├── index.css                 # Semantic app theme variables + Tailwind setup
 │   │
@@ -144,6 +150,8 @@ artemis/
 │       └── setup.ts              # Vitest test environment setup
 │
 ├── scripts/                      # Node/Vite helper scripts
+├── packages/
+│   └── vault-server/             # Standalone Node /api/vault server package
 │   │   ├── vault_config.rs       # Per-vault UI config
 │   │   ├── vault_list.rs         # Vault list persistence
 │   │   └── menu.rs               # Native macOS menu bar
@@ -161,7 +169,7 @@ artemis/
 │
 ├── package.json                  # Frontend dependencies + scripts
 ├── lara.yaml                     # Lara CLI locale sync configuration
-├── vite.config.ts                # Vite bundler config
+├── vite.config.ts                # Vite bundler config + /api/vault dev proxy
 ├── tsconfig.json                 # TypeScript config
 ├── playwright.config.ts          # Full Playwright regression config
 ├── playwright.smoke.config.ts    # Curated pre-push Playwright config
@@ -204,6 +212,7 @@ artemis/
 | `src/backend/client.ts` | Typed helper functions for each supported web backend command. |
 | `src/backend/vault-api.ts` | Optional `/api/vault` HTTP bridge used when a real web vault backend is available. |
 | `src/backend/web-command-handlers.ts` | Browser fallback handlers and demo vault state for local development and tests. |
+| `packages/vault-server/src/index.ts` | Standalone Node `/api/vault` routes and vault operation exports used by `pnpm dev:server`. |
 
 ### Editor
 

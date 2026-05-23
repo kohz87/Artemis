@@ -3,6 +3,9 @@ allowBuilds:
   esbuild: true
   protobufjs: true
 
+packages:
+  - packages/*
+
 overrides:
   '@hono/node-server': 1.19.13
   express-rate-limit: 8.2.2

@@ -52,7 +52,7 @@ _width: wide              # rich-editor width override for this note
 
 **This convention is universal** — apply it to all future system-level frontmatter fields. When a new feature needs to store configuration in a note's frontmatter (especially in Type notes), use `_field_name` to keep it hidden from normal user-facing surfaces while still stored on-disk as plain text.
 
-The frontmatter parsers (`vite.config.ts` for the local web backend and `src/utils/frontmatter.ts` in the renderer) must filter out `_*` fields before passing `properties` to the UI.
+The frontmatter parsers (`packages/vault-server/src/index.ts` for the local web backend and `src/utils/frontmatter.ts` in the renderer) must filter out `_*` fields before passing `properties` to the UI.
 
 ## Document Model
 

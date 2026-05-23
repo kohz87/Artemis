@@ -150,3 +150,4 @@ proposed → active → superseded
 | [0109](0109-debounced-worker-derived-editor-indexes.md) | Debounced worker-derived editor indexes | active |
 | [0110](0110-persisted-pdf-preview-settings.md) | Persisted PDF preview settings | active |
 | [0111](0111-web-only-vite-vault-backend.md) | Web-only Vite vault backend replaces Tauri desktop runtime | active |
+| [0112](0112-standalone-node-vault-server-package.md) | Standalone Node vault server package for local web APIs | active |

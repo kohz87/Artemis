@@ -119,7 +119,7 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 | UI primitives | Radix UI + shadcn/ui | - |
 | Icons | Phosphor Icons + Lucide | - |
 | Build | Vite | 7.3.1 |
-| Web vault backend | HTTP `/api/vault` command API + browser fallback handlers | - |
+| Web vault backend | Standalone Node HTTP `/api/vault` server package + browser fallback handlers | - |
 | Frontmatter parsing | gray_matter | 0.2 |
 | Filesystem watcher | Web snapshot polling | - |
 | Search | Keyword (walkdir-based file scan) | - |
@@ -147,7 +147,7 @@ flowchart TD
             ED --> IN
         end
 
-        subgraph RB["Web Vault Backend"]
+        subgraph RB["Node Vault Server"]
             API["/api/vault command routes"]
             VAULT["vault operations"]
             FM["frontmatter operations"]
@@ -161,7 +161,7 @@ flowchart TD
             REMOTE["Git remotes\n(GitHub/GitLab/Gitea/etc.)"]
         end
 
-        FE -->|"callWebBackend / HTTP"| RB
+        FE -->|"callWebBackend / HTTP via Vite proxy"| RB
         GIT -->|"clone / fetch / push / pull"| GCLI
         GCLI -->|"network auth via user config"| REMOTE
     end
@@ -170,6 +170,10 @@ flowchart TD
     style RB fill:#fff8e1,stroke:#ff9800,color:#000
     style EXT fill:#f3e5f5,stroke:#9c27b0,color:#000
 ```
+
+## Web Vault Server
+
+The local `/api/vault/*` implementation lives in `packages/vault-server/src/` instead of `vite.config.ts`. The package exports `handleVaultApiRequest()` for adapters and `createVaultHttpServer()` / `startVaultServer()` for the standalone Node lifecycle. During development, `pnpm dev` launches the Node vault server on `ARTEMIS_API_HOST` / `ARTEMIS_API_PORT` (default `127.0.0.1:5302`) and Vite separately; Vite proxies `/api/vault` to that server so frontend code continues to use relative API URLs. `src/backend/web-command-handlers.ts` remains the browser-local fallback path for demo/offline tests when the HTTP bridge is unavailable.
 
 ## Four-Panel Layout
 
