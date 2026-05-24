@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { createServer, type Server } from 'http'
 import path from 'path'
 import { execFileSync } from 'child_process'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { fileURLToPath } from 'url'
 import {
   closeSync,
@@ -228,6 +229,220 @@ function envString(env: Record<string, string | undefined>, names: string[], fal
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(moduleDir, '../../..')
+
+const AUTH_COOKIE_NAME = 'artemis_session'
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
+
+interface AuthUser {
+  username: string
+  email: string | null
+}
+
+interface AuthSessionPayload {
+  sub: string
+  email: string | null
+  iat: number
+  exp: number
+}
+
+type AuthValidationResult =
+  | { ok: true; payload: AuthSessionPayload; token: string }
+  | { ok: false; reason: 'missing' | 'invalid' | 'expired' }
+
+function authPassword(env: Record<string, string | undefined> = process.env): string {
+  return (env.ARTEMIS_PASSWORD ?? '').trim()
+}
+
+function isAuthEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return authPassword(env).length > 0
+}
+
+function configuredAuthUser(env: Record<string, string | undefined> = process.env): AuthUser {
+  return {
+    username: (env.ARTEMIS_AUTH_USERNAME ?? env.ARTEMIS_USERNAME ?? 'artemis').trim() || 'artemis',
+    email: (env.ARTEMIS_AUTH_EMAIL ?? '').trim() || null,
+  }
+}
+
+function sessionTtlSeconds(env: Record<string, string | undefined> = process.env): number {
+  const raw = Number(env.ARTEMIS_SESSION_TTL_SECONDS)
+  return Number.isInteger(raw) && raw > 0 ? raw : DEFAULT_SESSION_TTL_SECONDS
+}
+
+function sessionSecret(env: Record<string, string | undefined> = process.env): string {
+  return (env.ARTEMIS_SESSION_SECRET ?? authPassword(env)).trim()
+}
+
+function base64UrlEncode(value: string | Buffer): string {
+  return Buffer.from(value).toString('base64url')
+}
+
+function base64UrlJson(value: unknown): string {
+  return base64UrlEncode(JSON.stringify(value))
+}
+
+function signTokenInput(input: string, secret: string): string {
+  return createHmac('sha256', secret).update(input).digest('base64url')
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left)
+  const rightBuffer = Buffer.from(right)
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
+}
+
+function passwordsMatch(candidate: string, expected: string): boolean {
+  return candidate.length === expected.length && safeEqual(candidate, expected)
+}
+
+function issueAuthSession(env: Record<string, string | undefined> = process.env): { token: string; payload: AuthSessionPayload } {
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const user = configuredAuthUser(env)
+  const payload: AuthSessionPayload = {
+    sub: user.username,
+    email: user.email,
+    iat: nowSeconds,
+    exp: nowSeconds + sessionTtlSeconds(env),
+  }
+  const header = base64UrlJson({ alg: 'HS256', typ: 'JWT' })
+  const body = base64UrlJson(payload)
+  const unsigned = `${header}.${body}`
+  return { token: `${unsigned}.${signTokenInput(unsigned, sessionSecret(env))}`, payload }
+}
+
+function parseCookies(req: IncomingMessage): Record<string, string> {
+  const cookieHeader = req.headers.cookie ?? ''
+  return cookieHeader.split(';').reduce<Record<string, string>>((cookies, cookie) => {
+    const [name, ...valueParts] = cookie.trim().split('=')
+    if (name) cookies[name] = decodeURIComponent(valueParts.join('='))
+    return cookies
+  }, {})
+}
+
+function bearerToken(req: IncomingMessage): string | null {
+  const header = req.headers.authorization
+  if (!header?.startsWith('Bearer ')) return null
+  const token = header.slice('Bearer '.length).trim()
+  return token || null
+}
+
+function requestAuthToken(req: IncomingMessage): string | null {
+  return bearerToken(req) ?? parseCookies(req)[AUTH_COOKIE_NAME] ?? null
+}
+
+function validateAuthToken(token: string | null, env: Record<string, string | undefined> = process.env): AuthValidationResult {
+  if (!token) return { ok: false, reason: 'missing' }
+  const [header, body, signature] = token.split('.')
+  if (!header || !body || !signature) return { ok: false, reason: 'invalid' }
+  const unsigned = `${header}.${body}`
+  if (!safeEqual(signature, signTokenInput(unsigned, sessionSecret(env)))) return { ok: false, reason: 'invalid' }
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Partial<AuthSessionPayload>
+    if (typeof payload.sub !== 'string' || typeof payload.iat !== 'number' || typeof payload.exp !== 'number') {
+      return { ok: false, reason: 'invalid' }
+    }
+    if (payload.exp <= Math.floor(Date.now() / 1000)) return { ok: false, reason: 'expired' }
+    return {
+      ok: true,
+      token,
+      payload: { sub: payload.sub, email: typeof payload.email === 'string' ? payload.email : null, iat: payload.iat, exp: payload.exp },
+    }
+  } catch {
+    return { ok: false, reason: 'invalid' }
+  }
+}
+
+function authCookie(token: string, maxAgeSeconds: number): string {
+  const parts = [
+    `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Strict',
+    `Max-Age=${maxAgeSeconds}`,
+  ]
+  if (process.env.NODE_ENV === 'production') parts.push('Secure')
+  return parts.join('; ')
+}
+
+function clearAuthCookie(): string {
+  return `${AUTH_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+}
+
+function sendUnauthorized(res: ServerResponse, reason = 'Authentication required'): void {
+  sendJson(res, { error: reason }, 401)
+}
+
+function authSessionResponse(token: string, payload: AuthSessionPayload) {
+  return {
+    authenticated: true,
+    token,
+    transport: 'cookie',
+    user: { username: payload.sub, email: payload.email },
+    session_created_at: new Date(payload.iat * 1000).toISOString(),
+    last_accessed_at: new Date().toISOString(),
+    expires_at: new Date(payload.exp * 1000).toISOString(),
+  }
+}
+
+async function handleAuthApiRequest(url: URL, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  if (!url.pathname.startsWith('/api/auth/')) return false
+  if (!isAuthEnabled()) {
+    sendJson(res, { authenticated: true, auth_required: false })
+    return true
+  }
+
+  if (isPostRoute(url, req, '/api/auth/login')) {
+    const { password } = await readJsonBody<{ password?: string }>(req)
+    if (!passwordsMatch(String(password ?? ''), authPassword())) {
+      sendUnauthorized(res, 'Invalid password')
+      return true
+    }
+    const { token, payload } = issueAuthSession()
+    res.setHeader('Set-Cookie', authCookie(token, sessionTtlSeconds()))
+    sendJson(res, authSessionResponse(token, payload))
+    return true
+  }
+
+  if (url.pathname === '/api/auth/session' && req.method === 'GET') {
+    const validation = validateAuthToken(requestAuthToken(req))
+    if (validation.ok === false) {
+      sendUnauthorized(res, validation.reason === 'expired' ? 'Session expired' : 'Authentication required')
+      return true
+    }
+    sendJson(res, authSessionResponse(validation.token, validation.payload))
+    return true
+  }
+
+  if (isPostRoute(url, req, '/api/auth/refresh')) {
+    const validation = validateAuthToken(requestAuthToken(req))
+    if (validation.ok === false) {
+      sendUnauthorized(res, validation.reason === 'expired' ? 'Session expired' : 'Authentication required')
+      return true
+    }
+    const { token, payload } = issueAuthSession()
+    res.setHeader('Set-Cookie', authCookie(token, sessionTtlSeconds()))
+    sendJson(res, authSessionResponse(token, payload))
+    return true
+  }
+
+  if (isPostRoute(url, req, '/api/auth/logout')) {
+    res.setHeader('Set-Cookie', clearAuthCookie())
+    sendJson(res, { ok: true })
+    return true
+  }
+
+  sendJson(res, { error: 'Not found' }, 404)
+  return true
+}
+
+function authorizeApiRequest(req: IncomingMessage, res: ServerResponse): boolean {
+  if (!isAuthEnabled()) return true
+  const validation = validateAuthToken(requestAuthToken(req))
+  if (validation.ok === true) return true
+  sendUnauthorized(res, validation.reason === 'expired' ? 'Session expired' : 'Authentication required')
+  return false
+}
+
 
 function readUtf8File(filePath: string): string {
   const fd = openSync(filePath, 'r')
@@ -1823,6 +2038,8 @@ async function handleVaultDelete(url: URL, req: IncomingMessage, res: ServerResp
 
 export async function handleVaultApiRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
+  if (await handleAuthApiRequest(url, req, res)) return true
+  if (url.pathname.startsWith('/api/vault/') && !authorizeApiRequest(req, res)) return true
   const handlers = [
     () => Promise.resolve(handleVaultPing(url, res)),
     () => Promise.resolve(handleVaultDefaultPath(url, res)),

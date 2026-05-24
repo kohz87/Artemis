@@ -123,6 +123,7 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 | Frontmatter parsing | gray_matter | 0.2 |
 | Filesystem watcher | Web snapshot polling | - |
 | Search | Keyword (walkdir-based file scan) | - |
+| Auth sessions | Signed local web session tokens + HttpOnly same-origin cookie (ADR-0113) | - |
 | Localization | App-owned runtime + JSON catalogs (`src/lib/i18n.ts`, `src/lib/locales/*.json`, `lara.yaml`) | English fallback + Lara CLI sync |
 | Tests | Vitest (unit), Playwright (E2E/smoke) | - |
 | Package manager | pnpm | - |

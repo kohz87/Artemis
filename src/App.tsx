@@ -235,7 +235,15 @@ function App() {
   const layout = useLayoutPanels(noteWindowParams ? { initialInspectorCollapsed: true } : undefined)
   const { setInspectorCollapsed } = layout
   const { viewMode, setViewMode, sidebarVisible, noteListVisible } = useViewMode(noteWindowParams ? 'editor-only' : undefined)
-  const updateMainWindowConstraints = useCallback(() => {}, [])
+  const updateMainWindowConstraints = useCallback((
+    sidebarVisibleForConstraints?: boolean,
+    noteListVisibleForConstraints?: boolean,
+    inspectorCollapsedForConstraints?: boolean,
+  ) => {
+    void sidebarVisibleForConstraints
+    void noteListVisibleForConstraints
+    void inspectorCollapsedForConstraints
+  }, [])
 
   const handleSetViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode)

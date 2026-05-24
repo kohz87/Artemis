@@ -167,14 +167,29 @@ function buildVaultApiRequest(cmd: string, args?: Record<string, unknown>) {
   }
 }
 
+function authHeaders(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem('artemis.authenticated')
+    if (!raw) return {}
+    const session = JSON.parse(raw) as { token?: unknown }
+    return typeof session.token === 'string' && session.token.trim()
+      ? { Authorization: `Bearer ${session.token}` }
+      : {}
+  } catch {
+    return {}
+  }
+}
+
 function buildFetchOptions(request: VaultApiRequest): RequestInit {
+  const headers = authHeaders()
   if (!request.body) {
-    return { method: request.method || 'GET' }
+    return { method: request.method || 'GET', credentials: 'same-origin', headers }
   }
 
   return {
     method: request.method || 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(request.body),
   }
 }

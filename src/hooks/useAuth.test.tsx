@@ -38,13 +38,13 @@ describe('useAuth', () => {
     expect(result.current.session).toBeNull()
   })
 
-  it('rejects an incorrect password without storing a persistent session', () => {
+  it('rejects an incorrect password without storing a persistent session', async () => {
     vi.stubEnv('ARTEMIS_PASSWORD', 'swordfish')
 
     const { result } = renderHook(() => useAuth())
 
-    act(() => {
-      expect(result.current.login('wrong')).toBe(false)
+    await act(async () => {
+      await expect(result.current.login('wrong')).resolves.toBe(false)
     })
 
     expect(result.current.isAuthenticated).toBe(false)
@@ -52,25 +52,33 @@ describe('useAuth', () => {
     expect(sessionStorage.getItem(ARTEMIS_AUTH_SESSION_KEY)).toBeNull()
   })
 
-  it('accepts the configured password and persists authentication with timestamps in localStorage', () => {
+  it('accepts the configured password and persists a bearer session with user identity and expiry in localStorage', async () => {
     vi.stubEnv('ARTEMIS_PASSWORD', 'swordfish')
 
     const { result, rerender } = renderHook(() => useAuth())
 
-    act(() => {
-      expect(result.current.login('swordfish')).toBe(true)
+    await act(async () => {
+      await expect(result.current.login('swordfish')).resolves.toBe(true)
     })
 
     expect(result.current.isAuthenticated).toBe(true)
     expect(result.current.session).toEqual<AuthSession>({
       authenticated: true,
+      token: expect.stringMatching(/^local\./),
+      transport: 'bearer',
+      user: { username: 'artemis', email: null },
       session_created_at: now.toISOString(),
       last_accessed_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     })
     expect(JSON.parse(localStorage.getItem(ARTEMIS_AUTH_SESSION_KEY) ?? '{}')).toEqual({
       authenticated: true,
+      token: expect.stringMatching(/^local\./),
+      transport: 'bearer',
+      user: { username: 'artemis', email: null },
       session_created_at: now.toISOString(),
       last_accessed_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     })
     expect(sessionStorage.getItem(ARTEMIS_AUTH_SESSION_KEY)).toBeNull()
 
@@ -83,8 +91,12 @@ describe('useAuth', () => {
     vi.stubEnv('ARTEMIS_PASSWORD', 'swordfish')
     localStorage.setItem(ARTEMIS_AUTH_SESSION_KEY, JSON.stringify({
       authenticated: true,
+      token: 'local.existing-token',
+      transport: 'bearer',
+      user: { username: 'luca', email: 'luca@example.test' },
       session_created_at: now.toISOString(),
       last_accessed_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     }))
     vi.setSystemTime(later)
 
@@ -93,22 +105,34 @@ describe('useAuth', () => {
     expect(result.current.isAuthenticated).toBe(true)
     expect(result.current.session).toEqual<AuthSession>({
       authenticated: true,
+      token: 'local.existing-token',
+      transport: 'bearer',
+      user: { username: 'luca', email: 'luca@example.test' },
       session_created_at: now.toISOString(),
       last_accessed_at: later.toISOString(),
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     })
     expect(JSON.parse(localStorage.getItem(ARTEMIS_AUTH_SESSION_KEY) ?? '{}')).toEqual({
       authenticated: true,
+      token: 'local.existing-token',
+      transport: 'bearer',
+      user: { username: 'luca', email: 'luca@example.test' },
       session_created_at: now.toISOString(),
       last_accessed_at: later.toISOString(),
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     })
   })
 
-  it('expires persistent sessions after 30 days of inactivity', () => {
+  it('expires persistent sessions after 30 days of inactivity or at token expiry', () => {
     vi.stubEnv('ARTEMIS_PASSWORD', 'swordfish')
     localStorage.setItem(ARTEMIS_AUTH_SESSION_KEY, JSON.stringify({
       authenticated: true,
+      token: 'local.expired-token',
+      transport: 'bearer',
+      user: { username: 'artemis', email: null },
       session_created_at: expiredLastAccess.toISOString(),
       last_accessed_at: expiredLastAccess.toISOString(),
+      expires_at: expiredLastAccess.toISOString(),
     }))
 
     const { result } = renderHook(() => useAuth())
@@ -118,26 +142,30 @@ describe('useAuth', () => {
     expect(localStorage.getItem(ARTEMIS_AUTH_SESSION_KEY)).toBeNull()
   })
 
-  it('clears the persistent session on logout or manual clear', () => {
+  it('clears the persistent session on logout or manual clear', async () => {
     vi.stubEnv('ARTEMIS_PASSWORD', 'swordfish')
     localStorage.setItem(ARTEMIS_AUTH_SESSION_KEY, JSON.stringify({
       authenticated: true,
+      token: 'local.logout-token',
+      transport: 'bearer',
+      user: { username: 'artemis', email: null },
       session_created_at: now.toISOString(),
       last_accessed_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     }))
 
     const { result } = renderHook(() => useAuth())
 
-    act(() => {
-      result.current.logout()
+    await act(async () => {
+      await result.current.logout()
     })
 
     expect(result.current.isAuthenticated).toBe(false)
     expect(result.current.session).toBeNull()
     expect(localStorage.getItem(ARTEMIS_AUTH_SESSION_KEY)).toBeNull()
 
-    act(() => {
-      expect(result.current.login('swordfish')).toBe(true)
+    await act(async () => {
+      await result.current.login('swordfish')
       result.current.clearSession()
     })
 

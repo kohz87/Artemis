@@ -2,14 +2,15 @@ import { useState, type FormEvent } from 'react'
 import './LoginPage.css'
 
 type LoginPageProps = {
-  onLogin: (password: string) => boolean
+  onLogin: (password: string) => boolean | Promise<boolean>
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const candidatePassword = password.trim()
@@ -18,13 +19,18 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return
     }
 
-    if (onLogin(candidatePassword)) {
-      setError(null)
-      return
-    }
+    setIsSubmitting(true)
+    try {
+      if (await onLogin(candidatePassword)) {
+        setError(null)
+        return
+      }
 
-    setPassword('')
-    setError('That password did not match. Try again.')
+      setPassword('')
+      setError('That password did not match. Try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -49,7 +55,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             aria-describedby={error ? 'artemis-login-error' : undefined}
           />
           {error && <p id="artemis-login-error" className="login-card__error">{error}</p>}
-          <button className="login-card__submit" type="submit">Unlock</button>
+          <button className="login-card__submit" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Unlocking…' : 'Unlock'}
+          </button>
         </form>
       </section>
     </main>

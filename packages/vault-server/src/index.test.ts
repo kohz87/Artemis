@@ -13,6 +13,7 @@ const servers: ReturnType<typeof createVaultHttpServer>[] = []
 interface JsonResponse {
   statusCode: number
   body: unknown
+  headers?: Record<string, string | string[] | undefined>
 }
 
 function getJson(url: string): Promise<unknown> {
@@ -27,7 +28,7 @@ function getJsonResponse(url: string): Promise<JsonResponse> {
       response.on('data', (chunk) => { body += chunk })
       response.on('end', () => {
         try {
-          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(body) })
+          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(body), headers: response.headers })
         } catch (error) {
           reject(error)
         }
@@ -37,6 +38,14 @@ function getJsonResponse(url: string): Promise<JsonResponse> {
 }
 
 function postJsonResponse(url: string, payload: unknown): Promise<JsonResponse> {
+  return postJsonResponseWithHeaders(url, payload, {})
+}
+
+function postJsonResponseWithHeaders(
+  url: string,
+  payload: unknown,
+  headers: Record<string, string>,
+): Promise<JsonResponse> {
   const body = JSON.stringify(payload)
   return new Promise((resolve, reject) => {
     const req = request(url, {
@@ -44,6 +53,7 @@ function postJsonResponse(url: string, payload: unknown): Promise<JsonResponse> 
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
+        ...headers,
       },
     }, (response) => {
       let responseBody = ''
@@ -51,7 +61,7 @@ function postJsonResponse(url: string, payload: unknown): Promise<JsonResponse> 
       response.on('data', (chunk) => { responseBody += chunk })
       response.on('end', () => {
         try {
-          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(responseBody) })
+          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(responseBody), headers: response.headers })
         } catch (error) {
           reject(error)
         }
@@ -62,11 +72,33 @@ function postJsonResponse(url: string, payload: unknown): Promise<JsonResponse> 
   })
 }
 
+function getJsonResponseWithHeaders(url: string, headers: Record<string, string>): Promise<JsonResponse> {
+  return new Promise((resolve, reject) => {
+    get(url, { headers }, (response) => {
+      let body = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk) => { body += chunk })
+      response.on('end', () => {
+        try {
+          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(body), headers: response.headers })
+        } catch (error) {
+          reject(error)
+        }
+      })
+    }).on('error', reject)
+  })
+}
+
 afterEach(async () => {
   vi.restoreAllMocks()
   delete process.env.ARTEMIS_WEB_VAULT_ROOT
   delete process.env.TOLARIA_WEB_VAULT_ROOT
   delete process.env.ARTEMIS_ALLOWED_VAULT_ROOTS
+  delete process.env.ARTEMIS_PASSWORD
+  delete process.env.ARTEMIS_AUTH_USERNAME
+  delete process.env.ARTEMIS_AUTH_EMAIL
+  delete process.env.ARTEMIS_SESSION_SECRET
+  delete process.env.ARTEMIS_SESSION_TTL_SECONDS
   await Promise.all(servers.map((server) => new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()))
   })))
@@ -86,6 +118,86 @@ describe('vault-server module', () => {
     const { port } = server.address() as AddressInfo
     await expect(getJson(`http://127.0.0.1:${port}/api/vault/ping`)).resolves.toEqual({ ok: true })
   })
+
+  it('issues a signed auth session cookie with user identity and accepts it for protected vault routes', async () => {
+    process.env.ARTEMIS_PASSWORD = 'swordfish'
+    process.env.ARTEMIS_AUTH_USERNAME = 'luca'
+    process.env.ARTEMIS_AUTH_EMAIL = 'luca@example.test'
+    process.env.ARTEMIS_SESSION_SECRET = 'test-secret'
+    const server = createVaultHttpServer()
+    servers.push(server)
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    const { port } = server.address() as AddressInfo
+    const unauthenticated = await getJsonResponse(`http://127.0.0.1:${port}/api/vault/ping`)
+    expect(unauthenticated.statusCode).toBe(401)
+
+    const login = await postJsonResponse(`http://127.0.0.1:${port}/api/auth/login`, { password: 'swordfish' })
+    expect(login.statusCode).toBe(200)
+    expect(login.body).toMatchObject({
+      user: { username: 'luca', email: 'luca@example.test' },
+      transport: 'cookie',
+    })
+    expect(login.body).toHaveProperty('token')
+    const cookie = (login.headers?.['set-cookie'] as string[])[0]
+    expect(cookie).toContain('artemis_session=')
+    expect(cookie).toContain('HttpOnly')
+    expect(cookie).toContain('SameSite=Strict')
+
+    const authenticated = await getJsonResponseWithHeaders(`http://127.0.0.1:${port}/api/vault/ping`, { Cookie: cookie })
+    expect(authenticated.statusCode).toBe(200)
+    expect(authenticated.body).toEqual({ ok: true })
+  })
+
+  it('rejects expired bearer sessions and clears cookie sessions on logout', async () => {
+    process.env.ARTEMIS_PASSWORD = 'swordfish'
+    process.env.ARTEMIS_SESSION_SECRET = 'test-secret'
+    process.env.ARTEMIS_SESSION_TTL_SECONDS = '1'
+    const server = createVaultHttpServer()
+    servers.push(server)
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    const { port } = server.address() as AddressInfo
+    const login = await postJsonResponse(`http://127.0.0.1:${port}/api/auth/login`, { password: 'swordfish' })
+    expect(login.statusCode).toBe(200)
+    const { token } = login.body as { token: string }
+    const cookie = (login.headers?.['set-cookie'] as string[])[0]
+
+    vi.setSystemTime(Date.now() + 2_000)
+    const expired = await getJsonResponseWithHeaders(`http://127.0.0.1:${port}/api/auth/session`, {
+      Authorization: `Bearer ${token}`,
+    })
+    expect(expired.statusCode).toBe(401)
+
+    vi.setSystemTime(Date.now() - 2_000)
+    const logout = await postJsonResponseWithHeaders(`http://127.0.0.1:${port}/api/auth/logout`, {}, { Cookie: cookie })
+    expect(logout.statusCode).toBe(200)
+    expect((logout.headers?.['set-cookie'] as string[])[0]).toContain('Max-Age=0')
+  })
+
+  it('refreshes a valid session token and rotates the auth cookie expiry', async () => {
+    process.env.ARTEMIS_PASSWORD = 'swordfish'
+    process.env.ARTEMIS_SESSION_SECRET = 'test-secret'
+    process.env.ARTEMIS_SESSION_TTL_SECONDS = '60'
+    const server = createVaultHttpServer()
+    servers.push(server)
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    const { port } = server.address() as AddressInfo
+    const login = await postJsonResponse(`http://127.0.0.1:${port}/api/auth/login`, { password: 'swordfish' })
+    expect(login.statusCode).toBe(200)
+    const originalToken = (login.body as { token: string }).token
+    const cookie = (login.headers?.['set-cookie'] as string[])[0]
+
+    vi.setSystemTime(Date.now() + 2_000)
+    const refresh = await postJsonResponseWithHeaders(`http://127.0.0.1:${port}/api/auth/refresh`, {}, { Cookie: cookie })
+
+    expect(refresh.statusCode).toBe(200)
+    expect(refresh.body).toMatchObject({ authenticated: true, transport: 'cookie' })
+    expect((refresh.body as { token: string }).token).not.toBe(originalToken)
+    expect((refresh.headers?.['set-cookie'] as string[])[0]).toContain('artemis_session=')
+  })
+
 
   it('includes PDF files in vault listings so All Notes PDF visibility can render them', async () => {
     const vaultRoot = mkdtempSync(path.join(tmpdir(), 'artemis-vault-root-'))

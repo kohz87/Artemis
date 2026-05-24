@@ -81,6 +81,10 @@ export default defineConfig(({ mode }) => {
         target: `http://${apiDevProxyHost}:${apiDevPort}`,
         changeOrigin: true,
       },
+      '/api/auth': {
+        target: `http://${apiDevProxyHost}:${apiDevPort}`,
+        changeOrigin: true,
+      },
     },
   },
 

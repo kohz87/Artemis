@@ -22,6 +22,31 @@ ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm dev:web
 
 external tool config snippets are refreshed.
 
+## Authentication
+
+Set `ARTEMIS_PASSWORD` to require login before the React shell can open a vault
+and before the local server will serve `/api/vault/*` routes. Successful login
+calls `/api/auth/login`, receives signed session metadata with the configured
+user identity, and stores a session token for reload continuity. The server also
+sets an `HttpOnly`, `SameSite=Strict` `artemis_session` cookie so same-origin
+vault API calls can authenticate without exposing the cookie to JavaScript.
+
+Optional auth environment variables:
+
+- `ARTEMIS_AUTH_USERNAME` / `ARTEMIS_USERNAME`: username stored in the session
+  identity (`artemis` by default).
+- `ARTEMIS_AUTH_EMAIL`: optional email stored in the session identity.
+- `ARTEMIS_SESSION_SECRET`: HMAC signing secret for session tokens. If omitted,
+  the password is used as the signing secret.
+- `ARTEMIS_SESSION_TTL_SECONDS`: session lifetime in seconds (30 days by
+  default).
+
+The browser sends the stored bearer token on vault API calls and also includes
+same-origin cookies. `/api/auth/logout` clears the server cookie, and the client
+removes its persisted session. If the standalone auth endpoints are unavailable
+(such as browser-only demo mode), the UI keeps a local bearer-token fallback so
+existing password-protected demos still work without a server.
+
 ## Browser Persistence
 
 Web mode has two storage modes:
