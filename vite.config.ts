@@ -78,7 +78,7 @@ export default defineConfig(({ mode }) => {
     },
     proxy: {
       '/api/vault': {
-        target: `http://${apiDevHost}:${apiDevPort}`,
+        target: `http://${apiDevProxyHost}:${apiDevPort}`,
         changeOrigin: true,
       },
     },

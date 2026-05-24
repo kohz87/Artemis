@@ -1,16 +1,25 @@
-import { get } from 'node:http'
+import { get, request } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createVaultHttpServer, handleVaultApiRequest } from './index'
 
 const servers: ReturnType<typeof createVaultHttpServer>[] = []
 
+interface JsonResponse {
+  statusCode: number
+  body: unknown
+}
+
 function getJson(url: string): Promise<unknown> {
+  return getJsonResponse(url).then(({ body }) => body)
+}
+
+function getJsonResponse(url: string): Promise<JsonResponse> {
   return new Promise((resolve, reject) => {
     get(url, (response) => {
       let body = ''
@@ -18,7 +27,7 @@ function getJson(url: string): Promise<unknown> {
       response.on('data', (chunk) => { body += chunk })
       response.on('end', () => {
         try {
-          resolve(JSON.parse(body))
+          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(body) })
         } catch (error) {
           reject(error)
         }
@@ -27,7 +36,37 @@ function getJson(url: string): Promise<unknown> {
   })
 }
 
+function postJsonResponse(url: string, payload: unknown): Promise<JsonResponse> {
+  const body = JSON.stringify(payload)
+  return new Promise((resolve, reject) => {
+    const req = request(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (response) => {
+      let responseBody = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk) => { responseBody += chunk })
+      response.on('end', () => {
+        try {
+          resolve({ statusCode: response.statusCode ?? 0, body: JSON.parse(responseBody) })
+        } catch (error) {
+          reject(error)
+        }
+      })
+    })
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
 afterEach(async () => {
+  vi.restoreAllMocks()
+  delete process.env.ARTEMIS_WEB_VAULT_ROOT
+  delete process.env.TOLARIA_WEB_VAULT_ROOT
+  delete process.env.ARTEMIS_ALLOWED_VAULT_ROOTS
   await Promise.all(servers.map((server) => new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()))
   })))
@@ -49,7 +88,10 @@ describe('vault-server module', () => {
   })
 
   it('includes PDF files in vault listings so All Notes PDF visibility can render them', async () => {
-    const vaultPath = mkdtempSync(path.join(tmpdir(), 'artemis-pdf-vault-'))
+    const vaultRoot = mkdtempSync(path.join(tmpdir(), 'artemis-vault-root-'))
+    const vaultPath = path.join(vaultRoot, 'pdf-vault')
+    mkdirSync(vaultPath)
+    process.env.ARTEMIS_WEB_VAULT_ROOT = vaultRoot
     try {
       writeFileSync(path.join(vaultPath, 'note.md'), '# Note\n')
       writeFileSync(path.join(vaultPath, 'report.pdf'), '%PDF-1.4\n')
@@ -79,7 +121,105 @@ describe('vault-server module', () => {
         }),
       ]))
     } finally {
-      rmSync(vaultPath, { recursive: true, force: true })
+      rmSync(vaultRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('returns 403 and logs when a query path escapes the configured vault root', async () => {
+    const vaultRoot = mkdtempSync(path.join(tmpdir(), 'artemis-vault-root-'))
+    const outside = mkdtempSync(path.join(tmpdir(), 'artemis-secret-'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    process.env.ARTEMIS_WEB_VAULT_ROOT = vaultRoot
+    try {
+      writeFileSync(path.join(outside, 'secret.md'), '# Secret\n')
+      const server = createVaultHttpServer()
+      servers.push(server)
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      const { port } = server.address() as AddressInfo
+      const response = await getJsonResponse(
+        `http://127.0.0.1:${port}/api/vault/content?path=${encodeURIComponent(path.join(outside, 'secret.md'))}`,
+      )
+
+      expect(response.statusCode).toBe(403)
+      expect(response.body).toEqual({ error: 'Forbidden path' })
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('Blocked suspicious vault path access'), expect.any(Object))
+    } finally {
+      rmSync(vaultRoot, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('returns 403 for symlinks inside the vault root that resolve outside it', async () => {
+    const vaultRoot = mkdtempSync(path.join(tmpdir(), 'artemis-vault-root-'))
+    const outside = mkdtempSync(path.join(tmpdir(), 'artemis-secret-'))
+    const linkPath = path.join(vaultRoot, 'linked-secret.md')
+    process.env.ARTEMIS_WEB_VAULT_ROOT = vaultRoot
+    try {
+      writeFileSync(path.join(outside, 'secret.md'), '# Secret\n')
+      symlinkSync(path.join(outside, 'secret.md'), linkPath)
+      const server = createVaultHttpServer()
+      servers.push(server)
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      const { port } = server.address() as AddressInfo
+      const response = await getJsonResponse(
+        `http://127.0.0.1:${port}/api/vault/content?path=${encodeURIComponent(linkPath)}`,
+      )
+
+      expect(response.statusCode).toBe(403)
+      expect(response.body).toEqual({ error: 'Forbidden path' })
+    } finally {
+      rmSync(vaultRoot, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('returns 403 when save attempts to write outside the configured vault root', async () => {
+    const vaultRoot = mkdtempSync(path.join(tmpdir(), 'artemis-vault-root-'))
+    const outside = mkdtempSync(path.join(tmpdir(), 'artemis-secret-'))
+    process.env.ARTEMIS_WEB_VAULT_ROOT = vaultRoot
+    try {
+      const server = createVaultHttpServer()
+      servers.push(server)
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      const { port } = server.address() as AddressInfo
+      const response = await postJsonResponse(`http://127.0.0.1:${port}/api/vault/save`, {
+        path: path.join(outside, 'secret.md'),
+        content: '# Secret\n',
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.body).toEqual({ error: 'Forbidden path' })
+    } finally {
+      rmSync(vaultRoot, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('returns 403 and leaves outside files intact when delete targets a path outside the vault root', async () => {
+    const vaultRoot = mkdtempSync(path.join(tmpdir(), 'artemis-vault-root-'))
+    const outside = mkdtempSync(path.join(tmpdir(), 'artemis-secret-'))
+    const secretPath = path.join(outside, 'secret.md')
+    process.env.ARTEMIS_WEB_VAULT_ROOT = vaultRoot
+    try {
+      writeFileSync(secretPath, '# Secret\n')
+      const server = createVaultHttpServer()
+      servers.push(server)
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      const { port } = server.address() as AddressInfo
+      const response = await postJsonResponse(`http://127.0.0.1:${port}/api/vault/delete`, {
+        path: secretPath,
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(response.body).toEqual({ error: 'Forbidden path' })
+      expect(existsSync(secretPath)).toBe(true)
+    } finally {
+      rmSync(vaultRoot, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
     }
   })
 })

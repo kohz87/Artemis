@@ -175,6 +175,12 @@ flowchart TD
 
 The local `/api/vault/*` implementation lives in `packages/vault-server/src/` instead of `vite.config.ts`. The package exports `handleVaultApiRequest()` for adapters and `createVaultHttpServer()` / `startVaultServer()` for the standalone Node lifecycle. During development, `pnpm dev` launches the Node vault server on `ARTEMIS_API_HOST` / `ARTEMIS_API_PORT` (default `127.0.0.1:5302`) and Vite separately; Vite proxies `/api/vault` to that server so frontend code continues to use relative API URLs. `src/backend/web-command-handlers.ts` remains the browser-local fallback path for demo/offline tests when the HTTP bridge is unavailable.
 
+### Vault path access control
+
+The Node vault server treats every client-supplied filesystem path as untrusted. Read, write, delete, rename, move, search, asset, and git routes authorize paths against a whitelist before touching disk. By default the whitelist is the configured web vault root (`ARTEMIS_WEB_VAULT_ROOT`, falling back to `TOLARIA_WEB_VAULT_ROOT` or the platform default); `ARTEMIS_ALLOWED_VAULT_ROOTS` can supply multiple allowed roots separated by the host `path.delimiter` (`:` on Unix, `;` on Windows). The server resolves `~`, relative inputs, symlinks, and existing ancestors with `realpath` before comparing paths, lowercases comparisons on case-insensitive platforms, rejects `..`/absolute escape attempts, returns `403 { error: "Forbidden path" }` for restricted paths, and logs suspicious attempts with the raw and resolved path.
+
+Vault-relative operations still use `resolveInside()` for names and folder paths, then re-authorize the resulting physical path so symlinks inside an allowed vault cannot redirect reads or writes outside the whitelist.
+
 ## Four-Panel Layout
 
 ```
@@ -448,7 +454,8 @@ Artemis is web-only. The renderer calls explicit backend functions from `src/bac
 | `src/backend/vault-api.ts` | Detects the local `/api/vault` server, maps legacy command names to HTTP routes, validates route origin, and unwraps API responses |
 | `src/backend/web-command-handlers.ts` | Browser-local/demo fallback for vault content, settings, Git-like state, and command test hooks |
 | `src/backend/web-content.ts` / `web-entries.ts` / `web-persistence.ts` | Mock/demo vault content, entry derivation, and local persistence helpers |
-| `vite.config.ts` | Local development vault API middleware: filesystem scanning/parsing, vault CRUD, folder operations, Git shell-outs, search, default path resolution, and test server configuration |
+| `packages/vault-server/src/index.ts` | Standalone local `/api/vault` HTTP server: filesystem scanning/parsing, vault CRUD, folder operations, Git shell-outs, search, default path resolution, and path whitelist enforcement |
+| `vite.config.ts` | Development proxy that forwards `/api/vault` to the standalone Node vault server |
 
 ## HTTP Vault API Surface
 

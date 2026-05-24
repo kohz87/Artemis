@@ -12,6 +12,7 @@ import {
   openSync,
   opendirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   unlinkSync,
@@ -285,6 +286,98 @@ function resolveUserPath(input: string): string {
   const cwdCandidate = path.resolve(process.cwd(), trimmed)
   if (pathExists(cwdCandidate)) return cwdCandidate
   return path.resolve(os.homedir(), trimmed)
+}
+
+type AuthorizedPathResult =
+  | { ok: true; path: string }
+  | { ok: false; reason: 'invalid' | 'forbidden'; path: string | null }
+
+function configuredVaultRoots(): string[] {
+  const configuredRoots = process.env.ARTEMIS_ALLOWED_VAULT_ROOTS?.trim()
+  if (configuredRoots) {
+    return configuredRoots.split(path.delimiter).map((root) => root.trim()).filter(Boolean).map(resolveUserPath)
+  }
+  return [defaultWebVaultRoot()]
+}
+
+function existingAncestorPath(filePath: string): string | null {
+  let current = path.resolve(filePath)
+  while (!pathExists(current)) {
+    const parent = path.dirname(current)
+    if (parent === current) return null
+    current = parent
+  }
+  return current
+}
+
+function physicalPathForAccess(filePath: string): string | null {
+  const resolvedPath = path.resolve(filePath)
+  if (pathExists(resolvedPath)) return realpathSync(resolvedPath)
+
+  const ancestor = existingAncestorPath(resolvedPath)
+  if (!ancestor) return null
+  const ancestorRealPath = realpathSync(ancestor)
+  const missingRelativePath = path.relative(ancestor, resolvedPath)
+  return path.resolve(ancestorRealPath, missingRelativePath)
+}
+
+function pathForAccessComparison(filePath: string): string {
+  const normalizedPath = path.normalize(filePath)
+  return process.platform === 'win32' || process.platform === 'darwin'
+    ? normalizedPath.toLowerCase()
+    : normalizedPath
+}
+
+function pathIsInsideAllowedRoot(filePath: string, root: string): boolean {
+  const comparablePath = pathForAccessComparison(filePath)
+  const comparableRoot = pathForAccessComparison(root)
+  const relativePath = path.relative(comparableRoot, comparablePath)
+  return isInsideRelativePath(relativePath)
+}
+
+function allowedVaultRootPaths(): string[] {
+  return configuredVaultRoots()
+    .map((root) => physicalPathForAccess(root))
+    .filter((root): root is string => Boolean(root))
+}
+
+function logSuspiciousAccessAttempt(rawPath: string, resolvedPath: string | null): void {
+  console.warn('Blocked suspicious vault path access', { rawPath, resolvedPath })
+}
+
+function authorizeUserPath(input: string): AuthorizedPathResult {
+  const resolvedPath = resolveUserPath(input)
+  if (!resolvedPath) return { ok: false, reason: 'invalid', path: null }
+
+  const physicalPath = physicalPathForAccess(resolvedPath)
+  if (!physicalPath) return { ok: false, reason: 'invalid', path: resolvedPath }
+
+  const authorized = allowedVaultRootPaths().some((root) => pathIsInsideAllowedRoot(physicalPath, root))
+  if (!authorized) {
+    logSuspiciousAccessAttempt(input, physicalPath)
+    return { ok: false, reason: 'forbidden', path: physicalPath }
+  }
+
+  return { ok: true, path: resolvedPath }
+}
+
+function sendAuthorizedPathError(res: ServerResponse, result: Exclude<AuthorizedPathResult, { ok: true }>, invalidMessage: string): void {
+  if (result.reason === 'forbidden') {
+    sendForbiddenPath(res)
+  } else {
+    sendJson(res, { error: invalidMessage }, 400)
+  }
+}
+
+function authorizeUserPathForResponse(input: string, res: ServerResponse, invalidMessage = 'Invalid path'): string | null {
+  const authorizedPath = authorizeUserPath(input)
+  if (authorizedPath.ok === true) return authorizedPath.path
+  sendAuthorizedPathError(res, authorizedPath, invalidMessage)
+  return null
+}
+
+function sendForbiddenPath(res: ServerResponse): void {
+  sendJson(res, { error: 'Forbidden path' }, 403)
 }
 
 function defaultWebVaultRoot(): string {
@@ -588,8 +681,12 @@ function sendAsset(res: ServerResponse, filePath: string): void {
 
 function readExistingQueryPath(url: URL, res: ServerResponse, key: string): string | null {
   const rawPath = url.searchParams.get(key)
-  const filePath = rawPath ? resolveUserPath(rawPath) : null
-  if (!filePath || !pathExists(filePath)) {
+  const filePath = rawPath ? authorizeUserPathForResponse(rawPath, res, 'Invalid or missing path') : null
+  if (!filePath) {
+    if (!rawPath) sendJson(res, { error: 'Invalid or missing path' }, 400)
+    return null
+  }
+  if (!pathExists(filePath)) {
     sendJson(res, { error: 'Invalid or missing path' }, 400)
     return null
   }
@@ -662,7 +759,13 @@ function handleVaultDefaultPath(url: URL, res: ServerResponse): boolean {
 function handleVaultResolvePath(url: URL, res: ServerResponse): boolean {
   if (url.pathname !== '/api/vault/resolve-path') return false
   const rawPath = url.searchParams.get('path')
-  sendJson(res, rawPath ? resolveUserPath(rawPath) : '')
+  if (!rawPath) {
+    sendJson(res, '')
+    return true
+  }
+  const resolvedPath = authorizeUserPathForResponse(rawPath, res, 'Invalid path')
+  if (!resolvedPath) return true
+  sendJson(res, resolvedPath)
   return true
 }
 
@@ -701,8 +804,13 @@ function findGitRoot(filePath: string): string | null {
   }
 }
 
-function gitFileHistory(filePath: string): GitCommit[] {
+function authorizedGitRootForPath(filePath: string): string | null {
   const gitRoot = findGitRoot(filePath)
+  return gitRoot && authorizeUserPath(gitRoot).ok === true ? gitRoot : null
+}
+
+function gitFileHistory(filePath: string): GitCommit[] {
+  const gitRoot = authorizedGitRootForPath(filePath)
   if (!gitRoot) return []
   const relativePath = path.relative(gitRoot, filePath).replaceAll(path.sep, '/')
   try {
@@ -782,8 +890,12 @@ function ensureGitCommitIdentity(gitRoot: string): void {
 }
 
 function prepareCloneDestination(localPath: string): string {
-  const destination = resolveUserPath(localPath)
-  if (!destination) throw new Error('Clone path is required')
+  const authorizedDestination = authorizeUserPath(localPath)
+  if (authorizedDestination.ok === false) {
+    if (authorizedDestination.reason === 'forbidden') throw new Error('Forbidden path')
+    throw new Error('Clone path is required')
+  }
+  const destination = authorizedDestination.path
 
   if (pathExists(destination)) {
     if (!pathIsDirectory(destination)) throw new Error('Clone path already exists and is not a folder')
@@ -837,9 +949,12 @@ function gitPushErrorResult(message: string): GitPushResult {
 
 function gitRootForVaultPath(rawVaultPath: string | null | undefined): string | null {
   if (!rawVaultPath) return null
-  const vaultPath = resolveUserPath(rawVaultPath)
+  const authorizedPath = authorizeUserPath(rawVaultPath)
+  if (authorizedPath.ok === false) return null
+  const vaultPath = authorizedPath.path
   if (!pathExists(vaultPath)) return null
-  return findGitRoot(vaultPath)
+  const gitRoot = findGitRoot(vaultPath)
+  return gitRoot && authorizeUserPath(gitRoot).ok === true ? gitRoot : null
 }
 
 function absoluteGitPath(gitRoot: string, relativePath: string): string {
@@ -1066,7 +1181,7 @@ function handleVaultDiff(url: URL, res: ServerResponse): boolean {
   if (url.pathname !== '/api/vault/diff') return false
   const filePath = readExistingQueryPath(url, res, 'path')
   if (!filePath) return true
-  const gitRoot = findGitRoot(filePath)
+  const gitRoot = authorizedGitRootForPath(filePath)
   if (!gitRoot) {
     sendJson(res, '')
     return true
@@ -1081,7 +1196,7 @@ function handleVaultDiffAtCommit(url: URL, res: ServerResponse): boolean {
   const filePath = readExistingQueryPath(url, res, 'path')
   if (!filePath) return true
   const commitHash = url.searchParams.get('commitHash') ?? ''
-  const gitRoot = findGitRoot(filePath)
+  const gitRoot = authorizedGitRootForPath(filePath)
   if (!gitRoot || !commitHash) {
     sendJson(res, '')
     return true
@@ -1100,7 +1215,8 @@ function handleVaultIsGitRepo(url: URL, res: ServerResponse): boolean {
 async function handleVaultInitGit(url: URL, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   if (!isPostRoute(url, req, '/api/vault/git/init')) return false
   const { vaultPath: rawVaultPath } = await readJsonBody<{ vaultPath?: string }>(req)
-  const vaultPath = rawVaultPath ? resolveUserPath(rawVaultPath) : ''
+  const vaultPath = rawVaultPath ? authorizeUserPathForResponse(rawVaultPath, res, 'Invalid vault path') : ''
+  if (rawVaultPath && !vaultPath) return true
   if (!vaultPath || !pathIsDirectory(vaultPath)) {
     sendJson(res, { error: 'Invalid vault path' }, 400)
     return true
@@ -1116,7 +1232,11 @@ async function handleVaultGitClone(url: URL, req: IncomingMessage, res: ServerRe
     const { url: repoUrl, localPath } = await readJsonBody<{ url?: string; localPath?: string }>(req)
     sendJson(res, cloneGitRepository(repoUrl, localPath))
   } catch (err: unknown) {
-    sendJson(res, { error: gitErrorMessage(err, 'Clone failed') }, 500)
+    if (err instanceof Error && err.message === 'Forbidden path') {
+      sendForbiddenPath(res)
+    } else {
+      sendJson(res, { error: gitErrorMessage(err, 'Clone failed') }, 500)
+    }
   }
   return true
 }
@@ -1322,7 +1442,8 @@ function handleVaultAllContent(url: URL, res: ServerResponse): boolean {
 function handleVaultExists(url: URL, res: ServerResponse): boolean {
   if (url.pathname !== '/api/vault/exists') return false
   const rawPath = url.searchParams.get('path')
-  const dirPath = rawPath ? resolveUserPath(rawPath) : null
+  const dirPath = rawPath ? authorizeUserPathForResponse(rawPath, res, 'Invalid path') : null
+  if (rawPath && !dirPath) return true
   sendJson(res, Boolean(dirPath && pathIsDirectory(dirPath)))
   return true
 }
@@ -1345,8 +1466,11 @@ function handleVaultSearch(url: URL, res: ServerResponse): boolean {
     return true
   }
 
+  const authorizedVaultPath = authorizeUserPathForResponse(vaultPath, res, 'Invalid vault path')
+  if (!authorizedVaultPath) return true
+
   sendVaultSearchResponse(res, {
-    results: collectVaultSearchResults({ vaultPath, query }),
+    results: collectVaultSearchResults({ vaultPath: authorizedVaultPath, query }),
     query,
     mode,
   })
@@ -1393,7 +1517,17 @@ async function saveVaultContent(req: IncomingMessage, res: ServerResponse): Prom
     return
   }
 
-  const resolvedPath = resolveUserPath(filePath)
+  const authorizedPath = authorizeUserPath(filePath)
+  if (authorizedPath.ok === false) {
+    if (authorizedPath.reason === 'forbidden') {
+      sendForbiddenPath(res)
+    } else {
+      sendJson(res, { error: 'Invalid path' }, 400)
+    }
+    return
+  }
+
+  const resolvedPath = authorizedPath.path
   mkdirSync(path.dirname(resolvedPath), { recursive: true })
   writeUtf8File(resolvedPath, content)
   sendJson(res, null)
@@ -1407,7 +1541,8 @@ async function handleVaultCreateEmpty(url: URL, req: IncomingMessage, res: Serve
       sendJson(res, { error: 'Missing targetPath' }, 400)
       return true
     }
-    const resolvedTargetPath = resolveUserPath(targetPath)
+    const resolvedTargetPath = authorizeUserPathForResponse(targetPath, res, 'Invalid targetPath')
+    if (!resolvedTargetPath) return true
     mkdirSync(resolvedTargetPath, { recursive: true })
     sendJson(res, resolvedTargetPath)
   } catch (err: unknown) {
@@ -1424,7 +1559,8 @@ async function handleVaultCreateGettingStarted(url: URL, req: IncomingMessage, r
       sendJson(res, { error: 'Missing targetPath' }, 400)
       return true
     }
-    const resolvedTargetPath = resolveUserPath(targetPath)
+    const resolvedTargetPath = authorizeUserPathForResponse(targetPath, res, 'Invalid targetPath')
+    if (!resolvedTargetPath) return true
     mkdirSync(path.dirname(resolvedTargetPath), { recursive: true })
     if (!pathExists(resolvedTargetPath)) {
       cpSync(path.join(projectRoot, 'demo-vault-v2'), resolvedTargetPath, { recursive: true })
@@ -1440,7 +1576,8 @@ async function handleVaultCreateFolder(url: URL, req: IncomingMessage, res: Serv
   if (!isPostRoute(url, req, '/api/vault/create-folder')) return false
   try {
     const { vaultPath, folderName } = await readJsonBody<{ vaultPath?: string; folderName?: string }>(req)
-    const resolvedVaultPath = vaultPath ? resolveUserPath(vaultPath) : null
+    const resolvedVaultPath = vaultPath ? authorizeUserPathForResponse(vaultPath, res, 'Invalid vault path') : null
+    if (vaultPath && !resolvedVaultPath) return true
     const target = resolvedVaultPath && folderName ? resolveInside(resolvedVaultPath, folderName) : null
     if (!target) {
       sendJson(res, { error: 'Invalid folder path' }, 400)
@@ -1462,7 +1599,8 @@ async function handleVaultRenameFolder(url: URL, req: IncomingMessage, res: Serv
       folderPath?: string
       newName?: string
     }>(req)
-    const resolvedVaultPath = vaultPath ? resolveUserPath(vaultPath) : null
+    const resolvedVaultPath = vaultPath ? authorizeUserPathForResponse(vaultPath, res, 'Invalid vault path') : null
+    if (vaultPath && !resolvedVaultPath) return true
     const oldPath = resolvedVaultPath && folderPath ? resolveInside(resolvedVaultPath, folderPath) : null
     const newRelativePath = folderPath && newName
       ? path.posix.join(path.posix.dirname(folderPath.replaceAll('\\', '/')), newName)
@@ -1484,7 +1622,8 @@ async function handleVaultDeleteFolder(url: URL, req: IncomingMessage, res: Serv
   if (!isPostRoute(url, req, '/api/vault/delete-folder')) return false
   try {
     const { vaultPath, folderPath } = await readJsonBody<{ vaultPath?: string; folderPath?: string }>(req)
-    const resolvedVaultPath = vaultPath ? resolveUserPath(vaultPath) : null
+    const resolvedVaultPath = vaultPath ? authorizeUserPathForResponse(vaultPath, res, 'Invalid vault path') : null
+    if (vaultPath && !resolvedVaultPath) return true
     const target = resolvedVaultPath && folderPath ? resolveInside(resolvedVaultPath, folderPath) : null
     if (!target) {
       sendJson(res, { error: 'Invalid folder path' }, 400)
@@ -1514,8 +1653,10 @@ async function renameVaultNoteTitle(req: IncomingMessage, res: ServerResponse): 
     old_path: rawOldPath,
     new_title: newTitle,
   } = await readJsonBody<{ vault_path?: string; old_path: string; new_title: string }>(req)
-  const oldPath = resolveUserPath(rawOldPath)
-  const resolvedVaultPath = vaultPath ? resolveUserPath(vaultPath) : undefined
+  const oldPath = authorizeUserPathForResponse(rawOldPath, res, 'Invalid path')
+  if (!oldPath) return
+  const resolvedVaultPath = vaultPath ? authorizeUserPathForResponse(vaultPath, res, 'Invalid vault path') ?? undefined : undefined
+  if (vaultPath && !resolvedVaultPath) return
   const oldContent = readUtf8File(oldPath)
   const oldTitle = parseMarkdownFile(oldPath)?.title ?? path.basename(oldPath, '.md')
   const slug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
@@ -1524,6 +1665,8 @@ async function renameVaultNoteTitle(req: IncomingMessage, res: ServerResponse): 
     sendJson(res, { error: 'Invalid title' }, 400)
     return
   }
+  const authorizedNewPath = authorizeUserPathForResponse(newPath, res, 'Invalid title')
+  if (!authorizedNewPath) return
   if (newPath !== oldPath && pathExists(newPath)) {
     sendJson(res, { error: 'A note with that name already exists' }, 409)
     return
@@ -1572,8 +1715,10 @@ async function renameVaultNoteFilename(req: IncomingMessage, res: ServerResponse
     old_path: rawOldPath,
     new_filename_stem: newFilenameStem,
   } = await readJsonBody<{ vault_path?: string; old_path: string; new_filename_stem: string }>(req)
-  const oldPath = resolveUserPath(rawOldPath)
-  const resolvedVaultPath = vaultPath ? resolveUserPath(vaultPath) : undefined
+  const oldPath = authorizeUserPathForResponse(rawOldPath, res, 'Invalid path')
+  if (!oldPath) return
+  const resolvedVaultPath = vaultPath ? authorizeUserPathForResponse(vaultPath, res, 'Invalid vault path') ?? undefined : undefined
+  if (vaultPath && !resolvedVaultPath) return
   const filename = validateMarkdownFilenameStem(newFilenameStem)
   if (!filename.ok) {
     sendJson(res, { error: filename.error }, 400)
@@ -1585,6 +1730,8 @@ async function renameVaultNoteFilename(req: IncomingMessage, res: ServerResponse
     sendJson(res, { error: 'Invalid filename' }, 400)
     return
   }
+  const authorizedNewPath = authorizeUserPathForResponse(newPath, res, 'Invalid filename')
+  if (!authorizedNewPath) return
   if (newPath !== oldPath && pathExists(newPath)) {
     sendJson(res, { error: 'A note with that name already exists' }, 409)
     return
@@ -1608,19 +1755,24 @@ async function handleVaultMoveToFolder(url: URL, req: IncomingMessage, res: Serv
       sendJson(res, { error: 'Missing vault_path, old_path, or folder_path' }, 400)
       return true
     }
-    const vaultPath = resolveUserPath(rawVaultPath)
-    const oldPath = resolveUserPath(rawOldPath)
+    const vaultPath = authorizeUserPathForResponse(rawVaultPath, res, 'Invalid vault path')
+    const oldPath = authorizeUserPathForResponse(rawOldPath, res, 'Invalid path')
+    if (!vaultPath || !oldPath) return true
     const targetDir = resolveInside(vaultPath, folderPath)
     if (!targetDir) {
       sendJson(res, { error: 'Invalid folder path' }, 400)
       return true
     }
+    const authorizedTargetDir = authorizeUserPathForResponse(targetDir, res, 'Invalid folder path')
+    if (!authorizedTargetDir) return true
     mkdirSync(targetDir, { recursive: true })
     const newPath = resolveInside(targetDir, path.basename(oldPath))
     if (!newPath) {
       sendJson(res, { error: 'Invalid target path' }, 400)
       return true
     }
+    const authorizedNewPath = authorizeUserPathForResponse(newPath, res, 'Invalid target path')
+    if (!authorizedNewPath) return true
     if (newPath !== oldPath && pathExists(newPath)) {
       sendJson(res, { error: 'A note with that name already exists' }, 409)
       return true
@@ -1645,9 +1797,18 @@ async function handleVaultDelete(url: URL, req: IncomingMessage, res: ServerResp
       return true
     }
 
-    const deletedPaths: string[] = []
+    const authorizedPaths: string[] = []
     for (const rawPath of requestedPaths) {
-      const filePath = resolveUserPath(rawPath)
+      const authorizedPath = authorizeUserPath(rawPath)
+      if (authorizedPath.ok === false) {
+        sendAuthorizedPathError(res, authorizedPath, 'Invalid path')
+        return true
+      }
+      authorizedPaths.push(authorizedPath.path)
+    }
+
+    const deletedPaths: string[] = []
+    for (const filePath of authorizedPaths) {
       if (!pathExists(filePath) || !pathStats(filePath).isFile()) continue
       unlinkSync(filePath)
       deletedPaths.push(filePath)
