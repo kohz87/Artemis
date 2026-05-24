@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { NoteList } from './components/NoteList'
 import type { DeletedNoteEntry } from './components/note-list/noteListUtils'
@@ -7,15 +7,10 @@ import { ResizeHandle } from './components/ResizeHandle'
 import { CreateTypeDialog } from './components/CreateTypeDialog'
 import { CreateViewDialog } from './components/CreateViewDialog'
 import { QuickOpenPalette } from './components/QuickOpenPalette'
-import { CommandPalette } from './components/CommandPalette'
-import { SearchPanel } from './components/SearchPanel'
 import { Toast } from './components/Toast'
 import { CommitDialog } from './components/CommitDialog'
-import { PulseView } from './components/PulseView'
 import { StatusBar } from './components/StatusBar'
 import { VaultMenu } from './components/status-bar/VaultMenu'
-import { SettingsPanel } from './components/SettingsPanel'
-import { CloneVaultModal } from './components/CloneVaultModal'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { NoteRetargetingDialogs } from './components/note-retargeting/NoteRetargetingDialogs'
@@ -118,6 +113,12 @@ import {
 } from './utils/organizationWorkflow'
 import { requestPlainTextPaste } from './utils/plainTextPaste'
 import './App.css'
+
+const CommandPalette = lazy(() => import('./components/CommandPalette').then(module => ({ default: module.CommandPalette })))
+const SearchPanel = lazy(() => import('./components/SearchPanel').then(module => ({ default: module.SearchPanel })))
+const PulseView = lazy(() => import('./components/PulseView').then(module => ({ default: module.PulseView })))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })))
+const CloneVaultModal = lazy(() => import('./components/CloneVaultModal').then(module => ({ default: module.CloneVaultModal })))
 
 // Type declarations for mock content storage and test overrides
 declare global {
@@ -1482,7 +1483,9 @@ function App() {
             <>
               <div className="app__note-list" style={{ width: layout.noteListWidth }}>
                 {effectiveSelection.kind === 'filter' && effectiveSelection.filter === 'pulse' ? (
-                  <PulseView vaultPath={resolvedPath} onOpenNote={handleMobilePulseOpenNote} sidebarCollapsed={!renderedSidebarVisible} onExpandSidebar={() => handleSetViewMode('all')} locale={appLocale} />
+                  <Suspense fallback={null}>
+                    <PulseView vaultPath={resolvedPath} onOpenNote={handleMobilePulseOpenNote} sidebarCollapsed={!renderedSidebarVisible} onExpandSidebar={() => handleSetViewMode('all')} locale={appLocale} />
+                  </Suspense>
                 ) : (
                   <NoteList entries={vault.entries} selection={effectiveSelection} selectedNote={activeTab?.entry ?? null} loading={isVaultContentLoading} noteListFilter={noteListFilter} onNoteListFilterChange={setNoteListFilter} inboxPeriod={inboxPeriod} modifiedFiles={vault.modifiedFiles} modifiedFilesError={vault.modifiedFilesError} getNoteStatus={vault.getNoteStatus} sidebarCollapsed={!renderedSidebarVisible} onSelectNote={handleMobileSelectNote} onReplaceActiveTab={handleMobileReplaceActiveTab} onEnterNeighborhood={handleEnterNeighborhood} onCreateNote={notes.handleCreateNoteImmediate} onBulkOrganize={explicitOrganizationEnabled ? bulkActions.handleBulkOrganize : undefined} onBulkArchive={bulkActions.handleBulkArchive} onBulkDeletePermanently={deleteActions.handleBulkDeletePermanently} onUpdateTypeSort={notes.handleUpdateFrontmatter} onUpdateViewDefinition={handleUpdateViewDefinition} updateEntry={vault.updateEntry} onOpenInNewWindow={undefined} onDiscardFile={handleDiscardFile} onOpenDeletedNote={handleOpenDeletedNote} allNotesNoteListProperties={vaultConfig.allNotes?.noteListProperties ?? null} onUpdateAllNotesNoteListProperties={handleUpdateAllNotesNoteListProperties} inboxNoteListProperties={vaultConfig.inbox?.noteListProperties ?? null} onUpdateInboxNoteListProperties={handleUpdateInboxNoteListProperties} views={vault.views} visibleNotesRef={visibleNotesRef} allNotesFileVisibility={allNotesFileVisibility} multiSelectionCommandRef={multiSelectionCommandRef} locale={appLocale} />
                 )}
@@ -1560,13 +1563,21 @@ function App() {
         <DeleteProgressNotice count={deleteActions.pendingDeleteCount} />
         <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
         <QuickOpenPalette open={dialogs.showQuickOpen} entries={vault.entries} isLoading={vault.isLoading} onSelect={handleMobileSelectNote} onClose={dialogs.closeQuickOpen} locale={appLocale} />
-        <CommandPalette
-          open={dialogs.showCommandPalette}
-          commands={commands}
-          locale={appLocale}
-          onClose={dialogs.closeCommandPalette}
-        />
-        <SearchPanel open={dialogs.showSearch} vaultPath={resolvedPath} entries={vault.entries} onSelectNote={handleMobileSelectNote} onClose={dialogs.closeSearch} />
+        {dialogs.showCommandPalette && (
+          <Suspense fallback={null}>
+            <CommandPalette
+              open={true}
+              commands={commands}
+              locale={appLocale}
+              onClose={dialogs.closeCommandPalette}
+            />
+          </Suspense>
+        )}
+        {dialogs.showSearch && (
+          <Suspense fallback={null}>
+            <SearchPanel open={true} vaultPath={resolvedPath} entries={vault.entries} onSelectNote={handleMobileSelectNote} onClose={dialogs.closeSearch} />
+          </Suspense>
+        )}
         <CreateTypeDialog open={dialogs.showCreateTypeDialog} onClose={dialogs.closeCreateType} onCreate={handleCreateType} />
         <NoteRetargetingDialogs
           dialogState={noteRetargetingUi.dialogState}
@@ -1597,8 +1608,16 @@ function App() {
           onCommit={conflictResolver.commitResolution}
           onClose={conflictFlow.handleCloseConflictResolver}
         />
-        <SettingsPanel open={dialogs.showSettings} settings={settings} locale={appLocale} isGitVault={isGitVault} onSave={saveSettings} explicitOrganizationEnabled={explicitOrganizationEnabled} onSaveExplicitOrganization={handleSaveExplicitOrganization} onClose={dialogs.closeSettings} />
-        <CloneVaultModal key={dialogs.showCloneVault ? 'clone-open' : 'clone-closed'} open={dialogs.showCloneVault} onClose={dialogs.closeCloneVault} onVaultCloned={vaultSwitcher.handleVaultCloned} />
+        {dialogs.showSettings && (
+          <Suspense fallback={null}>
+            <SettingsPanel open={true} settings={settings} locale={appLocale} isGitVault={isGitVault} onSave={saveSettings} explicitOrganizationEnabled={explicitOrganizationEnabled} onSaveExplicitOrganization={handleSaveExplicitOrganization} onClose={dialogs.closeSettings} />
+          </Suspense>
+        )}
+        {dialogs.showCloneVault && (
+          <Suspense fallback={null}>
+            <CloneVaultModal key="clone-open" open={true} onClose={dialogs.closeCloneVault} onVaultCloned={vaultSwitcher.handleVaultCloned} />
+          </Suspense>
+        )}
         {deleteActions.confirmDelete && (
           <ConfirmDeleteDialog
             open={true}
