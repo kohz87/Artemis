@@ -47,14 +47,15 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           disable_search: true
           files: ./coverage/lcov.info
           verbose: true
-        # OIDC avoids long-lived CODECOV_TOKEN secrets.
+        # Coverage thresholds are enforced by pnpm test:coverage; Codecov upload is advisory.
 
       - name: Code Health gates
         env:
