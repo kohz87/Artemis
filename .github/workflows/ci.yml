@@ -64,12 +64,27 @@ jobs:
         run: |
           HOTSPOT_THRESHOLD=$(grep '^HOTSPOT_THRESHOLD=' .codescene-thresholds | cut -d= -f2)
           AVERAGE_THRESHOLD=$(grep '^AVERAGE_THRESHOLD=' .codescene-thresholds | cut -d= -f2)
-          API_RESPONSE=$(curl -sf \
-            -H "Authorization: Bearer $CODESCENE_PAT" \
+
+          if [ -z "$CODESCENE_PAT" ] || [ -z "$CODESCENE_PROJECT_ID" ]; then
+            echo "::warning::CodeScene secrets are not configured; skipping remote code health gate."
+            exit 0
+          fi
+
+          API_RESPONSE=$(curl -sS \
+            -H "Authorization: Bearer ${CODESCENE_PAT}" \
             -H "Accept: application/json" \
+            -w '\n%{http_code}' \
             "https://api.codescene.io/v2/projects/$CODESCENE_PROJECT_ID")
-          HOTSPOT_SCORE=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis']['hotspot_code_health']['now'])")
-          AVERAGE_SCORE=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis']['code_health']['now'])")
+          HTTP_STATUS=$(printf '%s' "$API_RESPONSE" | tail -n 1)
+          API_BODY=$(printf '%s' "$API_RESPONSE" | sed '$d')
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::warning::CodeScene API returned HTTP $HTTP_STATUS; skipping remote code health gate."
+            exit 0
+          fi
+
+          HOTSPOT_SCORE=$(echo "$API_BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis']['hotspot_code_health']['now'])")
+          AVERAGE_SCORE=$(echo "$API_BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis']['code_health']['now'])")
           echo "Hotspot Code Health: $HOTSPOT_SCORE (threshold: $HOTSPOT_THRESHOLD)"
           echo "Average Code Health: $AVERAGE_SCORE (threshold: $AVERAGE_THRESHOLD)"
           python3 -c "
