@@ -6,39 +6,24 @@ import {
   resolveStableDownloadTargets,
 } from './releaseDownloadPage'
 
-describe('release workflow macOS artifact names', () => {
-  function countOccurrences(input: string, value: string): number {
-    return input.split(value).length - 1
-  }
-
-  it('publishes versioned Silicon and Intel artifact names', () => {
+describe('web release workflows', () => {
+  it('publishes versioned web build artifacts without Tauri packaging inputs', () => {
     const alphaWorkflow = readFileSync(`${process.cwd()}/.github/workflows/release.yml`, 'utf8')
     const stableWorkflow = readFileSync(
       `${process.cwd()}/.github/workflows/release-stable.yml`,
       'utf8',
     )
 
-    expect(alphaWorkflow).toContain(
-      'Tolaria_${{ needs.version.outputs.version }}_macOS_Silicon.app.tar.gz',
-    )
-    expect(alphaWorkflow).toContain(
-      'Tolaria_${{ needs.version.outputs.version }}_macOS_Intel.app.tar.gz',
-    )
-    expect(stableWorkflow).toContain(
-      'Tolaria_${{ needs.version.outputs.version }}_macOS_Silicon.app.tar.gz',
-    )
-    expect(stableWorkflow).toContain(
-      'Tolaria_${{ needs.version.outputs.version }}_macOS_Intel.app.tar.gz',
-    )
-    expect(stableWorkflow).toContain(
-      'Tolaria_${{ needs.version.outputs.version }}_macOS_Silicon.dmg',
-    )
-    expect(stableWorkflow).toContain(
-      'Tolaria_${{ needs.version.outputs.version }}_macOS_Intel.dmg',
-    )
+    for (const workflow of [alphaWorkflow, stableWorkflow]) {
+      expect(workflow).toContain('artemis-web-${{ needs.version.outputs.version }}.zip')
+      expect(workflow).toContain('run: pnpm build')
+      expect(workflow).not.toContain('src-tauri')
+      expect(workflow).not.toContain('pnpm tauri')
+      expect(workflow).not.toContain('Cargo.toml')
+    }
   })
 
-  it('passes the computed build version to Sentry release env for packaged apps', () => {
+  it('passes the computed build version to the web Sentry release env', () => {
     const alphaWorkflow = readFileSync(`${process.cwd()}/.github/workflows/release.yml`, 'utf8')
     const stableWorkflow = readFileSync(
       `${process.cwd()}/.github/workflows/release-stable.yml`,
@@ -46,8 +31,8 @@ describe('release workflow macOS artifact names', () => {
     )
     const releaseEnv = 'VITE_SENTRY_RELEASE: ${{ needs.version.outputs.version }}'
 
-    expect(countOccurrences(alphaWorkflow, releaseEnv)).toBe(3)
-    expect(countOccurrences(stableWorkflow, releaseEnv)).toBe(3)
+    expect(alphaWorkflow).toContain(releaseEnv)
+    expect(stableWorkflow).toContain(releaseEnv)
   })
 })
 

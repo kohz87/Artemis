@@ -2,31 +2,31 @@
 
 ## GitHub Actions Workflow
 
-Il workflow `ci.yml` esegue i seguenti check automatici:
+Il workflow `ci.yml` esegue i seguenti check automatici per l'app web-only:
 
 ### 1. Tests
-- Frontend: `pnpm test`
-- Rust backend: `cargo test`
+- Frontend: `pnpm test:coverage`
 
 ### 2. Test Coverage
-- Frontend: vitest con coverage reporting
-- Upload automatico su Codecov dai report LCOV frontend + Rust
+- Vitest con coverage reporting
+- Upload automatico su Codecov del report LCOV frontend (`coverage/lcov.info`)
 - Threshold configurabile in `vitest.config.ts`
 
 ### 3. Code Health (CodeScene)
-- Delta analysis su ogni PR/push
-- Fail se il code health diminuisce
+- Code health gates su ogni PR/push
+- Fail se hotspot o average code health scendono sotto le soglie in `.codescene-thresholds`
 - Richiede secrets configurati (vedi sotto)
 
 ### 4. Documentation Check
-- Verifica che se cambia codice in `src/` o `src-tauri/`, anche `docs/` viene aggiornato
+- Verifica che se cambia codice in `src/` o `packages/`, anche `docs/` venga aggiornato
 - **Warning only** — non blocca il merge, solo un reminder
 - Skip con `[skip docs]` nel commit message
 - Aggiorna docs solo se la modifica invalida architettura/astrazioni/design già documentati
 
-### 5. Lint & Format
+### 5. Lint & Build
+- TypeScript type check
+- Vite build
 - ESLint per frontend
-- Clippy + rustfmt per Rust
 
 ## Setup Required
 
@@ -34,7 +34,7 @@ Il workflow `ci.yml` esegue i seguenti check automatici:
 Aggiungi questi secrets nel repository GitHub (Settings → Secrets → Actions):
 
 ```
-CODESCENE_TOKEN=<your-codescene-pat>
+CODESCENE_PAT=<your-codescene-pat>
 CODESCENE_PROJECT_ID=<your-project-id>
 ```
 
@@ -44,14 +44,13 @@ Il project ID lo trovi nella dashboard CodeScene.
 ### Codecov Setup
 - Installa/attiva il repo in Codecov una volta sola tramite GitHub App / import del repository.
 - Nessun `CODECOV_TOKEN` richiesto in GitHub Actions: `ci.yml` usa OIDC (`id-token: write` + `use_oidc: true`).
-- Il workflow carica `coverage/lcov.info` (Vitest) e `coverage/rust.lcov` (cargo-llvm-cov).
+- Il workflow carica `coverage/lcov.info` (Vitest).
 
 ### Telemetry Secrets For Release Builds
 Aggiungi anche questi secrets per i workflow `release.yml` e `release-stable.yml`:
 
 ```
 VITE_SENTRY_DSN=<frontend sentry dsn>
-SENTRY_DSN=<same dsn for rust/native crash reporting>
 VITE_POSTHOG_KEY=<posthog project api key>
 VITE_POSTHOG_HOST=https://eu.i.posthog.com
 ```
@@ -86,16 +85,15 @@ export default defineConfig({
 Prima di pushare, puoi testare localmente:
 
 ```bash
-# Run all tests
-pnpm test && cargo test
-
-# Check coverage
+# Run tests + coverage
 pnpm test:coverage
+
+# Type check and build
+pnpm exec tsc --noEmit
+pnpm build
 
 # Lint
 pnpm lint
-cargo clippy
-cargo fmt --check
 
 # CodeScene (local)
 codescene delta-analysis --base-revision origin/main
