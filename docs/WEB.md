@@ -9,7 +9,7 @@ pnpm install
 pnpm dev:web
 ```
 
-Open the URL printed by Vite. Web mode uses the same React UI in development and production. Filesystem-backed vaults go through the local web vault API; when that API is not available, Artemis uses an in-browser demo vault backed by localStorage.
+Open the URL printed by Vite. `pnpm dev:web` starts both the standalone local vault API and the Vite frontend. Web mode uses the same React UI in development and production. Filesystem-backed vaults go through the local web vault API; when that API is not available, Artemis uses an in-browser demo vault backed by localStorage.
 
 The development server binds to `localhost:5202` by default. Set `ARTEMIS_HOST=0.0.0.0` to allow network access from other
 devices, and set `ARTEMIS_PORT=5300` before `pnpm dev:web` to use a different
@@ -51,7 +51,7 @@ existing password-protected demos still work without a server.
 
 Web mode has two storage modes:
 
-- If you open a real directory while running `pnpm dev:web`, notes are read
+- If you open a real directory while running `pnpm dev` or `pnpm dev:web`, notes are read
   from and saved to markdown files in that directory through the local Vite
   `/api/vault/*` middleware. On Linux, enter an absolute path such as
   `/home/alex/notes` when the browser prompt asks for a vault folder. The
@@ -59,12 +59,15 @@ Web mode has two storage modes:
   before storing the vault selection.
 - Local git actions in web mode are handled by the same local server. The
   server uses `ARTEMIS_WEB_VAULT_ROOT` as the default vault root when set, then
-  falls back to `/root/git` when that directory exists. You can also set
-  `ARTEMIS_GIT_BINARY` if `git` is not on `PATH`. Commits use the repository's
-  configured git author when present; otherwise Artemis writes a repo-local
-  fallback from `ARTEMIS_GIT_AUTHOR_NAME` and `ARTEMIS_GIT_AUTHOR_EMAIL`
-  (`Artemis Web <artemis@localhost>` by default). The old `TOLARIA_*` variables
-  still work as compatibility aliases.
+  falls back to `/root/git` when that directory exists. Vault API access is
+  whitelisted to `ARTEMIS_ALLOWED_VAULT_ROOTS` when set, otherwise to
+  `ARTEMIS_WEB_VAULT_ROOT`/`TOLARIA_WEB_VAULT_ROOT` when set, otherwise to the
+  user's home directory so paths like `~/wiki` work without extra setup. You can
+  also set `ARTEMIS_GIT_BINARY` if `git` is not on `PATH`. Commits use the
+  repository's configured git author when present; otherwise Artemis writes a
+  repo-local fallback from `ARTEMIS_GIT_AUTHOR_NAME` and
+  `ARTEMIS_GIT_AUTHOR_EMAIL` (`Artemis Web <artemis@localhost>` by default).
+  The old `TOLARIA_*` variables still work as compatibility aliases.
 - If no local vault API is available, the demo vault is persisted in
   `localStorage` under `tolaria:web-vault:*` keys. Created notes, edits,
   deletes, app settings, and the active vault list survive page reloads in the

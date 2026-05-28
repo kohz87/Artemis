@@ -57,8 +57,13 @@ ARTEMIS_PORT=5202
 ARTEMIS_API_HOST=127.0.0.1
 ARTEMIS_API_PORT=5302
 
-# Optional default root for filesystem-backed web vaults.
+# Optional default root for filesystem-backed web vaults. When set, this also
+# scopes the vault API whitelist unless ARTEMIS_ALLOWED_VAULT_ROOTS is set.
 ARTEMIS_WEB_VAULT_ROOT=~/ArtemisVault
+
+# Optional explicit vault API whitelist. Defaults to your home directory when
+# neither ARTEMIS_ALLOWED_VAULT_ROOTS nor ARTEMIS_WEB_VAULT_ROOT is set.
+ARTEMIS_ALLOWED_VAULT_ROOTS=~/notes:~/work-notes
 
 # Optional git binary and fallback author for local vault git operations.
 ARTEMIS_GIT_BINARY=git
@@ -109,11 +114,14 @@ pnpm dev:server
 pnpm dev:frontend
 ```
 
-For frontend-only development or browser-local demo mode, use:
+`pnpm dev:web` is kept as a compatibility alias for the full web development stack:
 
 ```bash
 pnpm dev:web
 ```
+
+For frontend-only development, run `pnpm dev:frontend` and start `pnpm dev:server`
+in another terminal when you need filesystem-backed vaults.
 
 To expose the frontend on your network or use a different port:
 
@@ -172,7 +180,7 @@ ARTEMIS_HOST=0.0.0.0 ARTEMIS_PORT=5200 pnpm serve:web
 pnpm dev                 # Run vault API server and Vite frontend together
 pnpm dev:server          # Run only the standalone local vault API/auth server
 pnpm dev:frontend        # Run only the Vite frontend
-pnpm dev:web             # Alias for Vite frontend-only development
+pnpm dev:web             # Compatibility alias for the full web dev stack
 pnpm build               # Type-check and build web assets
 pnpm build:web           # Type-check and build web assets
 pnpm serve:web           # Serve the production web build with local API routes

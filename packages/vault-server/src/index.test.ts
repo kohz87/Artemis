@@ -1,7 +1,7 @@
 import { get, request } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -234,6 +234,33 @@ describe('vault-server module', () => {
       ]))
     } finally {
       rmSync(vaultRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows opening a vault folder under the user home directory when no vault root whitelist is configured', async () => {
+    delete process.env.ARTEMIS_PASSWORD
+    const vaultPath = mkdtempSync(path.join(homedir(), '.artemis-vault-home-'))
+    try {
+      writeFileSync(path.join(vaultPath, 'note.md'), '# Home Vault\n')
+      const server = createVaultHttpServer()
+      servers.push(server)
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      const { port } = server.address() as AddressInfo
+      const entries = await getJson(
+        `http://127.0.0.1:${port}/api/vault/list?path=${encodeURIComponent(vaultPath)}`,
+      )
+
+      expect(entries).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          path: path.join(vaultPath, 'note.md'),
+          filename: 'note.md',
+          title: 'Home Vault',
+          fileKind: 'markdown',
+        }),
+      ]))
+    } finally {
+      rmSync(vaultPath, { recursive: true, force: true })
     }
   })
 

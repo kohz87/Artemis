@@ -15,6 +15,8 @@ pnpm install
 
 # Run the standalone vault API server and Vite frontend together
 pnpm dev
+# Compatibility alias for the same full web dev stack
+pnpm dev:web
 # Open http://localhost:5202
 
 # Or run them independently in separate terminals

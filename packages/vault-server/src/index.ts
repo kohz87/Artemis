@@ -512,7 +512,10 @@ function configuredVaultRoots(): string[] {
   if (configuredRoots) {
     return configuredRoots.split(path.delimiter).map((root) => root.trim()).filter(Boolean).map(resolveUserPath)
   }
-  return [defaultWebVaultRoot()]
+
+  const configuredWebRoot = process.env.ARTEMIS_WEB_VAULT_ROOT?.trim()
+    || process.env.TOLARIA_WEB_VAULT_ROOT?.trim()
+  return [configuredWebRoot ? resolveUserPath(configuredWebRoot) : os.homedir()]
 }
 
 function existingAncestorPath(filePath: string): string | null {
